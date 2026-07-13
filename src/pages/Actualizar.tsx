@@ -4,6 +4,9 @@ import { useMacroData } from '../data/MacroDataContext';
 import { formatValue } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from '../components/FreshnessBadge';
+import { FRED_MAPPINGS, CBBS_MAPPING } from '../data/fredMappings';
+
+const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
@@ -31,8 +34,17 @@ function IndicatorRow({ id }: { id: string }) {
   return (
     <tr style={{ borderBottom: '1px solid var(--border)' }}>
       <td className="py-2.5 pr-3">
-        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           {meta.label}
+          {FRED_COVERED.has(id) && (
+            <span
+              className="rounded px-1 py-0.5 text-[10px] font-semibold"
+              style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
+              title="Se sincroniza automáticamente desde FRED"
+            >
+              FRED
+            </span>
+          )}
         </div>
         <div className="mt-0.5">
           <FreshnessBadge freshness={freshness} />
@@ -90,8 +102,37 @@ function IndicatorRow({ id }: { id: string }) {
 }
 
 export function Actualizar() {
-  const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode } = useMacroData();
+  const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode, refresh } = useMacroData();
   const sections = ['tasas', 'inflacion', 'empleo', 'ism'] as const;
+  const [fredSyncing, setFredSyncing] = useState(false);
+  const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
+
+  async function handleFredSync() {
+    setFredSyncing(true);
+    setFredResult(null);
+    try {
+      const res = await fetch('/api/fred-sync', { method: 'POST' });
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('no-api');
+      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      await refresh();
+      setFredResult({
+        updated: json.updated?.length ?? 0,
+        errors: (json.errors ?? []).map((e: { indicatorId: string; error: string }) => `${e.indicatorId}: ${e.error}`),
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message === 'no-api'
+          ? 'No se pudo contactar /api/fred-sync. Esta función solo funciona una vez que el sitio está desplegado en Vercel con la variable FRED_API_KEY configurada (no funciona en “npm run dev” local).'
+          : (err as Error).message;
+      setFredResult({ updated: 0, errors: [message] });
+    } finally {
+      setFredSyncing(false);
+    }
+  }
 
   function handleExport() {
     const blob = new Blob([exportJson()], { type: 'application/json' });
@@ -135,21 +176,39 @@ export function Actualizar() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={handleExport}
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white"
-          style={{ background: 'var(--series-2)' }}
-        >
-          Exportar JSON
-        </button>
-        <button
-          onClick={handleReset}
-          className="rounded-md px-4 py-2 text-sm font-semibold"
-          style={{ color: 'var(--delta-bad)', border: '1px solid var(--border)' }}
-        >
-          Borrar cambios locales
-        </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleFredSync}
+            disabled={fredSyncing}
+            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: 'var(--series-1)' }}
+          >
+            {fredSyncing ? 'Sincronizando…' : '⟳ Sincronizar con FRED'}
+          </button>
+          <button
+            onClick={handleExport}
+            className="rounded-md px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: 'var(--series-2)' }}
+          >
+            Exportar JSON
+          </button>
+          <button
+            onClick={handleReset}
+            className="rounded-md px-4 py-2 text-sm font-semibold"
+            style={{ color: 'var(--delta-bad)', border: '1px solid var(--border)' }}
+          >
+            Borrar cambios locales
+          </button>
+        </div>
+        {fredResult && (
+          <div className="text-xs" style={{ color: fredResult.errors.length > 0 ? 'var(--delta-bad)' : 'var(--delta-good)' }}>
+            {fredResult.updated > 0 && <div>{fredResult.updated} indicadores actualizados desde FRED.</div>}
+            {fredResult.errors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
+          </div>
+        )}
       </div>
 
       {sections.map((section) => (

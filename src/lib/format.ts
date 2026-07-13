@@ -11,7 +11,8 @@ export function formatValue(value: number, format: Format): string {
     case 'thousands':
       return `${Math.round(value / 1000).toLocaleString('es-ES')}k`;
     case 'billions':
-      return `$${(value / 1000).toFixed(1)}B`;
+      // el valor se guarda en miles de millones (US$ billions); se muestra en trillones
+      return `$${(value / 1000).toFixed(2)}T`;
     case 'ratio':
       return value.toFixed(2);
     default:

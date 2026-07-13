@@ -44,6 +44,7 @@ interface MacroDataContextValue {
   exportJson: () => string;
   loading: boolean;
   syncMode: 'cloud' | 'local';
+  refresh: () => Promise<void>;
 }
 
 const MacroDataContext = createContext<MacroDataContextValue | null>(null);
@@ -55,7 +56,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
 
   const base = historicalSeries as unknown as SeriesMap;
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     if (!supabaseEnabled || !supabase) {
       setOverrides(loadLocalOverrides());
       setScoreRows(loadLocalScore());
@@ -63,38 +64,38 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    let cancelled = false;
-    async function loadFromSupabase() {
-      const [pointsRes, scoreRes] = await Promise.all([
-        supabase!.from('indicator_overrides').select('indicator_id, date, value'),
-        supabase!.from('score_overrides').select('id, valoracion'),
-      ]);
+    const [pointsRes, scoreRes] = await Promise.all([
+      supabase.from('indicator_overrides').select('indicator_id, date, value'),
+      supabase.from('score_overrides').select('id, valoracion'),
+    ]);
 
-      if (cancelled) return;
-
-      if (!pointsRes.error && pointsRes.data) {
-        const map: SeriesMap = {};
-        for (const row of pointsRes.data as { indicator_id: string; date: string; value: number }[]) {
-          (map[row.indicator_id] ??= []).push([row.date, row.value]);
-        }
-        setOverrides(map);
+    if (!pointsRes.error && pointsRes.data) {
+      const map: SeriesMap = {};
+      for (const row of pointsRes.data as { indicator_id: string; date: string; value: number }[]) {
+        (map[row.indicator_id] ??= []).push([row.date, row.value]);
       }
-
-      if (!scoreRes.error && scoreRes.data && scoreRes.data.length > 0) {
-        const overridesById = new Map(
-          (scoreRes.data as { id: string; valoracion: number }[]).map((r) => [r.id, r.valoracion]),
-        );
-        setScoreRows(SCORE_SEED.map((row) => ({ ...row, valoracion: overridesById.get(row.id) ?? row.valoracion })));
-      }
-
-      setLoading(false);
+      setOverrides(map);
     }
 
-    loadFromSupabase();
+    if (!scoreRes.error && scoreRes.data && scoreRes.data.length > 0) {
+      const overridesById = new Map(
+        (scoreRes.data as { id: string; valoracion: number }[]).map((r) => [r.id, r.valoracion]),
+      );
+      setScoreRows(SCORE_SEED.map((row) => ({ ...row, valoracion: overridesById.get(row.id) ?? row.valoracion })));
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    refresh().then(() => {
+      if (cancelled) return;
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refresh]);
 
   const getSeries = useCallback(
     (id: string) => mergeSeries(base[id] ?? [], overrides[id] ?? []),
@@ -169,8 +170,19 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       exportJson,
       loading,
       syncMode: (supabaseEnabled ? 'cloud' : 'local') as 'cloud' | 'local',
+      refresh,
     }),
-    [getSeries, addPoint, removeLastPoint, scoreRows, updateScoreValoracion, resetOverrides, exportJson, loading],
+    [
+      getSeries,
+      addPoint,
+      removeLastPoint,
+      scoreRows,
+      updateScoreValoracion,
+      resetOverrides,
+      exportJson,
+      loading,
+      refresh,
+    ],
   );
 
   return <MacroDataContext.Provider value={value}>{children}</MacroDataContext.Provider>;
