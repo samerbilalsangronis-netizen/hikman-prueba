@@ -1,0 +1,81 @@
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+
+const NAV = [
+  { to: '/', label: 'Resumen', end: true },
+  { to: '/tasas', label: 'Tasas y Fed' },
+  { to: '/inflacion', label: 'Inflación' },
+  { to: '/empleo', label: 'Empleo' },
+  { to: '/ism', label: 'ISM / Sentimiento' },
+  { to: '/actualizar', label: 'Actualizar Datos' },
+];
+
+function useTheme() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('macro-dashboard:theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('macro-dashboard:theme', theme);
+  }, [theme]);
+
+  return [theme, setTheme] as const;
+}
+
+export function Layout() {
+  const [theme, setTheme] = useTheme();
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--page)' }}>
+      <header
+        className="sticky top-0 z-10 backdrop-blur"
+        style={{ background: 'color-mix(in srgb, var(--page) 85%, transparent)', borderBottom: '1px solid var(--border)' }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+              USD
+            </span>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Seguimiento Macro Fundamental
+            </span>
+          </div>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="rounded-full px-3 py-1 text-xs font-medium"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            {theme === 'dark' ? '☀ Claro' : '● Oscuro'}
+          </button>
+        </div>
+        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${isActive ? '' : ''}`
+              }
+              style={({ isActive }) => ({
+                background: isActive ? 'var(--series-1)' : 'transparent',
+                color: isActive ? '#fff' : 'var(--text-secondary)',
+              })}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </header>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <Outlet />
+      </main>
+      <footer className="mx-auto max-w-7xl px-4 py-8 text-xs sm:px-6" style={{ color: 'var(--text-muted)' }}>
+        Datos actualizados manualmente. Revisa las insignias de frescura en cada tarjeta antes de operar con ellos.
+      </footer>
+    </div>
+  );
+}
