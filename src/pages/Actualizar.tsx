@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { INDICATORS, SECTION_LABELS } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
-import { formatValue } from '../lib/format';
+import { formatValue, formatDate } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from '../components/FreshnessBadge';
 import { FRED_MAPPINGS, CBBS_MAPPING } from '../data/fredMappings';
+import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
 const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
 
@@ -145,6 +146,89 @@ function IndicatorRow({ id }: { id: string }) {
   );
 }
 
+function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
+  const { fomcWatch, updateFomcWatch } = useMacroData();
+  const current = fomcWatch[meetingDate];
+  const [cut, setCut] = useState(current ? String(current.probCut) : '');
+  const [hold, setHold] = useState(current ? String(current.probHold) : '');
+  const [hike, setHike] = useState(current ? String(current.probHike) : '');
+  const [note, setNote] = useState(current?.note ?? '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    const probCut = parseInt(cut, 10) || 0;
+    const probHold = parseInt(hold, 10) || 0;
+    const probHike = parseInt(hike, 10) || 0;
+    setSaving(true);
+    await updateFomcWatch(meetingDate, { probCut, probHold, probHike, note });
+    setSaving(false);
+  }
+
+  return (
+    <tr style={{ borderTop: '1px solid var(--border)' }}>
+      <td className="px-3 py-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        {formatDate(meetingDate)}
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={cut}
+          onChange={(e) => setCut(e.target.value)}
+          placeholder="%"
+          className="w-16 rounded-md px-2 py-1 text-sm tabular-nums"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={hold}
+          onChange={(e) => setHold(e.target.value)}
+          placeholder="%"
+          className="w-16 rounded-md px-2 py-1 text-sm tabular-nums"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={hike}
+          onChange={(e) => setHike(e.target.value)}
+          placeholder="%"
+          className="w-16 rounded-md px-2 py-1 text-sm tabular-nums"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="nota opcional (ej. -25pb más probable)"
+          className="w-56 rounded-md px-2 py-1 text-sm"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        />
+      </td>
+      <td className="px-3 py-2 text-right">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          style={{ background: 'var(--series-1)' }}
+        >
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 export function Actualizar() {
   const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode, refresh } = useMacroData();
   const sections = ['tasas', 'inflacion', 'empleo', 'ism'] as const;
@@ -281,6 +365,44 @@ export function Actualizar() {
           </div>
         </div>
       ))}
+
+      <div>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          FOMC Watch — Previsión de Tasas
+        </h2>
+        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+          Probabilidades (0-100, no necesitan sumar exactamente 100) que el mercado de futuros asigna a cada
+          resultado de la próxima reunión de la Fed. Consúltalas en{' '}
+          <a
+            href="https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            CME FedWatch
+          </a>
+          .
+        </p>
+        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
+          <table className="w-full" style={{ background: 'var(--surface-1)' }}>
+            <thead>
+              <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
+                <th className="px-3 pt-3 pb-2 font-medium">Reunión</th>
+                <th className="px-3 pt-3 pb-2 font-medium">Baja %</th>
+                <th className="px-3 pt-3 pb-2 font-medium">Mantiene %</th>
+                <th className="px-3 pt-3 pb-2 font-medium">Sube %</th>
+                <th className="px-3 pt-3 pb-2 font-medium">Nota</th>
+                <th className="px-3 pt-3 pb-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {upcomingFomcMeetings().map((m) => (
+                <FomcWatchRow key={m.date} meetingDate={m.date} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>

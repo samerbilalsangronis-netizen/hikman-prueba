@@ -34,3 +34,10 @@ export interface FreshnessInfo {
   daysSince: number;
   lastDate: string | null;
 }
+
+export interface FomcProbabilities {
+  probCut: number;
+  probHold: number;
+  probHike: number;
+  note: string;
+}

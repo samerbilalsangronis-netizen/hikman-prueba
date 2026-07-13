@@ -24,9 +24,23 @@ create table if not exists indicator_forecasts (
   updated_at timestamptz not null default now()
 );
 
+-- FOMC Watch: probabilidad (0-100) que el mercado asigna a cada resultado de
+-- la próxima reunión de la Fed. Es 100% manual — no hay API gratuita de
+-- futuros de Fed Funds — normalmente se consulta en CME FedWatch
+-- (cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html) y se carga acá.
+create table if not exists fomc_watch (
+  meeting_date date primary key,
+  prob_cut smallint not null default 0,
+  prob_hold smallint not null default 0,
+  prob_hike smallint not null default 0,
+  note text,
+  updated_at timestamptz not null default now()
+);
+
 alter table indicator_overrides enable row level security;
 alter table score_overrides enable row level security;
 alter table indicator_forecasts enable row level security;
+alter table fomc_watch enable row level security;
 
 -- Nota de seguridad: estas políticas permiten leer y escribir a cualquiera que
 -- tenga la URL y la clave "anon" del proyecto (que va embebida en el sitio
@@ -46,5 +60,10 @@ create policy "public read/write score_overrides"
 
 create policy "public read/write indicator_forecasts"
   on indicator_forecasts for all
+  using (true)
+  with check (true);
+
+create policy "public read/write fomc_watch"
+  on fomc_watch for all
   using (true)
   with check (true);

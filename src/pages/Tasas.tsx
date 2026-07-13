@@ -1,4 +1,5 @@
 import { SectionGrid } from '../components/SectionGrid';
+import { FomcWatchPanel } from '../components/FomcWatchPanel';
 
 export function Tasas() {
   return (
@@ -12,6 +13,7 @@ export function Tasas() {
           En el Excel original estos cuatro llevaban entre 1 y 11 años sin actualizarse.
         </p>
       </div>
+      <FomcWatchPanel />
       <SectionGrid section="tasas" months={60} />
     </div>
   );
