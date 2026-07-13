@@ -15,8 +15,18 @@ create table if not exists score_overrides (
   updated_at timestamptz not null default now()
 );
 
+-- Previsión (consenso de mercado) por indicador. No viene de FRED (FRED solo
+-- publica datos ya salidos, no expectativas) — se carga a mano, igual para
+-- los indicadores que sincronizan solos que para los manuales.
+create table if not exists indicator_forecasts (
+  indicator_id text primary key,
+  forecast double precision not null,
+  updated_at timestamptz not null default now()
+);
+
 alter table indicator_overrides enable row level security;
 alter table score_overrides enable row level security;
+alter table indicator_forecasts enable row level security;
 
 -- Nota de seguridad: estas políticas permiten leer y escribir a cualquiera que
 -- tenga la URL y la clave "anon" del proyecto (que va embebida en el sitio
@@ -31,5 +41,10 @@ create policy "public read/write indicator_overrides"
 
 create policy "public read/write score_overrides"
   on score_overrides for all
+  using (true)
+  with check (true);
+
+create policy "public read/write indicator_forecasts"
+  on indicator_forecasts for all
   using (true)
   with check (true);

@@ -3,9 +3,10 @@
 //   level_pct   -> el valor de FRED ya es un % (ej. 5.33) -> se guarda como fracción (0.0533)
 //   level       -> el valor de FRED se guarda tal cual
 //   level_div1000 -> el valor de FRED se guarda dividido entre 1000 (miles -> millones)
-//   pct_change  -> variación % respecto a la observación anterior (para índices de nivel como CPI)
+//   pct_change  -> variación % respecto al mes anterior (para índices de nivel como CPI)
+//   pct_change_yoy -> variación % respecto al mismo mes del año anterior
 //   diff_x1000  -> diferencia respecto a la observación anterior, en miles de personas (NFP)
-export type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'diff_x1000';
+export type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'pct_change_yoy' | 'diff_x1000';
 
 export interface FredMapping {
   indicatorId: string;
@@ -25,6 +26,10 @@ export const FRED_MAPPINGS: FredMapping[] = [
   // "Final Demand" vigente.
   { indicatorId: 'ppi', seriesId: 'PPIFIS', transform: 'pct_change' },
   { indicatorId: 'core_ppi', seriesId: 'PPIFES', transform: 'pct_change' },
+  { indicatorId: 'cpi_yoy', seriesId: 'CPIAUCSL', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_cpi_yoy', seriesId: 'CPILFESL', transform: 'pct_change_yoy' },
+  { indicatorId: 'ppi_yoy', seriesId: 'PPIFIS', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_ppi_yoy', seriesId: 'PPIFES', transform: 'pct_change_yoy' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },

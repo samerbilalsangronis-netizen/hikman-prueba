@@ -42,10 +42,12 @@ export function ChartCard({
   meta,
   points,
   months = 36,
+  forecast,
 }: {
   meta: IndicatorMeta;
   points: SeriesPoint[];
   months?: number;
+  forecast?: number;
 }) {
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
@@ -79,18 +81,46 @@ export function ChartCard({
         <FreshnessBadge freshness={freshness} />
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-2xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-          {last ? formatValue(last[1], meta.format) : '—'}
-        </span>
-        {delta !== null && (
-          <span
-            className="text-xs font-medium tabular-nums"
-            style={{ color: deltaGood === null ? 'var(--text-secondary)' : deltaGood ? 'var(--delta-good)' : 'var(--delta-bad)' }}
-          >
-            {delta >= 0 ? '▲' : '▼'} {formatValue(Math.abs(delta), meta.format)}
+      <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg py-2" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex flex-col items-center gap-0.5 border-r px-1 text-center" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            Anterior
           </span>
-        )}
+          <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+            {prev ? formatValue(prev[1], meta.format) : '—'}
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5 border-r px-1 text-center" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            Previsión
+          </span>
+          <span
+            className="text-sm font-medium tabular-nums"
+            style={{ color: forecast !== undefined ? 'var(--series-5)' : 'var(--text-muted)' }}
+          >
+            {forecast !== undefined ? formatValue(forecast, meta.format) : '—'}
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5 px-1 text-center">
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            Actual
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-lg font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+              {last ? formatValue(last[1], meta.format) : '—'}
+            </span>
+            {delta !== null && (
+              <span
+                className="text-[10px] font-medium tabular-nums"
+                style={{
+                  color: deltaGood === null ? 'var(--text-secondary)' : deltaGood ? 'var(--delta-good)' : 'var(--delta-bad)',
+                }}
+              >
+                {delta >= 0 ? '▲' : '▼'}
+              </span>
+            )}
+          </span>
+        </div>
       </div>
 
       <div className="mt-2 h-[140px] w-full">

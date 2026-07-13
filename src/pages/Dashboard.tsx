@@ -5,10 +5,10 @@ import { ScorePanel } from '../components/ScorePanel';
 import { getFreshness } from '../lib/freshness';
 import { INDICATORS } from '../data/indicators';
 
-const HIGHLIGHTS = ['fed_funds_rate', 'cpi', 'nfp', 'ism_manuf'];
+const HIGHLIGHTS = ['fed_funds_rate', 'cpi_yoy', 'nfp', 'ism_manuf'];
 
 export function Dashboard() {
-  const { getSeries, scoreRows } = useMacroData();
+  const { getSeries, scoreRows, forecasts } = useMacroData();
 
   const staleCount = INDICATORS.filter((m) => getFreshness(getSeries(m.id), m.frequency).level !== 'ok').length;
 
@@ -34,7 +34,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {HIGHLIGHTS.map((id) => {
             const meta = INDICATORS.find((m) => m.id === id)!;
-            return <ChartCard key={id} meta={meta} points={getSeries(id)} months={24} />;
+            return <ChartCard key={id} meta={meta} points={getSeries(id)} months={24} forecast={forecasts[id]} />;
           })}
         </div>
       </div>
@@ -51,7 +51,7 @@ export function Dashboard() {
             {indicatorsBySection(section)
               .slice(0, 3)
               .map((meta) => (
-                <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} />
+                <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />
               ))}
           </div>
         </div>

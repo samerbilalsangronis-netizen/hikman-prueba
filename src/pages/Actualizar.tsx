@@ -10,16 +10,21 @@ const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_M
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
-  const { getSeries, addPoint, removeLastPoint } = useMacroData();
+  const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast } = useMacroData();
   const points = getSeries(id);
   const last = points[points.length - 1];
+  const prev = points[points.length - 2];
   const freshness = getFreshness(points, meta.frequency);
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [forecastInput, setForecastInput] = useState('');
+  const [savingForecast, setSavingForecast] = useState(false);
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
+  const isFred = FRED_COVERED.has(id);
+  const currentForecast = forecasts[id];
 
   async function handleSave() {
     const raw = parseFloat(value);
@@ -31,12 +36,22 @@ function IndicatorRow({ id }: { id: string }) {
     setValue('');
   }
 
+  async function handleSaveForecast() {
+    const raw = parseFloat(forecastInput);
+    if (Number.isNaN(raw)) return;
+    const stored = isPercentFormat ? raw / 100 : raw;
+    setSavingForecast(true);
+    await updateForecast(id, stored);
+    setSavingForecast(false);
+    setForecastInput('');
+  }
+
   return (
     <tr style={{ borderBottom: '1px solid var(--border)' }}>
       <td className="py-2.5 pr-3">
         <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           {meta.label}
-          {FRED_COVERED.has(id) && (
+          {isFred && (
             <span
               className="rounded px-1 py-0.5 text-[10px] font-semibold"
               style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
@@ -51,52 +66,81 @@ function IndicatorRow({ id }: { id: string }) {
         </div>
       </td>
       <td className="py-2.5 pr-3 text-sm tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+        {prev ? formatValue(prev[1], meta.format) : '—'}
+      </td>
+      <td className="py-2.5 pr-3 text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
         {last ? formatValue(last[1], meta.format) : '—'}
-        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-[11px] font-normal" style={{ color: 'var(--text-muted)' }}>
           {last?.[0] ?? 'sin dato'}
         </div>
-      </td>
-      <td className="py-2.5 pr-3">
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-36 rounded-md px-2 py-1 text-sm"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-        />
       </td>
       <td className="py-2.5 pr-3">
         <div className="flex items-center gap-1">
           <input
             type="number"
             step="any"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={isPercentFormat ? '%' : 'valor'}
-            className="w-24 rounded-md px-2 py-1 text-sm tabular-nums"
+            value={forecastInput}
+            onChange={(e) => setForecastInput(e.target.value)}
+            placeholder={currentForecast !== undefined ? formatValue(currentForecast, meta.format) : isPercentFormat ? '%' : 'valor'}
+            className="w-20 rounded-md px-2 py-1 text-sm tabular-nums"
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           />
-          {isPercentFormat && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>}
+          <button
+            onClick={handleSaveForecast}
+            disabled={forecastInput === '' || savingForecast}
+            className="rounded-md px-2 py-1 text-xs font-semibold disabled:opacity-40"
+            style={{ color: 'var(--series-5)', border: '1px solid var(--border)' }}
+          >
+            {savingForecast ? '…' : 'OK'}
+          </button>
         </div>
       </td>
-      <td className="py-2.5 text-right">
-        <button
-          onClick={handleSave}
-          disabled={value === '' || saving}
-          className="rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-          style={{ background: 'var(--series-1)' }}
-        >
-          {saving ? 'Guardando…' : 'Guardar'}
-        </button>
-        <button
-          onClick={() => removeLastPoint(id)}
-          className="ml-2 rounded-md px-2 py-1.5 text-xs"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-          title="Deshacer el último punto que agregaste"
-        >
-          Deshacer
-        </button>
-      </td>
+      {isFred ? (
+        <td className="py-2.5 text-xs" style={{ color: 'var(--text-muted)' }} colSpan={2}>
+          Se actualiza automático con "Sincronizar con FRED" — no requiere carga manual.
+        </td>
+      ) : (
+        <>
+          <td className="py-2.5 pr-3">
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-32 rounded-md px-2 py-1 text-sm"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+              <input
+                type="number"
+                step="any"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={isPercentFormat ? '%' : 'valor'}
+                className="w-20 rounded-md px-2 py-1 text-sm tabular-nums"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+          </td>
+          <td className="py-2.5 text-right">
+            <button
+              onClick={handleSave}
+              disabled={value === '' || saving}
+              className="rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+              style={{ background: 'var(--series-1)' }}
+            >
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button
+              onClick={() => removeLastPoint(id)}
+              className="ml-2 rounded-md px-2 py-1.5 text-xs"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              title="Deshacer el último punto que agregaste"
+            >
+              Deshacer
+            </button>
+          </td>
+        </>
+      )}
     </tr>
   );
 }
@@ -221,9 +265,10 @@ export function Actualizar() {
               <thead>
                 <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
                   <th className="px-3 pt-3 pb-2 font-medium">Indicador</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Último dato</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Fecha nueva</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Valor nuevo</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Anterior</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Actual</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Previsión</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Carga manual</th>
                   <th className="px-3 pt-3 pb-2" />
                 </tr>
               </thead>
