@@ -22,8 +22,11 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
   { indicatorId: 'cpi', seriesId: 'CPIAUCSL', transform: 'pct_change' },
   { indicatorId: 'core_cpi', seriesId: 'CPILFESL', transform: 'pct_change' },
-  { indicatorId: 'ppi', seriesId: 'PPIFGS', transform: 'pct_change' },
-  { indicatorId: 'core_ppi', seriesId: 'PPILFE', transform: 'pct_change' },
+  // PPIFGS/PPILFE (las series "clásicas") fueron descontinuadas por BLS/FRED
+  // en dic-2015. PPIFIS/PPIFES son su continuación bajo la metodología
+  // "Final Demand" vigente.
+  { indicatorId: 'ppi', seriesId: 'PPIFIS', transform: 'pct_change' },
+  { indicatorId: 'core_ppi', seriesId: 'PPIFES', transform: 'pct_change' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
