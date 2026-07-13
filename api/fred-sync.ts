@@ -1,6 +1,40 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { FRED_MAPPINGS, CBBS_MAPPING, type FredTransform } from '../src/data/fredMappings';
+
+// Copia local e independiente de src/data/fredMappings.ts. Vercel empaqueta
+// cada función de /api por separado y no logra rastrear imports que cruzan
+// a /src (falla en runtime con ERR_MODULE_NOT_FOUND), así que esta función
+// necesita su propia copia autocontenida. Si cambias el mapeo, actualiza
+// también src/data/fredMappings.ts (se usa ahí solo para mostrar la
+// insignia "FRED" en la UI).
+type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'diff_x1000';
+
+interface FredMapping {
+  indicatorId: string;
+  seriesId: string;
+  transform: FredTransform;
+}
+
+const FRED_MAPPINGS: FredMapping[] = [
+  { indicatorId: 'fed_funds_rate', seriesId: 'FEDFUNDS', transform: 'level_pct' },
+  { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
+  { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
+  { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
+  { indicatorId: 'cpi', seriesId: 'CPIAUCSL', transform: 'pct_change' },
+  { indicatorId: 'core_cpi', seriesId: 'CPILFESL', transform: 'pct_change' },
+  { indicatorId: 'ppi', seriesId: 'PPIFGS', transform: 'pct_change' },
+  { indicatorId: 'core_ppi', seriesId: 'PPILFE', transform: 'pct_change' },
+  { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
+  { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
+  { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
+  { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
+];
+
+const CBBS_MAPPING = {
+  indicatorId: 'cbbs_pct_gdp',
+  balanceSheetSeriesId: 'WALCL',
+  gdpSeriesId: 'GDP',
+};
 
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 
