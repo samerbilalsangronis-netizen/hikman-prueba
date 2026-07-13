@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useMacroData } from '../data/MacroDataContext';
 
 const NAV = [
   { to: '/', label: 'Resumen', end: true },
@@ -27,6 +28,7 @@ function useTheme() {
 
 export function Layout() {
   const [theme, setTheme] = useTheme();
+  const { syncMode, loading } = useMacroData();
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--page)' }}>
@@ -43,13 +45,30 @@ export function Layout() {
               Seguimiento Macro Fundamental
             </span>
           </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="rounded-full px-3 py-1 text-xs font-medium"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-          >
-            {theme === 'dark' ? '☀ Claro' : '● Oscuro'}
-          </button>
+          <div className="flex items-center gap-2">
+            <span
+              className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium sm:inline-flex"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              title={
+                syncMode === 'cloud'
+                  ? 'Los datos se guardan en Supabase y se sincronizan entre dispositivos'
+                  : 'Los datos se guardan solo en este navegador (configura Supabase para sincronizar)'
+              }
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: syncMode === 'cloud' ? 'var(--status-good)' : 'var(--status-warning)' }}
+              />
+              {loading ? 'Cargando…' : syncMode === 'cloud' ? 'Sincronizado (Supabase)' : 'Guardado local'}
+            </span>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="rounded-full px-3 py-1 text-xs font-medium"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+            >
+              {theme === 'dark' ? '☀ Claro' : '● Oscuro'}
+            </button>
+          </div>
         </div>
         <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6">
           {NAV.map((item) => (

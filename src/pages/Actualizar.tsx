@@ -14,14 +14,17 @@ function IndicatorRow({ id }: { id: string }) {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
 
-  function handleSave() {
+  async function handleSave() {
     const raw = parseFloat(value);
     if (Number.isNaN(raw)) return;
     const stored = isPercentFormat ? raw / 100 : raw;
-    addPoint(id, date, stored);
+    setSaving(true);
+    await addPoint(id, date, stored);
+    setSaving(false);
     setValue('');
   }
 
@@ -67,11 +70,11 @@ function IndicatorRow({ id }: { id: string }) {
       <td className="py-2.5 text-right">
         <button
           onClick={handleSave}
-          disabled={value === ''}
+          disabled={value === '' || saving}
           className="rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
           style={{ background: 'var(--series-1)' }}
         >
-          Guardar
+          {saving ? 'Guardando…' : 'Guardar'}
         </button>
         <button
           onClick={() => removeLastPoint(id)}
@@ -87,7 +90,7 @@ function IndicatorRow({ id }: { id: string }) {
 }
 
 export function Actualizar() {
-  const { scoreRows, updateScoreValoracion, resetOverrides, exportJson } = useMacroData();
+  const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode } = useMacroData();
   const sections = ['tasas', 'inflacion', 'empleo', 'ism'] as const;
 
   function handleExport() {
@@ -101,7 +104,11 @@ export function Actualizar() {
   }
 
   function handleReset() {
-    if (confirm('Esto borrará todos los datos que agregaste manualmente en este navegador. ¿Continuar?')) {
+    const msg =
+      syncMode === 'cloud'
+        ? 'Esto borrará todos los datos manuales de la base de datos (Supabase), para todos los dispositivos. ¿Continuar?'
+        : 'Esto borrará todos los datos que agregaste manualmente en este navegador. ¿Continuar?';
+    if (confirm(msg)) {
       resetOverrides();
     }
   }
@@ -113,9 +120,18 @@ export function Actualizar() {
           Actualizar Datos
         </h1>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
-          Agrega el último dato publicado de cada indicador, igual que hacías pegando valores en el Excel. Se guarda
-          en este navegador al instante. Cuando quieras dejarlo fijo para todos, pulsa <strong>“Exportar JSON”</strong>{' '}
-          y reemplaza <code>src/data/historical-series.json</code> en el repositorio.
+          {syncMode === 'cloud' ? (
+            <>
+              Agrega el último dato publicado de cada indicador. Se guarda en la base de datos (Supabase) al
+              instante y se sincroniza en todos los dispositivos.
+            </>
+          ) : (
+            <>
+              Agrega el último dato publicado de cada indicador. Se guarda solo en este navegador (no hay base de
+              datos configurada todavía). Pulsa <strong>“Exportar JSON”</strong> y reemplaza{' '}
+              <code>src/data/historical-series.json</code> en el repositorio para dejarlo fijo para todos.
+            </>
+          )}
         </p>
       </div>
 
