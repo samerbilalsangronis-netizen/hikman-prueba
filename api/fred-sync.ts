@@ -25,6 +25,8 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
   { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
+  // m/m usa las series ajustadas estacionalmente (SA) — es la convención
+  // para comparar un mes contra el inmediatamente anterior.
   { indicatorId: 'cpi', seriesId: 'CPIAUCSL', transform: 'pct_change' },
   { indicatorId: 'core_cpi', seriesId: 'CPILFESL', transform: 'pct_change' },
   // PPIFGS/PPILFE (las series "clásicas") fueron descontinuadas por BLS/FRED
@@ -32,10 +34,14 @@ const FRED_MAPPINGS: FredMapping[] = [
   // "Final Demand" vigente.
   { indicatorId: 'ppi', seriesId: 'PPIFIS', transform: 'pct_change' },
   { indicatorId: 'core_ppi', seriesId: 'PPIFES', transform: 'pct_change' },
-  { indicatorId: 'cpi_yoy', seriesId: 'CPIAUCSL', transform: 'pct_change_yoy' },
-  { indicatorId: 'core_cpi_yoy', seriesId: 'CPILFESL', transform: 'pct_change_yoy' },
-  { indicatorId: 'ppi_yoy', seriesId: 'PPIFIS', transform: 'pct_change_yoy' },
-  { indicatorId: 'core_ppi_yoy', seriesId: 'PPIFES', transform: 'pct_change_yoy' },
+  // a/a usa las series SIN ajuste estacional (NSA) — así es como BLS/prensa
+  // calculan el "interanual" (comparar el mismo mes cancela la
+  // estacionalidad, así que no hace falta la serie ajustada; usarla da un
+  // número distinto al que reportan los medios).
+  { indicatorId: 'cpi_yoy', seriesId: 'CPIAUCNS', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_cpi_yoy', seriesId: 'CPILFENS', transform: 'pct_change_yoy' },
+  { indicatorId: 'ppi_yoy', seriesId: 'PPIFID', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_ppi_yoy', seriesId: 'PPICOR', transform: 'pct_change_yoy' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
@@ -72,6 +78,33 @@ async function fetchObservations(seriesId: string, apiKey: string, limit = FETCH
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Retrocede `months` meses calendario sobre una fecha "YYYY-MM-DD" (las
+// series mensuales de FRED siempre caen en el día 01).
+function shiftMonths(date: string, months: number): string {
+  const [y, m] = date.split('-').map(Number);
+  const total = y * 12 + (m - 1) - months;
+  const newY = Math.floor(total / 12);
+  const newM = (total % 12) + 1;
+  return `${newY}-${String(newM).padStart(2, '0')}-01`;
+}
+
+// Compara cada observación contra la de `monthsBack` meses calendario atrás,
+// buscando por FECHA (no por posición en el arreglo). Así el cálculo es
+// correcto aunque la serie tenga huecos (FRED a veces publica observaciones
+// en blanco que quedan filtradas antes de llegar acá, lo que correría los
+// índices si comparáramos por posición).
+function pctChangeByMonth(obs: Observation[], monthsBack: number): Observation[] {
+  const byDate = new Map(obs.map((o) => [o.date, o.value]));
+  const out: Observation[] = [];
+  for (const cur of obs) {
+    const prevValue = byDate.get(shiftMonths(cur.date, monthsBack));
+    if (prevValue !== undefined && prevValue !== 0) {
+      out.push({ date: cur.date, value: (cur.value - prevValue) / prevValue });
+    }
+  }
+  return out;
+}
+
 function computeSeries(transform: FredTransform, obs: Observation[]): Observation[] {
   switch (transform) {
     case 'level_pct':
@@ -80,30 +113,16 @@ function computeSeries(transform: FredTransform, obs: Observation[]): Observatio
       return obs.map((o) => ({ date: o.date, value: o.value }));
     case 'level_div1000':
       return obs.map((o) => ({ date: o.date, value: o.value / 1000 }));
-    case 'pct_change': {
-      const out: Observation[] = [];
-      for (let i = 1; i < obs.length; i++) {
-        const prev = obs[i - 1];
-        const cur = obs[i];
-        if (prev.value !== 0) out.push({ date: cur.date, value: (cur.value - prev.value) / prev.value });
-      }
-      return out;
-    }
-    case 'pct_change_yoy': {
-      // Asume observaciones mensuales sin huecos, así que compara contra el
-      // valor 12 posiciones atrás (mismo mes, año anterior).
-      const out: Observation[] = [];
-      for (let i = 12; i < obs.length; i++) {
-        const prev = obs[i - 12];
-        const cur = obs[i];
-        if (prev.value !== 0) out.push({ date: cur.date, value: (cur.value - prev.value) / prev.value });
-      }
-      return out;
-    }
+    case 'pct_change':
+      return pctChangeByMonth(obs, 1);
+    case 'pct_change_yoy':
+      return pctChangeByMonth(obs, 12);
     case 'diff_x1000': {
+      const byDate = new Map(obs.map((o) => [o.date, o.value]));
       const out: Observation[] = [];
-      for (let i = 1; i < obs.length; i++) {
-        out.push({ date: obs[i].date, value: (obs[i].value - obs[i - 1].value) * 1000 });
+      for (const cur of obs) {
+        const prevValue = byDate.get(shiftMonths(cur.date, 1));
+        if (prevValue !== undefined) out.push({ date: cur.date, value: (cur.value - prevValue) * 1000 });
       }
       return out;
     }

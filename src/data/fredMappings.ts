@@ -30,10 +30,12 @@ export const FRED_MAPPINGS: FredMapping[] = [
   // "Final Demand" vigente.
   { indicatorId: 'ppi', seriesId: 'PPIFIS', transform: 'pct_change' },
   { indicatorId: 'core_ppi', seriesId: 'PPIFES', transform: 'pct_change' },
-  { indicatorId: 'cpi_yoy', seriesId: 'CPIAUCSL', transform: 'pct_change_yoy' },
-  { indicatorId: 'core_cpi_yoy', seriesId: 'CPILFESL', transform: 'pct_change_yoy' },
-  { indicatorId: 'ppi_yoy', seriesId: 'PPIFIS', transform: 'pct_change_yoy' },
-  { indicatorId: 'core_ppi_yoy', seriesId: 'PPIFES', transform: 'pct_change_yoy' },
+  // a/a usa las series SIN ajuste estacional (NSA): así calcula BLS/prensa
+  // el interanual — usar la serie ajustada da un número distinto.
+  { indicatorId: 'cpi_yoy', seriesId: 'CPIAUCNS', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_cpi_yoy', seriesId: 'CPILFENS', transform: 'pct_change_yoy' },
+  { indicatorId: 'ppi_yoy', seriesId: 'PPIFID', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_ppi_yoy', seriesId: 'PPICOR', transform: 'pct_change_yoy' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
