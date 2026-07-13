@@ -15,7 +15,11 @@ export interface FredMapping {
 }
 
 export const FRED_MAPPINGS: FredMapping[] = [
-  { indicatorId: 'fed_funds_rate', seriesId: 'FEDFUNDS', transform: 'level_pct' },
+  // DFEDTARU = límite superior del rango objetivo del FOMC (lo que reportan
+  // medios/Investing.com como "la tasa de la Fed"). FEDFUNDS (tasa efectiva
+  // promedio mensual) es distinta y normalmente queda cerca del punto medio
+  // del rango, no del límite superior.
+  { indicatorId: 'fed_funds_rate', seriesId: 'DFEDTARU', transform: 'level_pct' },
   { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
   { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },

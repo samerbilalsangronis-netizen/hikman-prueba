@@ -13,10 +13,15 @@ interface FredMapping {
   indicatorId: string;
   seriesId: string;
   transform: FredTransform;
+  fetchLimit?: number;
 }
 
 const FRED_MAPPINGS: FredMapping[] = [
-  { indicatorId: 'fed_funds_rate', seriesId: 'FEDFUNDS', transform: 'level_pct' },
+  // DFEDTARU = límite superior del rango objetivo del FOMC (lo que reportan
+  // medios/Investing.com como "la tasa de la Fed"). Es diaria pero solo
+  // cambia ~8 veces al año (en cada reunión), así que pedimos una ventana
+  // larga (2 años) y luego comprimimos los días repetidos.
+  { indicatorId: 'fed_funds_rate', seriesId: 'DFEDTARU', transform: 'level_pct', fetchLimit: 800 },
   { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
   { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
@@ -107,6 +112,24 @@ function computeSeries(transform: FredTransform, obs: Observation[]): Observatio
   }
 }
 
+// Colapsa corridas de valores idénticos consecutivos (útil para series tipo
+// "escalón" como la tasa objetivo de la Fed, que se publica a diario pero
+// solo cambia en las reuniones del FOMC) — conserva la fecha en que cada
+// valor empezó a regir, y siempre conserva el último punto.
+function dedupeConsecutive(series: Observation[]): Observation[] {
+  const out: Observation[] = [];
+  for (const point of series) {
+    const last = out[out.length - 1];
+    if (!last || last.value !== point.value) out.push(point);
+  }
+  if (series.length > 0) {
+    const lastComputed = series[series.length - 1];
+    const lastKept = out[out.length - 1];
+    if (!lastKept || lastKept.date !== lastComputed.date) out.push(lastComputed);
+  }
+  return out;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -134,8 +157,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   for (const mapping of FRED_MAPPINGS) {
     try {
-      const obs = await fetchObservations(mapping.seriesId, fredKey);
-      const series = computeSeries(mapping.transform, obs).slice(-BACKFILL_LIMIT);
+      const obs = await fetchObservations(mapping.seriesId, fredKey, mapping.fetchLimit ?? FETCH_LIMIT);
+      const series = dedupeConsecutive(computeSeries(mapping.transform, obs)).slice(-BACKFILL_LIMIT);
       if (series.length === 0) continue;
       const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
       const { error } = await supabase.from('indicator_overrides').upsert(rows);

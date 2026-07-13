@@ -208,10 +208,10 @@ export const INDICATORS: IndicatorMeta[] = [
     format: 'pct1',
     frequency: 'monthly',
     chart: 'area',
-    source: 'Federal Reserve (FRED: FEDFUNDS)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/FEDFUNDS',
+    source: 'Federal Reserve (FRED: DFEDTARU)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/DFEDTARU',
     goodDirection: 'neutral',
-    description: 'Tasa efectiva de los fondos federales. Motor directo del USD.',
+    description: 'Límite superior del rango objetivo del FOMC (la cifra que reportan medios como Investing.com). Motor directo del USD.',
   },
   {
     id: 't10y',
