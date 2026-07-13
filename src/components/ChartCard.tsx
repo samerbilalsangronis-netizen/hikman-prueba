@@ -43,11 +43,13 @@ export function ChartCard({
   points,
   months = 36,
   forecast,
+  expandControl,
 }: {
   meta: IndicatorMeta;
   points: SeriesPoint[];
   months?: number;
   forecast?: number;
+  expandControl?: { expanded: boolean; onToggle: () => void; childCount: number };
 }) {
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
@@ -78,7 +80,25 @@ export function ChartCard({
             {meta.description}
           </p>
         </div>
-        <FreshnessBadge freshness={freshness} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <FreshnessBadge freshness={freshness} />
+          {expandControl && (
+            <button
+              onClick={expandControl.onToggle}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{ border: '1px solid var(--border)', color: 'var(--series-1)', background: 'var(--surface-2)' }}
+              aria-expanded={expandControl.expanded}
+            >
+              <span
+                className="inline-block transition-transform"
+                style={{ transform: expandControl.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              >
+                ▸
+              </span>
+              {expandControl.childCount}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg py-2" style={{ background: 'var(--surface-2)' }}>

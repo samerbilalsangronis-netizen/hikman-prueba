@@ -21,7 +21,6 @@ export const FRED_MAPPINGS: FredMapping[] = [
   // del rango, no del límite superior.
   { indicatorId: 'fed_funds_rate', seriesId: 'DFEDTARU', transform: 'level_pct' },
   { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
-  { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
   { indicatorId: 'cpi', seriesId: 'CPIAUCSL', transform: 'pct_change' },
   { indicatorId: 'core_cpi', seriesId: 'CPILFESL', transform: 'pct_change' },

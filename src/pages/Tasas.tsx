@@ -9,8 +9,7 @@ export function Tasas() {
           Tasas y Reserva Federal
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Tasa de referencia, bono a 10 años, masa monetaria M2 y balance de la Fed — los motores directos del USD.
-          En el Excel original estos cuatro llevaban entre 1 y 11 años sin actualizarse.
+          Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.
         </p>
       </div>
       <FomcWatchPanel />

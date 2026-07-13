@@ -46,6 +46,7 @@ export function Dashboard() {
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {indicatorsBySection(section)
+              .filter((meta) => !meta.parentId)
               .slice(0, 3)
               .map((meta) => (
                 <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />

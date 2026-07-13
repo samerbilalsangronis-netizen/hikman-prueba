@@ -18,6 +18,9 @@ export interface IndicatorMeta {
   sourceUrl: string;
   goodDirection: 'up' | 'down' | 'neutral';
   description: string;
+  /** Si está definido, este indicador es un subcomponente que se muestra
+   * colapsado dentro de la tarjeta del indicador con este id. */
+  parentId?: string;
 }
 
 export interface ScoreRow {

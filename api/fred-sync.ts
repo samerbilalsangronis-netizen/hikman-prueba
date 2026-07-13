@@ -23,7 +23,6 @@ const FRED_MAPPINGS: FredMapping[] = [
   // larga (2 años) y luego comprimimos los días repetidos.
   { indicatorId: 'fed_funds_rate', seriesId: 'DFEDTARU', transform: 'level_pct', fetchLimit: 800 },
   { indicatorId: 't10y', seriesId: 'WGS10YR', transform: 'level_pct' },
-  { indicatorId: 'm2_value', seriesId: 'WM2NS', transform: 'level' },
   { indicatorId: 'gdp_qoq', seriesId: 'A191RL1Q225SBEA', transform: 'level_pct' },
   // m/m usa las series ajustadas estacionalmente (SA) — es la convención
   // para comparar un mes contra el inmediatamente anterior.
