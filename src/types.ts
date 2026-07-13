@@ -2,9 +2,9 @@ export type SeriesPoint = [string, number]; // [ISO date, value]
 
 export type Frequency = 'weekly' | 'monthly' | 'quarterly';
 
-export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'ism';
+export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'ism' | 'crecimiento';
 
-export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio';
+export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio' | 'trade';
 
 export interface IndicatorMeta {
   id: string;

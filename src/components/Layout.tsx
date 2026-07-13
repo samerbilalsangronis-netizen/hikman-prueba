@@ -8,6 +8,7 @@ const NAV = [
   { to: '/inflacion', label: 'Inflación' },
   { to: '/empleo', label: 'Empleo' },
   { to: '/ism', label: 'ISM / Sentimiento' },
+  { to: '/crecimiento', label: 'Crecimiento' },
   { to: '/actualizar', label: 'Actualizar Datos' },
 ];
 

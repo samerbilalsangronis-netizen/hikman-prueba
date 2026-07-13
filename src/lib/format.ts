@@ -15,6 +15,9 @@ export function formatValue(value: number, format: Format): string {
       return `$${(value / 1000).toFixed(2)}T`;
     case 'ratio':
       return value.toFixed(2);
+    case 'trade':
+      // el valor se guarda en millones de USD; se muestra en miles de millones (B)
+      return `${value < 0 ? '-' : ''}$${Math.abs(value / 1000).toFixed(2)}B`;
     default:
       return String(value);
   }

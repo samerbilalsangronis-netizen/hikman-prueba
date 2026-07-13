@@ -1,4 +1,4 @@
-import { indicatorsBySection } from '../data/indicators';
+import { indicatorsBySection, SECTION_LABELS } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
 import { ChartCard } from '../components/ChartCard';
 import { ScorePanel } from '../components/ScorePanel';
@@ -39,13 +39,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {(['ism', 'empleo', 'inflacion', 'tasas'] as const).map((section) => (
+      {(['ism', 'empleo', 'inflacion', 'crecimiento', 'tasas'] as const).map((section) => (
         <div key={section}>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            {section === 'ism' && 'ISM / Sentimiento'}
-            {section === 'empleo' && 'Empleo'}
-            {section === 'inflacion' && 'Inflación'}
-            {section === 'tasas' && 'Tasas y Reserva Federal'}
+            {SECTION_LABELS[section]}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {indicatorsBySection(section)

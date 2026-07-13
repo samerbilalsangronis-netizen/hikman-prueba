@@ -46,6 +46,15 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
+  // Crecimiento
+  { indicatorId: 'gdp_deflator', seriesId: 'A191RI1Q225SBEA', transform: 'level_pct' },
+  { indicatorId: 'retail_sales', seriesId: 'RSAFS', transform: 'pct_change' },
+  { indicatorId: 'retail_sales_yoy', seriesId: 'RSAFSNA', transform: 'pct_change_yoy' },
+  { indicatorId: 'core_retail_sales', seriesId: 'RSFSXMV', transform: 'pct_change' },
+  { indicatorId: 'industrial_production', seriesId: 'INDPRO', transform: 'pct_change' },
+  { indicatorId: 'industrial_production_yoy', seriesId: 'IPB50001N', transform: 'pct_change_yoy' },
+  { indicatorId: 'trade_balance', seriesId: 'BOPGSTB', transform: 'level' },
+  { indicatorId: 'empire_state', seriesId: 'GACDISA066MSFRBNY', transform: 'level' },
 ];
 
 const CBBS_MAPPING = {

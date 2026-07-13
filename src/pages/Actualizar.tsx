@@ -231,7 +231,7 @@ function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
 
 export function Actualizar() {
   const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode, refresh } = useMacroData();
-  const sections = ['tasas', 'inflacion', 'empleo', 'ism'] as const;
+  const sections = ['tasas', 'inflacion', 'empleo', 'ism', 'crecimiento'] as const;
   const [fredSyncing, setFredSyncing] = useState(false);
   const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
 
