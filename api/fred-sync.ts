@@ -46,12 +46,17 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
   // Crecimiento
+  // A diferencia de CPI/PPI (BLS usa NSA para el a/a), Census y la Fed
+  // calculan el interanual de ventas minoristas y producción industrial
+  // con la serie AJUSTADA (SA) — verificado contra el dato real: con NSA
+  // daba 5.25%/1.63%, con SA da 6.88%/1.67%, que es lo que coincide con la
+  // fuente oficial. Cada agencia tiene su propia convención, no es universal.
   { indicatorId: 'gdp_deflator', seriesId: 'A191RI1Q225SBEA', transform: 'level_pct' },
   { indicatorId: 'retail_sales', seriesId: 'RSAFS', transform: 'pct_change' },
-  { indicatorId: 'retail_sales_yoy', seriesId: 'RSAFSNA', transform: 'pct_change_yoy' },
+  { indicatorId: 'retail_sales_yoy', seriesId: 'RSAFS', transform: 'pct_change_yoy' },
   { indicatorId: 'core_retail_sales', seriesId: 'RSFSXMV', transform: 'pct_change' },
   { indicatorId: 'industrial_production', seriesId: 'INDPRO', transform: 'pct_change' },
-  { indicatorId: 'industrial_production_yoy', seriesId: 'IPB50001N', transform: 'pct_change_yoy' },
+  { indicatorId: 'industrial_production_yoy', seriesId: 'INDPRO', transform: 'pct_change_yoy' },
   { indicatorId: 'trade_balance', seriesId: 'BOPGSTB', transform: 'level' },
   { indicatorId: 'empire_state', seriesId: 'GACDISA066MSFRBNY', transform: 'level' },
 ];
