@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { indicatorsBySection } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
 import { ChartCard } from '../components/ChartCard';
@@ -39,39 +39,38 @@ export function Ism() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {topLevel.map((meta) => {
           const children = childrenByParent.get(meta.id);
+          const isExpanded = expanded.has(meta.id);
           return (
-            <ChartCard
-              key={meta.id}
-              meta={meta}
-              points={getSeries(meta.id)}
-              months={36}
-              forecast={forecasts[meta.id]}
-              expandControl={
-                children ? { expanded: expanded.has(meta.id), onToggle: () => toggle(meta.id), childCount: children.length } : undefined
-              }
-            />
+            <Fragment key={meta.id}>
+              <ChartCard
+                meta={meta}
+                points={getSeries(meta.id)}
+                months={36}
+                forecast={forecasts[meta.id]}
+                expandControl={
+                  children ? { expanded: isExpanded, onToggle: () => toggle(meta.id), childCount: children.length } : undefined
+                }
+              />
+              {/* col-span-full: el panel aparece justo debajo de la tarjeta clickeada,
+                  rompiendo la fila del grid, en vez de amontonarse al final de la página
+                  donde quedaba fuera de la vista sin hacer scroll. */}
+              {isExpanded && children && (
+                <div className="col-span-full rounded-xl p-4" style={{ border: '1px dashed var(--border)' }}>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--series-1)' }}>▾</span>
+                    Subcomponentes — {meta.label}
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {children.map((child) => (
+                      <ChartCard key={child.id} meta={child} points={getSeries(child.id)} months={36} forecast={forecasts[child.id]} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Fragment>
           );
         })}
       </div>
-
-      {[...expanded].map((parentId) => {
-        const parent = topLevel.find((m) => m.id === parentId);
-        const children = childrenByParent.get(parentId);
-        if (!parent || !children) return null;
-        return (
-          <div key={parentId} className="rounded-xl p-4" style={{ border: '1px dashed var(--border)' }}>
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--series-1)' }}>▾</span>
-              Subcomponentes — {parent.label}
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {children.map((meta) => (
-                <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={36} forecast={forecasts[meta.id]} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
