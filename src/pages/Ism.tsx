@@ -31,8 +31,8 @@ export function Ism() {
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           Índices de actividad manufacturera y de servicios (PMI). El ISM y el S&P Global miden lo mismo con
-          metodologías distintas — no tienen por qué coincidir. Los índices con subcomponentes se pueden expandir
-          (botón ▸ junto a la insignia de frescura).
+          metodologías distintas — no tienen por qué coincidir. Haz clic en ISM Manufactura o ISM Servicios para
+          desglosar sus subcomponentes; haz clic de nuevo para volver a colapsar.
         </p>
       </div>
 
