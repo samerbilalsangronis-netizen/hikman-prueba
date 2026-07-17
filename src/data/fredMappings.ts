@@ -6,7 +6,14 @@
 //   pct_change  -> variación % respecto al mes anterior (para índices de nivel como CPI)
 //   pct_change_yoy -> variación % respecto al mismo mes del año anterior
 //   diff_x1000  -> diferencia respecto a la observación anterior, en miles de personas (NFP)
-export type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'pct_change_yoy' | 'diff_x1000';
+export type FredTransform =
+  | 'level_pct'
+  | 'level'
+  | 'level_div1000'
+  | 'pct_change'
+  | 'pct_change_yoy'
+  | 'pct_change_quarter'
+  | 'diff_x1000';
 
 export interface FredMapping {
   indicatorId: string;
@@ -62,3 +69,25 @@ export const CBBS_MAPPING = {
   balanceSheetSeriesId: 'WALCL', // millones de USD, semanal
   gdpSeriesId: 'GDP', // miles de millones de USD nominal, trimestral
 };
+
+// EUR — igual patrón que arriba, pero FRED republica estas series desde el
+// BCE/Eurostat (no son series propias de FRED). El desempleo de EUR NO está
+// acá: FRED la tiene discontinuada desde 2023, se sincroniza directo desde
+// Eurostat (ver api/eur-sync.ts).
+export const EUR_FRED_MAPPINGS: FredMapping[] = [
+  { indicatorId: 'eur_ecb_deposit_rate', seriesId: 'ECBDFR', transform: 'level_pct' },
+  { indicatorId: 'eur_ecb_refi_rate', seriesId: 'ECBMRRFR', transform: 'level_pct' },
+  { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
+  { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
+  { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
+  { indicatorId: 'eur_cpi_yoy', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change_yoy' },
+  { indicatorId: 'eur_core_cpi_yoy', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change_yoy' },
+  // PIB trimestral (nivel, millones de euros encadenados 2010). Eurostat
+  // reporta la variación trimestral SIN anualizar (a diferencia de BEA/EE.UU.)
+  // — se computa como pct_change de 3 meses en vez de 1.
+  { indicatorId: 'eur_gdp_qoq', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_quarter' },
+  { indicatorId: 'eur_gdp_yoy', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_yoy' },
+];
+
+// Único indicador EUR sincronizado desde Eurostat en vez de FRED.
+export const EUR_EUROSTAT_INDICATOR_ID = 'eur_unemployment';

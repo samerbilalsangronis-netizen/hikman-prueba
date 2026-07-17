@@ -1,18 +1,23 @@
 import { SectionGrid } from '../components/SectionGrid';
 import { FomcWatchPanel } from '../components/FomcWatchPanel';
+import { useCurrency } from '../data/CurrencyContext';
 
 export function Tasas() {
+  const { currency } = useCurrency();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Tasas y Reserva Federal
+          {currency === 'EUR' ? 'Tasas y Banco Central Europeo' : 'Tasas y Reserva Federal'}
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.
+          {currency === 'EUR'
+            ? 'Las tres tasas oficiales del corredor del BCE: Depósito, Refinanciación y Marginal.'
+            : 'Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.'}
         </p>
       </div>
-      <FomcWatchPanel />
+      {currency === 'USD' && <FomcWatchPanel />}
       <SectionGrid section="tasas" months={60} />
     </div>
   );

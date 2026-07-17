@@ -1,13 +1,15 @@
 import { Fragment, useState } from 'react';
 import { indicatorsBySection } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
+import { useCurrency } from '../data/CurrencyContext';
 import { ChartCard } from '../components/ChartCard';
 
 export function Ism() {
   const { getSeries, forecasts } = useMacroData();
+  const { currency } = useCurrency();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const all = indicatorsBySection('ism');
+  const all = indicatorsBySection('ism', currency);
   const topLevel = all.filter((m) => !m.parentId);
   const childrenByParent = new Map<string, typeof all>();
   for (const m of all) {
@@ -27,12 +29,12 @@ export function Ism() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          ISM / Sentimiento
+          {currency === 'EUR' ? 'PMI / Sentimiento' : 'ISM / Sentimiento'}
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Índices de actividad manufacturera y de servicios (PMI). El ISM y el S&P Global miden lo mismo con
-          metodologías distintas — no tienen por qué coincidir. Haz clic en ISM Manufactura o ISM Servicios para
-          desglosar sus subcomponentes; haz clic de nuevo para volver a colapsar.
+          {currency === 'EUR'
+            ? 'PMI Flash de manufactura y servicios, y encuestas de confianza (Consumidor, Empresarial, ZEW) de la Eurozona.'
+            : 'Índices de actividad manufacturera y de servicios (PMI). El ISM y el S&P Global miden lo mismo con metodologías distintas — no tienen por qué coincidir. Haz clic en ISM Manufactura o ISM Servicios para desglosar sus subcomponentes; haz clic de nuevo para volver a colapsar.'}
         </p>
       </div>
 

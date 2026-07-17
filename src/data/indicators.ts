@@ -1,6 +1,7 @@
-import type { IndicatorMeta } from '../types';
+import type { Currency, IndicatorMeta } from '../types';
+import { EUR_INDICATORS } from './indicatorsEur';
 
-export const INDICATORS: IndicatorMeta[] = [
+const USD_INDICATORS: IndicatorMeta[] = [
   // ISM / Sentimiento
   {
     id: 'ism_manuf',
@@ -570,13 +571,25 @@ export const INDICATORS: IndicatorMeta[] = [
   },
 ];
 
-export const SECTION_LABELS: Record<string, string> = {
-  score: 'Score USD',
-  tasas: 'Tasas y Reserva Federal',
-  inflacion: 'Inflación',
-  empleo: 'Empleo',
-  ism: 'ISM / Sentimiento',
-  crecimiento: 'Crecimiento',
+export const INDICATORS: IndicatorMeta[] = [...USD_INDICATORS, ...EUR_INDICATORS];
+
+export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
+  USD: {
+    score: 'Score USD',
+    tasas: 'Tasas y Reserva Federal',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    ism: 'ISM / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
+  EUR: {
+    score: 'Score EUR',
+    tasas: 'Tasas y BCE',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    ism: 'PMI / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
 };
 
 export const FREQUENCY_STALE_DAYS: Record<string, { warn: number; stale: number }> = {
@@ -585,6 +598,6 @@ export const FREQUENCY_STALE_DAYS: Record<string, { warn: number; stale: number 
   quarterly: { warn: 110, stale: 200 },
 };
 
-export function indicatorsBySection(section: string): IndicatorMeta[] {
-  return INDICATORS.filter((i) => i.section === section);
+export function indicatorsBySection(section: string, currency: Currency = 'USD'): IndicatorMeta[] {
+  return INDICATORS.filter((i) => i.section === section && (i.currency ?? 'USD') === currency);
 }

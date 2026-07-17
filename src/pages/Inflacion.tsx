@@ -1,6 +1,9 @@
 import { SectionGrid } from '../components/SectionGrid';
+import { useCurrency } from '../data/CurrencyContext';
 
 export function Inflacion() {
+  const { currency } = useCurrency();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -8,7 +11,9 @@ export function Inflacion() {
           Inflación
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          CPI, Core CPI, PPI y Core PPI, variación mensual.
+          {currency === 'EUR'
+            ? 'HICP y Core HICP, variación mensual e interanual.'
+            : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
         </p>
       </div>
       <SectionGrid section="inflacion" months={36} />

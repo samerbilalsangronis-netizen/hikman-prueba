@@ -6,6 +6,8 @@ export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'ism' | 'crec
 
 export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio' | 'trade';
 
+export type Currency = 'USD' | 'EUR';
+
 export interface IndicatorMeta {
   id: string;
   label: string;
@@ -21,6 +23,8 @@ export interface IndicatorMeta {
   /** Si está definido, este indicador es un subcomponente que se muestra
    * colapsado dentro de la tarjeta del indicador con este id. */
   parentId?: string;
+  /** Ausente = 'USD' (los 41 indicadores originales no lo tienen seteado). */
+  currency?: Currency;
 }
 
 export interface ScoreRow {
@@ -28,6 +32,8 @@ export interface ScoreRow {
   label: string;
   valoracion: number; // -2..2, manual analyst input
   weight: string;
+  /** Ausente = 'USD'. */
+  currency?: Currency;
 }
 
 export type FreshnessLevel = 'ok' | 'warning' | 'stale';

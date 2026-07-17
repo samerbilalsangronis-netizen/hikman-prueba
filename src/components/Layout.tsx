@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
+import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
+import type { Currency } from '../types';
 
-const NAV = [
-  { to: '/', label: 'Resumen', end: true },
-  { to: '/tasas', label: 'Tasas y Fed' },
-  { to: '/inflacion', label: 'Inflación' },
-  { to: '/empleo', label: 'Empleo' },
-  { to: '/ism', label: 'ISM / Sentimiento' },
-  { to: '/crecimiento', label: 'Crecimiento' },
-  { to: '/actualizar', label: 'Actualizar Datos' },
-];
+function navFor(currency: Currency) {
+  return [
+    { to: '/', label: 'Resumen', end: true },
+    { to: '/tasas', label: currency === 'EUR' ? 'Tasas y BCE' : 'Tasas y Fed' },
+    { to: '/inflacion', label: 'Inflación' },
+    { to: '/empleo', label: 'Empleo' },
+    { to: '/ism', label: currency === 'EUR' ? 'PMI / Sentimiento' : 'ISM / Sentimiento' },
+    { to: '/crecimiento', label: 'Crecimiento' },
+    { to: '/actualizar', label: 'Actualizar Datos' },
+  ];
+}
 
 function useTheme() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -30,6 +34,7 @@ function useTheme() {
 export function Layout() {
   const [theme, setTheme] = useTheme();
   const { syncMode, loading } = useMacroData();
+  const { currency, setCurrency } = useCurrency();
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--page)' }}>
@@ -40,13 +45,28 @@ export function Layout() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              USD
+              {currency}
             </span>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Seguimiento Macro Fundamental
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
+              {CURRENCIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCurrency(c)}
+                  className="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+                  style={{
+                    background: currency === c ? 'var(--series-1)' : 'transparent',
+                    color: currency === c ? '#fff' : 'var(--text-secondary)',
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
             <span
               className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium sm:inline-flex"
               style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
@@ -72,7 +92,7 @@ export function Layout() {
           </div>
         </div>
         <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6">
-          {NAV.map((item) => (
+          {navFor(currency).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

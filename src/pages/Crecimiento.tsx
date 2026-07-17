@@ -1,6 +1,9 @@
 import { SectionGrid } from '../components/SectionGrid';
+import { useCurrency } from '../data/CurrencyContext';
 
 export function Crecimiento() {
+  const { currency } = useCurrency();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -8,8 +11,9 @@ export function Crecimiento() {
           Crecimiento
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          PIB, ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la
-          actividad económica real, más allá de precios y empleo.
+          {currency === 'EUR'
+            ? 'PIB, ventas minoristas y producción industrial de la Eurozona.'
+            : 'PIB, ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
         </p>
       </div>
       <SectionGrid section="crecimiento" months={36} />

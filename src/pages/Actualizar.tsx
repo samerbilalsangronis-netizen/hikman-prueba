@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { INDICATORS, SECTION_LABELS } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
+import { useCurrency } from '../data/CurrencyContext';
 import { formatValue, formatDate } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from '../components/FreshnessBadge';
-import { FRED_MAPPINGS, CBBS_MAPPING } from '../data/fredMappings';
+import { FRED_MAPPINGS, CBBS_MAPPING, EUR_FRED_MAPPINGS, EUR_EUROSTAT_INDICATOR_ID } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
 const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
+const EUR_AUTO_COVERED = new Set([...EUR_FRED_MAPPINGS.map((m) => m.indicatorId), EUR_EUROSTAT_INDICATOR_ID]);
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
@@ -24,7 +26,7 @@ function IndicatorRow({ id }: { id: string }) {
   const [savingForecast, setSavingForecast] = useState(false);
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
-  const isFred = FRED_COVERED.has(id);
+  const isFred = FRED_COVERED.has(id) || EUR_AUTO_COVERED.has(id);
   const currentForecast = forecasts[id];
 
   async function handleSave() {
@@ -56,9 +58,13 @@ function IndicatorRow({ id }: { id: string }) {
             <span
               className="rounded px-1 py-0.5 text-[10px] font-semibold"
               style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
-              title="Se sincroniza automáticamente desde FRED"
+              title={
+                id === EUR_EUROSTAT_INDICATOR_ID
+                  ? 'Se sincroniza automáticamente desde Eurostat'
+                  : 'Se sincroniza automáticamente desde FRED'
+              }
             >
-              FRED
+              {id === EUR_EUROSTAT_INDICATOR_ID ? 'EUROSTAT' : 'FRED'}
             </span>
           )}
         </div>
@@ -98,7 +104,7 @@ function IndicatorRow({ id }: { id: string }) {
       </td>
       {isFred ? (
         <td className="py-2.5 text-xs" style={{ color: 'var(--text-muted)' }} colSpan={2}>
-          Se actualiza automático con "Sincronizar con FRED" — no requiere carga manual.
+          Se actualiza automático con el botón de sincronización — no requiere carga manual.
         </td>
       ) : (
         <>
@@ -231,15 +237,19 @@ function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
 
 export function Actualizar() {
   const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode, refresh } = useMacroData();
+  const { currency } = useCurrency();
   const sections = ['tasas', 'inflacion', 'empleo', 'ism', 'crecimiento'] as const;
   const [fredSyncing, setFredSyncing] = useState(false);
   const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
+
+  const syncEndpoint = currency === 'EUR' ? '/api/eur-sync' : '/api/fred-sync';
+  const syncLabel = currency === 'EUR' ? 'Sincronizar con FRED + Eurostat' : 'Sincronizar con FRED';
 
   async function handleFredSync() {
     setFredSyncing(true);
     setFredResult(null);
     try {
-      const res = await fetch('/api/fred-sync', { method: 'POST' });
+      const res = await fetch(syncEndpoint, { method: 'POST' });
       const contentType = res.headers.get('content-type') ?? '';
       if (!contentType.includes('application/json')) {
         throw new Error('no-api');
@@ -254,7 +264,7 @@ export function Actualizar() {
     } catch (err) {
       const message =
         err instanceof Error && err.message === 'no-api'
-          ? 'No se pudo contactar /api/fred-sync. Esta función solo funciona una vez que el sitio está desplegado en Vercel con la variable FRED_API_KEY configurada (no funciona en “npm run dev” local).'
+          ? `No se pudo contactar ${syncEndpoint}. Esta función solo funciona una vez que el sitio está desplegado en Vercel con las variables de entorno configuradas (no funciona en “npm run dev” local).`
           : (err as Error).message;
       setFredResult({ updated: 0, errors: [message] });
     } finally {
@@ -312,7 +322,7 @@ export function Actualizar() {
             className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--series-1)' }}
           >
-            {fredSyncing ? 'Sincronizando…' : '⟳ Sincronizar con FRED'}
+            {fredSyncing ? 'Sincronizando…' : `⟳ ${syncLabel}`}
           </button>
           <button
             onClick={handleExport}
@@ -331,7 +341,7 @@ export function Actualizar() {
         </div>
         {fredResult && (
           <div className="text-xs" style={{ color: fredResult.errors.length > 0 ? 'var(--delta-bad)' : 'var(--delta-good)' }}>
-            {fredResult.updated > 0 && <div>{fredResult.updated} indicadores actualizados desde FRED.</div>}
+            {fredResult.updated > 0 && <div>{fredResult.updated} indicadores actualizados.</div>}
             {fredResult.errors.map((e, i) => (
               <div key={i}>{e}</div>
             ))}
@@ -339,77 +349,83 @@ export function Actualizar() {
         )}
       </div>
 
-      {sections.map((section) => (
-        <div key={section}>
+      {sections.map((section) => {
+        const rows = INDICATORS.filter((m) => m.section === section && (m.currency ?? 'USD') === currency);
+        if (rows.length === 0) return null;
+        return (
+          <div key={section}>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              {SECTION_LABELS[currency][section]}
+            </h2>
+            <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
+              <table className="w-full" style={{ background: 'var(--surface-1)' }}>
+                <thead>
+                  <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <th className="px-3 pt-3 pb-2 font-medium">Indicador</th>
+                    <th className="px-3 pt-3 pb-2 font-medium">Anterior</th>
+                    <th className="px-3 pt-3 pb-2 font-medium">Actual</th>
+                    <th className="px-3 pt-3 pb-2 font-medium">Previsión</th>
+                    <th className="px-3 pt-3 pb-2 font-medium">Carga manual</th>
+                    <th className="px-3 pt-3 pb-2" />
+                  </tr>
+                </thead>
+                <tbody className="px-3">
+                  {rows.map((m) => (
+                    <IndicatorRow key={m.id} id={m.id} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      {currency === 'USD' && (
+        <div>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            {SECTION_LABELS[section]}
+            FOMC Watch — Previsión de Tasas
           </h2>
+          <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+            Probabilidades (0-100, no necesitan sumar exactamente 100) que el mercado de futuros asigna a cada
+            resultado de la próxima reunión de la Fed. Consúltalas en{' '}
+            <a
+              href="https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              CME FedWatch
+            </a>
+            .
+          </p>
           <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
             <table className="w-full" style={{ background: 'var(--surface-1)' }}>
               <thead>
                 <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <th className="px-3 pt-3 pb-2 font-medium">Indicador</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Anterior</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Actual</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Previsión</th>
-                  <th className="px-3 pt-3 pb-2 font-medium">Carga manual</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Reunión</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Baja %</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Mantiene %</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Sube %</th>
+                  <th className="px-3 pt-3 pb-2 font-medium">Nota</th>
                   <th className="px-3 pt-3 pb-2" />
                 </tr>
               </thead>
-              <tbody className="px-3">
-                {INDICATORS.filter((m) => m.section === section).map((m) => (
-                  <IndicatorRow key={m.id} id={m.id} />
+              <tbody>
+                {upcomingFomcMeetings().map((m) => (
+                  <FomcWatchRow key={m.date} meetingDate={m.date} />
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      ))}
+      )}
 
       <div>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-          FOMC Watch — Previsión de Tasas
+          Score Compuesto {currency} — Valoración manual
         </h2>
         <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Probabilidades (0-100, no necesitan sumar exactamente 100) que el mercado de futuros asigna a cada
-          resultado de la próxima reunión de la Fed. Consúltalas en{' '}
-          <a
-            href="https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            CME FedWatch
-          </a>
-          .
-        </p>
-        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
-          <table className="w-full" style={{ background: 'var(--surface-1)' }}>
-            <thead>
-              <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
-                <th className="px-3 pt-3 pb-2 font-medium">Reunión</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Baja %</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Mantiene %</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Sube %</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Nota</th>
-                <th className="px-3 pt-3 pb-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {upcomingFomcMeetings().map((m) => (
-                <FomcWatchRow key={m.date} meetingDate={m.date} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-          Score Compuesto USD — Valoración manual
-        </h2>
-        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Juicio del analista por indicador, de −2 (muy bajista para el USD) a +2 (muy alcista).
+          Juicio del analista por indicador, de −2 (muy bajista para el {currency}) a +2 (muy alcista).
         </p>
         <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
           <table className="w-full" style={{ background: 'var(--surface-1)' }}>
@@ -421,7 +437,9 @@ export function Actualizar() {
               </tr>
             </thead>
             <tbody>
-              {scoreRows.map((row) => (
+              {scoreRows
+                .filter((row) => (row.currency ?? 'USD') === currency)
+                .map((row) => (
                 <tr key={row.id} style={{ borderTop: '1px solid var(--border)' }}>
                   <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
                     {row.label}

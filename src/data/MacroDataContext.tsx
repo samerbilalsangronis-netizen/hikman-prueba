@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import historicalSeries from './historical-series.json';
-import { SCORE_SEED } from './scoreSeed';
+import { SCORE_SEED as USD_SCORE_SEED } from './scoreSeed';
+import { EUR_SCORE_SEED } from './scoreSeedEur';
+
+const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
 import type { FomcProbabilities, ScoreRow, SeriesPoint } from '../types';
 

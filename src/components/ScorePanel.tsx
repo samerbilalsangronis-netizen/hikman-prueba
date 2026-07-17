@@ -6,7 +6,7 @@ function valoracionColor(v: number): string {
   return 'var(--text-muted)';
 }
 
-export function ScorePanel({ rows }: { rows: ScoreRow[] }) {
+export function ScorePanel({ rows, title = 'Score Compuesto USD' }: { rows: ScoreRow[]; title?: string }) {
   const counted = rows.filter((r) => r.weight !== 'Informativo');
   const total = counted.reduce((sum, r) => sum + r.valoracion, 0);
   const max = counted.length * 2;
@@ -16,7 +16,7 @@ export function ScorePanel({ rows }: { rows: ScoreRow[] }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Score Compuesto USD
+            {title}
           </h2>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Suma de valoraciones manuales (−2 a +2) de los indicadores núcleo. Edítalo en “Actualizar Datos”.
