@@ -13,14 +13,18 @@ interface FredMapping {
   transform: FredTransform;
 }
 
+// eur_cpi_yoy / eur_core_cpi_yoy quedaron afuera: verificado contra el dato
+// FINAL publicado (18-jul-2026) que el a/a derivado del índice HICP de FRED
+// (redondeado a 2 decimales por Eurostat) tiene un sesgo de ~0.1pp al
+// componerse sobre 12 meses (dio 2.7%/2.4% vs el oficial 2.8%/2.4%). El
+// dataset de Eurostat con la tasa a/a ya calculada (prc_hicp_manr) está
+// discontinuado desde feb-2026. Carga manual — ver src/data/fredMappings.ts.
 const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_deposit_rate', seriesId: 'ECBDFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_refi_rate', seriesId: 'ECBMRRFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
   { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
-  { indicatorId: 'eur_cpi_yoy', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change_yoy' },
-  { indicatorId: 'eur_core_cpi_yoy', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change_yoy' },
   { indicatorId: 'eur_gdp_qoq', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_quarter' },
   { indicatorId: 'eur_gdp_yoy', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_yoy' },
 ];

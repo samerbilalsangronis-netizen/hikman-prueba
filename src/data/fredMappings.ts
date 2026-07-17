@@ -74,14 +74,20 @@ export const CBBS_MAPPING = {
 // BCE/Eurostat (no son series propias de FRED). El desempleo de EUR NO está
 // acá: FRED la tiene discontinuada desde 2023, se sincroniza directo desde
 // Eurostat (ver api/eur-sync.ts).
+//
+// eur_cpi_yoy / eur_core_cpi_yoy NO están acá (a diferencia de USD, que sí
+// deriva su a/a del índice NSA): verificado contra el dato FINAL publicado
+// (18-jul-2026) que calcular a/a como cociente de dos observaciones del
+// índice HICP de FRED (redondeado a 2 decimales por Eurostat) da 2.7%/2.4%
+// cuando el valor oficial es 2.8%/2.4% — un sesgo de redondeo de ~0.1pp al
+// componerse sobre 12 meses. El dataset de Eurostat con la tasa a/a ya
+// calculada (prc_hicp_manr) está discontinuado desde feb-2026. Carga manual.
 export const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_deposit_rate', seriesId: 'ECBDFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_refi_rate', seriesId: 'ECBMRRFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
   { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
-  { indicatorId: 'eur_cpi_yoy', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change_yoy' },
-  { indicatorId: 'eur_core_cpi_yoy', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change_yoy' },
   // PIB trimestral (nivel, millones de euros encadenados 2010). Eurostat
   // reporta la variación trimestral SIN anualizar (a diferencia de BEA/EE.UU.)
   // — se computa como pct_change de 3 meses en vez de 1.

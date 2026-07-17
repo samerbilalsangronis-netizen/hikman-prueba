@@ -97,10 +97,11 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'EUR',
-    source: 'Eurostat (FRED: CP0000EZ19M086NEST)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/CP0000EZ19M086NEST',
+    source: 'Eurostat',
+    sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_manr/default/table',
     goodDirection: 'neutral',
-    description: 'Variación del HICP respecto al mismo mes del año anterior — la cifra "titular" de inflación del BCE.',
+    description:
+      'Variación del HICP respecto al mismo mes del año anterior — la cifra "titular" de inflación del BCE. Carga manual: derivarla del índice de FRED (redondeado a 2 decimales) desvía ~0.1pp del dato final oficial al componerse sobre 12 meses, y el dataset de Eurostat con la tasa ya calculada está discontinuado desde feb-2026.',
   },
   {
     id: 'eur_core_cpi_yoy',
@@ -111,10 +112,10 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'EUR',
-    source: 'Eurostat (FRED: TOTNRGFOODEA20MI15XM)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/TOTNRGFOODEA20MI15XM',
+    source: 'Eurostat',
+    sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_manr/default/table',
     goodDirection: 'neutral',
-    description: 'HICP subyacente respecto al mismo mes del año anterior.',
+    description: 'HICP subyacente respecto al mismo mes del año anterior. Carga manual (ver CPI Interanual).',
   },
   // Empleo
   {
