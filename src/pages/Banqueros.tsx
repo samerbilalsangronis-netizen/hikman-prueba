@@ -3,7 +3,7 @@ import { useCurrency } from '../data/CurrencyContext';
 import { bankersForCurrency } from '../data/centralBankers';
 import { useMacroData } from '../data/MacroDataContext';
 import { formatDate } from '../lib/format';
-import type { BankerNote, BankerVoteStatus, CentralBanker, Stance } from '../types';
+import type { BankerNote, BankerVoteStatus, CentralBanker, Stance, Statement } from '../types';
 
 const VOTE_GROUPS: { key: BankerVoteStatus; label: string }[] = [
   { key: 'voting', label: 'Votan siempre' },
@@ -20,7 +20,6 @@ const STANCE_LABEL: Record<Stance, string> = {
 function stanceColor(stance?: Stance): string {
   if (stance === 'hawkish') return 'var(--delta-bad)';
   if (stance === 'dovish') return 'var(--delta-good)';
-  if (stance === 'neutral') return 'var(--text-muted)';
   return 'var(--text-muted)';
 }
 
@@ -40,39 +39,82 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
+function StatementBlock({ label, statement }: { label: string; statement?: Statement }) {
+  const hasContent = statement?.summary || statement?.stance || statement?.date;
+  return (
+    <div className="rounded-lg p-3 text-sm" style={{ background: 'var(--surface-2)' }}>
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </div>
+      {hasContent ? (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{ color: stanceColor(statement?.stance), border: '1px solid var(--border)' }}
+            >
+              {statement?.stance ? STANCE_LABEL[statement.stance] : 'Sin clasificar'}
+            </span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {statement?.date ? formatDate(statement.date) : 'sin fecha'}
+            </span>
+          </div>
+          {statement?.summary && (
+            <p className="mt-2" style={{ color: 'var(--text-secondary)' }}>
+              {statement.summary}
+            </p>
+          )}
+          {statement?.sourceUrl && (
+            <a href={statement.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[11px] hover:underline" style={{ color: 'var(--series-1)' }}>
+              Fuente
+            </a>
+          )}
+        </>
+      ) : (
+        <span style={{ color: 'var(--text-muted)' }}>Sin comunicado cargado.</span>
+      )}
+    </div>
+  );
+}
+
 function BankerCard({ banker, note }: { banker: CentralBanker; note?: BankerNote }) {
-  const { updateBankerNote } = useMacroData();
+  const { addBankerStatement } = useMacroData();
   const [editing, setEditing] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState(note?.photoUrl ?? '');
-  const [statementDate, setStatementDate] = useState(note?.statementDate ?? '');
-  const [stance, setStance] = useState<Stance>(note?.stance ?? 'neutral');
-  const [summary, setSummary] = useState(note?.summary ?? '');
-  const [sourceUrl, setSourceUrl] = useState(note?.sourceUrl ?? '');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [stance, setStance] = useState<Stance>('neutral');
+  const [summary, setSummary] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [saving, setSaving] = useState(false);
 
   const badge = voteBadge(banker.vote);
 
   async function handleSave() {
     setSaving(true);
-    await updateBankerNote(banker.id, {
-      photoUrl: photoUrl || undefined,
-      statementDate: statementDate || undefined,
+    await addBankerStatement(banker.id, {
+      date: date || undefined,
       stance,
       summary: summary || undefined,
       sourceUrl: sourceUrl || undefined,
     });
     setSaving(false);
+    setSummary('');
+    setSourceUrl('');
     setEditing(false);
   }
 
   return (
     <div className="flex flex-col gap-3 rounded-xl p-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
       <div className="flex items-start gap-3">
-        {note?.photoUrl ? (
-          <img src={note.photoUrl} alt={banker.name} className="h-14 w-14 shrink-0 rounded-full object-cover" style={{ border: '1px solid var(--border)' }} />
+        {banker.photoUrl ? (
+          <img
+            src={banker.photoUrl}
+            alt={banker.name}
+            className="h-24 w-24 shrink-0 rounded-lg object-cover"
+            style={{ border: '1px solid var(--border)' }}
+          />
         ) : (
           <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+            className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg text-xl font-semibold"
             style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             {initials(banker.name)}
@@ -99,62 +141,26 @@ function BankerCard({ banker, note }: { banker: CentralBanker; note?: BankerNote
         </div>
       </div>
 
-      {!editing ? (
-        <div className="rounded-lg p-3 text-sm" style={{ background: 'var(--surface-2)' }}>
-          {note?.summary || note?.stance || note?.statementDate ? (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                  style={{ color: stanceColor(note?.stance), border: '1px solid var(--border)' }}
-                >
-                  {note?.stance ? STANCE_LABEL[note.stance] : 'Sin clasificar'}
-                </span>
-                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  {note?.statementDate ? formatDate(note.statementDate) : 'sin fecha'}
-                </span>
-              </div>
-              {note?.summary && (
-                <p className="mt-2" style={{ color: 'var(--text-secondary)' }}>
-                  {note.summary}
-                </p>
-              )}
-              {note?.sourceUrl && (
-                <a href={note.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[11px] hover:underline" style={{ color: 'var(--series-1)' }}>
-                  Fuente del comunicado
-                </a>
-              )}
-            </>
-          ) : (
-            <span style={{ color: 'var(--text-muted)' }}>Sin comunicado cargado todavía.</span>
-          )}
-        </div>
-      ) : (
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <StatementBlock label="Comunicado actual" statement={note?.current} />
+        <StatementBlock label="Comunicado anterior" statement={note?.previous} />
+      </div>
+
+      {editing ? (
         <div className="flex flex-col gap-2 rounded-lg p-3" style={{ background: 'var(--surface-2)' }}>
-          <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            URL de la foto
-            <input
-              type="text"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://..."
-              className="rounded-md px-2 py-1 text-sm"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            />
-          </label>
           <div className="flex gap-2">
             <label className="flex flex-1 flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               Fecha del comunicado
               <input
                 type="date"
-                value={statementDate}
-                onChange={(e) => setStatementDate(e.target.value)}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
                 className="rounded-md px-2 py-1 text-sm"
                 style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
             </label>
             <label className="flex flex-1 flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Tono
+              Sesgo del comunicado
               <select
                 value={stance}
                 onChange={(e) => setStance(e.target.value as Stance)}
@@ -168,7 +174,7 @@ function BankerCard({ banker, note }: { banker: CentralBanker; note?: BankerNote
             </label>
           </div>
           <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Resumen del comunicado
+            Comunicado (resumen)
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
@@ -203,19 +209,17 @@ function BankerCard({ banker, note }: { banker: CentralBanker; note?: BankerNote
               className="rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
               style={{ background: 'var(--series-1)' }}
             >
-              {saving ? 'Guardando…' : 'Guardar'}
+              {saving ? 'Guardando…' : 'Guardar como comunicado actual'}
             </button>
           </div>
         </div>
-      )}
-
-      {!editing && (
+      ) : (
         <button
           onClick={() => setEditing(true)}
           className="self-start rounded-md px-3 py-1.5 text-xs font-medium"
           style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
         >
-          Editar foto / comunicado
+          Cargar nuevo comunicado
         </button>
       )}
     </div>

@@ -63,15 +63,23 @@ export interface CentralBanker {
   title: string;
   vote: BankerVoteStatus;
   currency: Currency;
-  /** Perfil oficial o Wikipedia, para "más info" — no se aloja foto propia. */
+  /** Perfil oficial o Wikipedia, para "más info". */
   bioUrl: string;
+  /** Foto de Wikimedia Commons, cargada al armar el listado — no editable desde la UI. */
+  photoUrl?: string;
 }
 
-/** Dato editable por banquero: foto (URL pegada a mano) y último comunicado. */
-export interface BankerNote {
-  photoUrl?: string;
-  statementDate?: string;
+export interface Statement {
+  date?: string;
   stance?: Stance;
   summary?: string;
   sourceUrl?: string;
+}
+
+/** Comunicado actual y anterior por banquero, para ver si cambió la postura.
+ * Al guardar uno nuevo, el que era "actual" pasa a "anterior" — mismo patrón
+ * que Anterior/Actual en el resto del dashboard. */
+export interface BankerNote {
+  current?: Statement;
+  previous?: Statement;
 }

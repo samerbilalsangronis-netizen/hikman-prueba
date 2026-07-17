@@ -12,6 +12,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Reserva Federal (Chair)',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Official_portrait_of_Kevin_M._Warsh.jpg/500px-Official_portrait_of_Kevin_M._Warsh.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/warsh.htm',
   },
   {
@@ -20,6 +21,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Vicepresidente de la Reserva Federal (Vice Chair)',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Jefferson_Philip_BDM_June_16_22-091_8x10_%2852247534443%29.jpg/500px-Jefferson_Philip_BDM_June_16_22-091_8x10_%2852247534443%29.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/jefferson.htm',
   },
   {
@@ -28,6 +30,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Gobernador de la Reserva Federal',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Michael_S._Barr%2C_Federal_Reserve_Member.jpg/500px-Michael_S._Barr%2C_Federal_Reserve_Member.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/barr.htm',
   },
   {
@@ -36,6 +39,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Gobernadora de la Reserva Federal',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Michelle_Bowman.jpg/500px-Michelle_Bowman.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/bowman.htm',
   },
   {
@@ -44,6 +48,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Gobernadora de la Reserva Federal (situación legal en disputa — puede no participar en reuniones del FOMC)',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Lisa_D._Cook%2C_Federal_Reserve_Governor.jpg/500px-Lisa_D._Cook%2C_Federal_Reserve_Governor.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/cook.htm',
   },
   {
@@ -52,6 +57,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Gobernador de la Reserva Federal (ex Presidente)',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Jerome_H._Powell%2C_Federal_Reserve_Chair_%28cropped%29.jpg/500px-Jerome_H._Powell%2C_Federal_Reserve_Chair_%28cropped%29.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/powell.htm',
   },
   {
@@ -60,6 +66,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Gobernador de la Reserva Federal',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Christopher_J._Waller%2C_Federal_Reserve_Governor_2.jpg/500px-Christopher_J._Waller%2C_Federal_Reserve_Governor_2.jpg',
     bioUrl: 'https://www.federalreserve.gov/aboutthefed/bios/board/waller.htm',
   },
   // Nueva York vota siempre (asiento permanente, Vicepresidente del FOMC).
@@ -69,6 +76,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Nueva York (Vicepresidente del FOMC — voto permanente)',
     vote: 'voting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/John_C._Williams_%28cropped%29.jpg/500px-John_C._Williams_%28cropped%29.jpg',
     bioUrl: 'https://www.newyorkfed.org/aboutthefed/williams_bio',
   },
   // Los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.
@@ -79,6 +87,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Cleveland (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Beth_M._Hammack.jpg/500px-Beth_M._Hammack.jpg',
     bioUrl: 'https://www.clevelandfed.org/people/beth-hammack',
   },
   {
@@ -87,6 +96,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Minneapolis (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Neel-kashkari.jpg/500px-Neel-kashkari.jpg',
     bioUrl: 'https://www.minneapolisfed.org/people/neel-kashkari',
   },
   {
@@ -128,6 +138,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Chicago (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Austan_Goolsbee_official_portrait_2.jpg',
     bioUrl: 'https://www.chicagofed.org/people/g/goolsbee-austan',
   },
   {
@@ -144,6 +155,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Kansas City (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/101st_Annual_Agricultural_Outlook_Forum%2C_titled_%E2%80%9CMeeting_Tomorrow%E2%80%99s_Challenges%2C_Today%E2%80%9D_on_February_27%2C_2025_in_Arlington%2C_Virginia_-_54.jpg/500px-101st_Annual_Agricultural_Outlook_Forum%2C_titled_%E2%80%9CMeeting_Tomorrow%E2%80%99s_Challenges%2C_Today%E2%80%9D_on_February_27%2C_2025_in_Arlington%2C_Virginia_-_54.jpg',
     bioUrl: 'https://www.kansascityfed.org/about-us/leadership/jeffrey-r-schmid/',
   },
   {
@@ -152,6 +164,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de San Francisco (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Mary_C._Daly_2024-10-09.jpg/500px-Mary_C._Daly_2024-10-09.jpg',
     bioUrl: 'https://www.frbsf.org/about-us/leadership/mary-c-daly/',
   },
   // Atlanta: Raphael Bostic renunció (efectivo fines de feb-2026); búsqueda de
@@ -166,6 +179,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Presidenta del BCE',
     vote: 'voting',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Lagarde_ECB_Portrait_2019.jpg/500px-Lagarde_ECB_Portrait_2019.jpg',
     bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/cvs/lagarde/profile.en.html',
   },
   {
@@ -174,6 +188,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Vicepresidente del BCE',
     vote: 'voting',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Boris_Vujcic.png/500px-Boris_Vujcic.png',
     bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/index.en.html',
   },
   {
@@ -190,6 +205,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Miembro del Comité Ejecutivo del BCE',
     vote: 'voting',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Prof._Dr._Isabel_Schnabel%2C_2017.jpg/500px-Prof._Dr._Isabel_Schnabel%2C_2017.jpg',
     bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/index.en.html',
   },
   {
@@ -198,6 +214,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Miembro del Comité Ejecutivo del BCE',
     vote: 'voting',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Frank_Elderson_in_2023.jpg/500px-Frank_Elderson_in_2023.jpg',
     bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/index.en.html',
   },
   {
@@ -206,6 +223,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Miembro del Comité Ejecutivo del BCE',
     vote: 'voting',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Piero_Cipollone_2024.jpg/500px-Piero_Cipollone_2024.jpg',
     bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/index.en.html',
   },
   // Gobernadores de bancos centrales nacionales del "Grupo 1" (los 5 países
@@ -218,6 +236,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Presidente del Bundesbank (Alemania) — Grupo 1, voto rotativo',
     vote: 'rotating',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Joachim_Nagel_at_WDR_Europaforum_of_Republica25_2025-05-26_10_%28cropped%29.jpg/500px-Joachim_Nagel_at_WDR_Europaforum_of_Republica25_2025-05-26_10_%28cropped%29.jpg',
     bioUrl: 'https://www.bundesbank.de/en/bundesbank/organisation/executive-board/joachim-nagel',
   },
   {
@@ -226,6 +245,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Gobernador del Banque de France (Francia) — Grupo 1, voto rotativo',
     vote: 'rotating',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Emmanuel_Moulin_%28cropped%29.jpg/500px-Emmanuel_Moulin_%28cropped%29.jpg',
     bioUrl: 'https://www.banque-france.fr/en/banque-de-france/governance-advisory-committees',
   },
   {
@@ -234,6 +254,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Gobernador de la Banca d’Italia (Italia) — Grupo 1, voto rotativo',
     vote: 'rotating',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Fabio_Panetta_2023_%28cropped%29.jpg/500px-Fabio_Panetta_2023_%28cropped%29.jpg',
     bioUrl: 'https://www.bancaditalia.it/chi-siamo/organizzazione/vertice/governatore/index.html',
   },
   {
@@ -242,6 +263,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Gobernador del Banco de España (España) — Grupo 1, voto rotativo',
     vote: 'rotating',
     currency: 'EUR',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Jos%C3%A9_Luis_Escriv%C3%A1_2023_%28cropped%29.jpg/500px-Jos%C3%A9_Luis_Escriv%C3%A1_2023_%28cropped%29.jpg',
     bioUrl: 'https://www.bde.es/wbe/en/sobre-banco/organizacion/gobernador/',
   },
 ];

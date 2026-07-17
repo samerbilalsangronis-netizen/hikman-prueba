@@ -5,7 +5,7 @@ import { EUR_SCORE_SEED } from './scoreSeedEur';
 
 const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint } from '../types';
+import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint, Statement } from '../types';
 
 type SeriesMap = Record<string, SeriesPoint[]>;
 type ForecastMap = Record<string, number>;
@@ -105,7 +105,7 @@ interface MacroDataContextValue {
   fomcWatch: FomcWatchMap;
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
   bankerNotes: BankerNotesMap;
-  updateBankerNote: (bankerId: string, note: BankerNote) => Promise<void>;
+  addBankerStatement: (bankerId: string, statement: Statement) => Promise<void>;
   resetOverrides: () => Promise<void>;
   exportJson: () => string;
   loading: boolean;
@@ -147,7 +147,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       // banker_statements es una tabla nueva — si todavía no corriste el SQL
       // en Supabase (ver supabase/schema.sql), esto simplemente da error y se
       // ignora, sin romper el resto de la carga.
-      supabase.from('banker_statements').select('banker_id, photo_url, statement_date, stance, summary, source_url'),
+      supabase
+        .from('banker_statements')
+        .select(
+          'banker_id, current_date, current_stance, current_summary, current_source_url, previous_date, previous_stance, previous_summary, previous_source_url',
+        ),
     ]);
 
     {
@@ -196,18 +200,28 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       const map: BankerNotesMap = {};
       for (const row of bankerRes.data as {
         banker_id: string;
-        photo_url: string | null;
-        statement_date: string | null;
-        stance: 'hawkish' | 'dovish' | 'neutral' | null;
-        summary: string | null;
-        source_url: string | null;
+        current_date: string | null;
+        current_stance: 'hawkish' | 'dovish' | 'neutral' | null;
+        current_summary: string | null;
+        current_source_url: string | null;
+        previous_date: string | null;
+        previous_stance: 'hawkish' | 'dovish' | 'neutral' | null;
+        previous_summary: string | null;
+        previous_source_url: string | null;
       }[]) {
         map[row.banker_id] = {
-          photoUrl: row.photo_url ?? undefined,
-          statementDate: row.statement_date ?? undefined,
-          stance: row.stance ?? undefined,
-          summary: row.summary ?? undefined,
-          sourceUrl: row.source_url ?? undefined,
+          current: {
+            date: row.current_date ?? undefined,
+            stance: row.current_stance ?? undefined,
+            summary: row.current_summary ?? undefined,
+            sourceUrl: row.current_source_url ?? undefined,
+          },
+          previous: {
+            date: row.previous_date ?? undefined,
+            stance: row.previous_stance ?? undefined,
+            summary: row.previous_summary ?? undefined,
+            sourceUrl: row.previous_source_url ?? undefined,
+          },
         };
       }
       setBankerNotes(map);
@@ -297,23 +311,33 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const updateBankerNote = useCallback(async (bankerId: string, note: BankerNote) => {
-    if (supabaseEnabled && supabase) {
-      await supabase.from('banker_statements').upsert({
-        banker_id: bankerId,
-        photo_url: note.photoUrl || null,
-        statement_date: note.statementDate || null,
-        stance: note.stance || null,
-        summary: note.summary || null,
-        source_url: note.sourceUrl || null,
+  // Guarda un comunicado nuevo: lo que era "actual" pasa a "anterior" (mismo
+  // patrón que Anterior/Actual en el resto del dashboard), para poder ver si
+  // cambió la postura del banquero de un comunicado al siguiente.
+  const addBankerStatement = useCallback(
+    async (bankerId: string, statement: Statement) => {
+      const nextNote: BankerNote = { current: statement, previous: bankerNotes[bankerId]?.current };
+      if (supabaseEnabled && supabase) {
+        await supabase.from('banker_statements').upsert({
+          banker_id: bankerId,
+          current_date: nextNote.current?.date || null,
+          current_stance: nextNote.current?.stance || null,
+          current_summary: nextNote.current?.summary || null,
+          current_source_url: nextNote.current?.sourceUrl || null,
+          previous_date: nextNote.previous?.date || null,
+          previous_stance: nextNote.previous?.stance || null,
+          previous_summary: nextNote.previous?.summary || null,
+          previous_source_url: nextNote.previous?.sourceUrl || null,
+        });
+      }
+      setBankerNotes((prev) => {
+        const next = { ...prev, [bankerId]: nextNote };
+        if (!supabaseEnabled) localStorage.setItem(BANKER_NOTES_KEY, JSON.stringify(next));
+        return next;
       });
-    }
-    setBankerNotes((prev) => {
-      const next = { ...prev, [bankerId]: note };
-      if (!supabaseEnabled) localStorage.setItem(BANKER_NOTES_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+    },
+    [bankerNotes],
+  );
 
   const resetOverrides = useCallback(async () => {
     if (supabaseEnabled && supabase) {
@@ -355,7 +379,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       fomcWatch,
       updateFomcWatch,
       bankerNotes,
-      updateBankerNote,
+      addBankerStatement,
       resetOverrides,
       exportJson,
       loading,
@@ -373,7 +397,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       fomcWatch,
       updateFomcWatch,
       bankerNotes,
-      updateBankerNote,
+      addBankerStatement,
       resetOverrides,
       exportJson,
       loading,
