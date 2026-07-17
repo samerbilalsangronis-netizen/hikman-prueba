@@ -59,6 +59,30 @@ function mergeSeries(base: SeriesPoint[], overrides: SeriesPoint[]): SeriesPoint
   return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 }
 
+// PostgREST (la API REST de Supabase) tiene un límite por página (db-max-rows,
+// 1000 en este proyecto) — un solo .select() sin .range() se trunca en
+// silencio, sin error, una vez que la tabla supera esa cantidad de filas. Con
+// 41 indicadores USD + 20 EUR sincronizados mes a mes, indicator_overrides ya
+// pasó los 1000 registros; sin paginar, los indicadores que quedan "después"
+// del corte (según el orden que devuelva Postgres) se ven con menos
+// historial del real, o directamente con el último dato de varios meses
+// atrás. Se pagina hasta traer todas las filas.
+async function fetchAllRows<T>(
+  query: (from: number, to: number) => Promise<{ data: T[] | null; error: unknown }>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await query(from, from + pageSize - 1);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 interface MacroDataContextValue {
   getSeries: (id: string) => SeriesPoint[];
   addPoint: (id: string, date: string, value: number) => Promise<void>;
@@ -97,16 +121,19 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [pointsRes, scoreRes, forecastsRes, fomcRes] = await Promise.all([
-      supabase.from('indicator_overrides').select('indicator_id, date, value'),
+    const client = supabase;
+    const [pointsRows, scoreRes, forecastsRes, fomcRes] = await Promise.all([
+      fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
+        client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
+      ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
       supabase.from('fomc_watch').select('meeting_date, prob_cut, prob_hold, prob_hike, note'),
     ]);
 
-    if (!pointsRes.error && pointsRes.data) {
+    {
       const map: SeriesMap = {};
-      for (const row of pointsRes.data as { indicator_id: string; date: string; value: number }[]) {
+      for (const row of pointsRows) {
         (map[row.indicator_id] ??= []).push([row.date, row.value]);
       }
       setOverrides(map);
