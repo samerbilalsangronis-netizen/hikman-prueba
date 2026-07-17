@@ -8,6 +8,7 @@ import { Inflacion } from './pages/Inflacion';
 import { Empleo } from './pages/Empleo';
 import { Sentimiento } from './pages/Sentimiento';
 import { Crecimiento } from './pages/Crecimiento';
+import { Banqueros } from './pages/Banqueros';
 import { Actualizar } from './pages/Actualizar';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
               <Route path="empleo" element={<Empleo />} />
               <Route path="confianza" element={<Sentimiento />} />
               <Route path="crecimiento" element={<Crecimiento />} />
+              <Route path="banqueros" element={<Banqueros />} />
               <Route path="actualizar" element={<Actualizar />} />
             </Route>
           </Routes>

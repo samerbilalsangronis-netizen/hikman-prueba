@@ -12,6 +12,7 @@ function navFor(currency: Currency) {
     { to: '/empleo', label: 'Empleo' },
     { to: '/crecimiento', label: 'Crecimiento' },
     { to: '/confianza', label: 'Confianza / Sentimiento' },
+    { to: '/banqueros', label: 'Banqueros' },
     { to: '/actualizar', label: 'Actualizar Datos' },
   ];
 }

@@ -37,10 +37,26 @@ create table if not exists fomc_watch (
   updated_at timestamptz not null default now()
 );
 
+-- Banqueros centrales: foto (URL pegada a mano, no se aloja acá) y último
+-- comunicado (fecha + hawkish/dovish/neutral + resumen). Un registro por
+-- banquero — se sobrescribe con el comunicado más reciente, no guarda
+-- historial. El listado de banqueros (nombre, cargo, si vota) vive en el
+-- código (src/data/centralBankers.ts), no en esta tabla.
+create table if not exists banker_statements (
+  banker_id text primary key,
+  photo_url text,
+  statement_date date,
+  stance text check (stance in ('hawkish', 'dovish', 'neutral')),
+  summary text,
+  source_url text,
+  updated_at timestamptz not null default now()
+);
+
 alter table indicator_overrides enable row level security;
 alter table score_overrides enable row level security;
 alter table indicator_forecasts enable row level security;
 alter table fomc_watch enable row level security;
+alter table banker_statements enable row level security;
 
 -- Nota de seguridad: estas políticas permiten leer y escribir a cualquiera que
 -- tenga la URL y la clave "anon" del proyecto (que va embebida en el sitio
@@ -65,5 +81,10 @@ create policy "public read/write indicator_forecasts"
 
 create policy "public read/write fomc_watch"
   on fomc_watch for all
+  using (true)
+  with check (true);
+
+create policy "public read/write banker_statements"
+  on banker_statements for all
   using (true)
   with check (true);

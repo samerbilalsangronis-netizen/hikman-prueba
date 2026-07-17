@@ -5,16 +5,18 @@ import { EUR_SCORE_SEED } from './scoreSeedEur';
 
 const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { FomcProbabilities, ScoreRow, SeriesPoint } from '../types';
+import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint } from '../types';
 
 type SeriesMap = Record<string, SeriesPoint[]>;
 type ForecastMap = Record<string, number>;
 type FomcWatchMap = Record<string, FomcProbabilities>;
+type BankerNotesMap = Record<string, BankerNote>;
 
 const OVERRIDES_KEY = 'macro-dashboard:overrides:v1';
 const SCORE_KEY = 'macro-dashboard:score:v1';
 const FORECASTS_KEY = 'macro-dashboard:forecasts:v1';
 const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
+const BANKER_NOTES_KEY = 'macro-dashboard:banker-notes:v1';
 
 function loadLocalOverrides(): SeriesMap {
   try {
@@ -47,6 +49,15 @@ function loadLocalFomcWatch(): FomcWatchMap {
   try {
     const raw = localStorage.getItem(FOMC_WATCH_KEY);
     return raw ? (JSON.parse(raw) as FomcWatchMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadLocalBankerNotes(): BankerNotesMap {
+  try {
+    const raw = localStorage.getItem(BANKER_NOTES_KEY);
+    return raw ? (JSON.parse(raw) as BankerNotesMap) : {};
   } catch {
     return {};
   }
@@ -93,6 +104,8 @@ interface MacroDataContextValue {
   updateForecast: (id: string, value: number) => Promise<void>;
   fomcWatch: FomcWatchMap;
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
+  bankerNotes: BankerNotesMap;
+  updateBankerNote: (bankerId: string, note: BankerNote) => Promise<void>;
   resetOverrides: () => Promise<void>;
   exportJson: () => string;
   loading: boolean;
@@ -107,6 +120,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [scoreRows, setScoreRows] = useState<ScoreRow[]>(SCORE_SEED);
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
+  const [bankerNotes, setBankerNotes] = useState<BankerNotesMap>({});
   const [loading, setLoading] = useState(supabaseEnabled);
 
   const base = historicalSeries as unknown as SeriesMap;
@@ -117,18 +131,23 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       setScoreRows(loadLocalScore());
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
+      setBankerNotes(loadLocalBankerNotes());
       setLoading(false);
       return;
     }
 
     const client = supabase;
-    const [pointsRows, scoreRes, forecastsRes, fomcRes] = await Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes] = await Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
       supabase.from('fomc_watch').select('meeting_date, prob_cut, prob_hold, prob_hike, note'),
+      // banker_statements es una tabla nueva — si todavía no corriste el SQL
+      // en Supabase (ver supabase/schema.sql), esto simplemente da error y se
+      // ignora, sin romper el resto de la carga.
+      supabase.from('banker_statements').select('banker_id, photo_url, statement_date, stance, summary, source_url'),
     ]);
 
     {
@@ -171,6 +190,27 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         };
       }
       setFomcWatch(map);
+    }
+
+    if (!bankerRes.error && bankerRes.data) {
+      const map: BankerNotesMap = {};
+      for (const row of bankerRes.data as {
+        banker_id: string;
+        photo_url: string | null;
+        statement_date: string | null;
+        stance: 'hawkish' | 'dovish' | 'neutral' | null;
+        summary: string | null;
+        source_url: string | null;
+      }[]) {
+        map[row.banker_id] = {
+          photoUrl: row.photo_url ?? undefined,
+          statementDate: row.statement_date ?? undefined,
+          stance: row.stance ?? undefined,
+          summary: row.summary ?? undefined,
+          sourceUrl: row.source_url ?? undefined,
+        };
+      }
+      setBankerNotes(map);
     }
 
     setLoading(false);
@@ -257,22 +297,43 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateBankerNote = useCallback(async (bankerId: string, note: BankerNote) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('banker_statements').upsert({
+        banker_id: bankerId,
+        photo_url: note.photoUrl || null,
+        statement_date: note.statementDate || null,
+        stance: note.stance || null,
+        summary: note.summary || null,
+        source_url: note.sourceUrl || null,
+      });
+    }
+    setBankerNotes((prev) => {
+      const next = { ...prev, [bankerId]: note };
+      if (!supabaseEnabled) localStorage.setItem(BANKER_NOTES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const resetOverrides = useCallback(async () => {
     if (supabaseEnabled && supabase) {
       await supabase.from('indicator_overrides').delete().neq('indicator_id', '');
       await supabase.from('score_overrides').delete().neq('id', '');
       await supabase.from('indicator_forecasts').delete().neq('indicator_id', '');
       await supabase.from('fomc_watch').delete().not('meeting_date', 'is', null);
+      await supabase.from('banker_statements').delete().neq('banker_id', '');
     } else {
       localStorage.removeItem(OVERRIDES_KEY);
       localStorage.removeItem(SCORE_KEY);
       localStorage.removeItem(FORECASTS_KEY);
       localStorage.removeItem(FOMC_WATCH_KEY);
+      localStorage.removeItem(BANKER_NOTES_KEY);
     }
     setOverrides({});
     setScoreRows(SCORE_SEED);
     setForecasts({});
     setFomcWatch({});
+    setBankerNotes({});
   }, []);
 
   const exportJson = useCallback(() => {
@@ -293,6 +354,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateForecast,
       fomcWatch,
       updateFomcWatch,
+      bankerNotes,
+      updateBankerNote,
       resetOverrides,
       exportJson,
       loading,
@@ -309,6 +372,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateForecast,
       fomcWatch,
       updateFomcWatch,
+      bankerNotes,
+      updateBankerNote,
       resetOverrides,
       exportJson,
       loading,

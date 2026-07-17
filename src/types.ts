@@ -50,3 +50,28 @@ export interface FomcProbabilities {
   probHike: number;
   note: string;
 }
+
+/** 'rotating' = vota en rotación este año (Fed: 4 presidentes regionales;
+ * BCE: grupo de países grandes que turnan un voto entre sí). */
+export type BankerVoteStatus = 'voting' | 'rotating' | 'nonvoting';
+
+export type Stance = 'hawkish' | 'dovish' | 'neutral';
+
+export interface CentralBanker {
+  id: string;
+  name: string;
+  title: string;
+  vote: BankerVoteStatus;
+  currency: Currency;
+  /** Perfil oficial o Wikipedia, para "más info" — no se aloja foto propia. */
+  bioUrl: string;
+}
+
+/** Dato editable por banquero: foto (URL pegada a mano) y último comunicado. */
+export interface BankerNote {
+  photoUrl?: string;
+  statementDate?: string;
+  stance?: Stance;
+  summary?: string;
+  sourceUrl?: string;
+}
