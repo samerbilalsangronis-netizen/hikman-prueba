@@ -55,12 +55,15 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Tasa de la Facilidad Marginal de Crédito — el "techo" del corredor de tasas del BCE.',
   },
-  // Inflación — HICP (Índice Armonizado de Precios al Consumidor), la cifra
-  // que usa el BCE para su objetivo de inflación.
+  // Inflación — la Eurozona no tiene un "CPI" separado del HICP (Índice
+  // Armonizado de Precios al Consumidor): el HICP ES la cifra oficial de
+  // inflación que usa el BCE para su objetivo, el equivalente exacto al CPI
+  // de EE.UU. Se etiqueta "CPI" para consistencia con el dashboard USD; el
+  // nombre técnico (HICP) queda en la descripción y la fuente.
   {
     id: 'eur_cpi',
-    label: 'HICP (Inflación al Consumidor, m/m)',
-    shortLabel: 'HICP',
+    label: 'CPI (Inflación al Consumidor, m/m)',
+    shortLabel: 'CPI',
     section: 'inflacion',
     format: 'pct1',
     frequency: 'monthly',
@@ -69,12 +72,12 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Eurostat (FRED: CP0000EZ19M086NEST)',
     sourceUrl: 'https://fred.stlouisfed.org/series/CP0000EZ19M086NEST',
     goodDirection: 'neutral',
-    description: 'Variación mensual del Índice Armonizado de Precios al Consumidor de la Eurozona.',
+    description: 'Variación mensual del HICP (Índice Armonizado de Precios al Consumidor) de la Eurozona — el "CPI" oficial de la zona euro.',
   },
   {
     id: 'eur_core_cpi',
-    label: 'Core HICP (m/m)',
-    shortLabel: 'Core HICP',
+    label: 'Core CPI (m/m)',
+    shortLabel: 'Core CPI',
     section: 'inflacion',
     format: 'pct1',
     frequency: 'monthly',
@@ -87,8 +90,8 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'eur_cpi_yoy',
-    label: 'HICP Interanual (a/a)',
-    shortLabel: 'HICP a/a',
+    label: 'CPI Interanual (a/a)',
+    shortLabel: 'CPI a/a',
     section: 'inflacion',
     format: 'pct',
     frequency: 'monthly',
@@ -101,8 +104,8 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'eur_core_cpi_yoy',
-    label: 'Core HICP Interanual (a/a)',
-    shortLabel: 'Core HICP a/a',
+    label: 'Core CPI Interanual (a/a)',
+    shortLabel: 'Core CPI a/a',
     section: 'inflacion',
     format: 'pct',
     frequency: 'monthly',

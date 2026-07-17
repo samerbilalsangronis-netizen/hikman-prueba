@@ -12,7 +12,7 @@ export function Inflacion() {
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
-            ? 'HICP y Core HICP, variación mensual e interanual.'
+            ? 'CPI y Core CPI (HICP), variación mensual e interanual.'
             : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
         </p>
       </div>
