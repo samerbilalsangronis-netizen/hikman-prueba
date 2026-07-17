@@ -45,11 +45,11 @@ create table if not exists fomc_watch (
 -- código (src/data/centralBankers.ts), no en esta tabla.
 create table if not exists banker_statements (
   banker_id text primary key,
-  current_date date,
+  current_statement_date date,
   current_stance text check (current_stance in ('hawkish', 'dovish', 'neutral')),
   current_summary text,
   current_source_url text,
-  previous_date date,
+  previous_statement_date date,
   previous_stance text check (previous_stance in ('hawkish', 'dovish', 'neutral')),
   previous_summary text,
   previous_source_url text,

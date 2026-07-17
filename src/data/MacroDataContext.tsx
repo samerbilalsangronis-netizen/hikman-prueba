@@ -150,7 +150,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       supabase
         .from('banker_statements')
         .select(
-          'banker_id, current_date, current_stance, current_summary, current_source_url, previous_date, previous_stance, previous_summary, previous_source_url',
+          'banker_id, current_statement_date, current_stance, current_summary, current_source_url, previous_statement_date, previous_stance, previous_summary, previous_source_url',
         ),
     ]);
 
@@ -200,24 +200,24 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       const map: BankerNotesMap = {};
       for (const row of bankerRes.data as {
         banker_id: string;
-        current_date: string | null;
+        current_statement_date: string | null;
         current_stance: 'hawkish' | 'dovish' | 'neutral' | null;
         current_summary: string | null;
         current_source_url: string | null;
-        previous_date: string | null;
+        previous_statement_date: string | null;
         previous_stance: 'hawkish' | 'dovish' | 'neutral' | null;
         previous_summary: string | null;
         previous_source_url: string | null;
       }[]) {
         map[row.banker_id] = {
           current: {
-            date: row.current_date ?? undefined,
+            date: row.current_statement_date ?? undefined,
             stance: row.current_stance ?? undefined,
             summary: row.current_summary ?? undefined,
             sourceUrl: row.current_source_url ?? undefined,
           },
           previous: {
-            date: row.previous_date ?? undefined,
+            date: row.previous_statement_date ?? undefined,
             stance: row.previous_stance ?? undefined,
             summary: row.previous_summary ?? undefined,
             sourceUrl: row.previous_source_url ?? undefined,
@@ -320,11 +320,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       if (supabaseEnabled && supabase) {
         await supabase.from('banker_statements').upsert({
           banker_id: bankerId,
-          current_date: nextNote.current?.date || null,
+          current_statement_date: nextNote.current?.date || null,
           current_stance: nextNote.current?.stance || null,
           current_summary: nextNote.current?.summary || null,
           current_source_url: nextNote.current?.sourceUrl || null,
-          previous_date: nextNote.previous?.date || null,
+          previous_statement_date: nextNote.previous?.date || null,
           previous_stance: nextNote.previous?.stance || null,
           previous_summary: nextNote.previous?.summary || null,
           previous_source_url: nextNote.previous?.sourceUrl || null,
