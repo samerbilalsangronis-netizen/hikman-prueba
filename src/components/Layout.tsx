@@ -10,8 +10,8 @@ function navFor(currency: Currency) {
     { to: '/tasas', label: currency === 'EUR' ? 'Tasas y BCE' : 'Tasas y Fed' },
     { to: '/inflacion', label: 'Inflación' },
     { to: '/empleo', label: 'Empleo' },
-    { to: '/ism', label: currency === 'EUR' ? 'PMI / Sentimiento' : 'ISM / Sentimiento' },
     { to: '/crecimiento', label: 'Crecimiento' },
+    { to: '/confianza', label: 'Confianza / Sentimiento' },
     { to: '/actualizar', label: 'Actualizar Datos' },
   ];
 }

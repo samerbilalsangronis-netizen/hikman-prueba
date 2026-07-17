@@ -6,7 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Tasas } from './pages/Tasas';
 import { Inflacion } from './pages/Inflacion';
 import { Empleo } from './pages/Empleo';
-import { Ism } from './pages/Ism';
+import { Sentimiento } from './pages/Sentimiento';
 import { Crecimiento } from './pages/Crecimiento';
 import { Actualizar } from './pages/Actualizar';
 
@@ -21,7 +21,7 @@ function App() {
               <Route path="tasas" element={<Tasas />} />
               <Route path="inflacion" element={<Inflacion />} />
               <Route path="empleo" element={<Empleo />} />
-              <Route path="ism" element={<Ism />} />
+              <Route path="confianza" element={<Sentimiento />} />
               <Route path="crecimiento" element={<Crecimiento />} />
               <Route path="actualizar" element={<Actualizar />} />
             </Route>

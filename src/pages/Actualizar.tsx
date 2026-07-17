@@ -236,9 +236,9 @@ function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
 }
 
 export function Actualizar() {
-  const { scoreRows, updateScoreValoracion, resetOverrides, exportJson, syncMode, refresh } = useMacroData();
+  const { resetOverrides, exportJson, syncMode, refresh } = useMacroData();
   const { currency } = useCurrency();
-  const sections = ['tasas', 'inflacion', 'empleo', 'ism', 'crecimiento'] as const;
+  const sections = ['tasas', 'inflacion', 'empleo', 'confianza', 'crecimiento'] as const;
   const [fredSyncing, setFredSyncing] = useState(false);
   const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
 
@@ -420,54 +420,6 @@ export function Actualizar() {
         </div>
       )}
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-          Score Compuesto {currency} — Valoración manual
-        </h2>
-        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Juicio del analista por indicador, de −2 (muy bajista para el {currency}) a +2 (muy alcista).
-        </p>
-        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
-          <table className="w-full" style={{ background: 'var(--surface-1)' }}>
-            <thead>
-              <tr className="text-left text-xs" style={{ color: 'var(--text-muted)' }}>
-                <th className="px-3 pt-3 pb-2 font-medium">Indicador</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Ponderación</th>
-                <th className="px-3 pt-3 pb-2 font-medium">Valoración</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scoreRows
-                .filter((row) => (row.currency ?? 'USD') === currency)
-                .map((row) => (
-                <tr key={row.id} style={{ borderTop: '1px solid var(--border)' }}>
-                  <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-                    {row.label}
-                  </td>
-                  <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {row.weight}
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      value={row.valoracion}
-                      onChange={(e) => updateScoreValoracion(row.id, Number(e.target.value))}
-                      className="rounded-md px-2 py-1 text-sm tabular-nums"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    >
-                      {[-2, -1, 0, 1, 2].map((v) => (
-                        <option key={v} value={v}>
-                          {v > 0 ? '+' : ''}
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }

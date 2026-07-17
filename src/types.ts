@@ -2,7 +2,7 @@ export type SeriesPoint = [string, number]; // [ISO date, value]
 
 export type Frequency = 'weekly' | 'monthly' | 'quarterly';
 
-export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'ism' | 'crecimiento';
+export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'confianza' | 'crecimiento';
 
 export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio' | 'trade';
 

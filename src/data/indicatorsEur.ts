@@ -161,14 +161,14 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Variación interanual del coste laboral por hora en la Eurozona. Sin API gratis estable — carga manual.',
   },
-  // PMI / Sentimiento — el equivalente al ISM para USD. La Eurozona no tiene
-  // un ISM (organización privada de EE.UU.); el PMI Flash de S&P Global/HCOB
-  // cumple el mismo rol de indicador líder de actividad.
+  // PMI — el equivalente al ISM para USD (section: crecimiento, son
+  // indicadores de actividad). La Eurozona no tiene un ISM (organización
+  // privada de EE.UU.); el PMI Flash de S&P Global/HCOB cumple el mismo rol.
   {
     id: 'eur_pmi_manuf_flash',
     label: 'PMI Manufactura (Flash)',
     shortLabel: 'PMI Manuf.',
-    section: 'ism',
+    section: 'crecimiento',
     format: 'index',
     frequency: 'monthly',
     chart: 'bar',
@@ -182,7 +182,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     id: 'eur_pmi_serv_flash',
     label: 'PMI Servicios (Flash)',
     shortLabel: 'PMI Serv.',
-    section: 'ism',
+    section: 'crecimiento',
     format: 'index',
     frequency: 'monthly',
     chart: 'bar',
@@ -196,7 +196,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     id: 'eur_consumer_confidence',
     label: 'Confianza del Consumidor',
     shortLabel: 'Conf. Consumidor',
-    section: 'ism',
+    section: 'confianza',
     format: 'index',
     frequency: 'monthly',
     chart: 'line',
@@ -210,7 +210,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     id: 'eur_business_confidence',
     label: 'Confianza Empresarial (Industrial)',
     shortLabel: 'Conf. Empresarial',
-    section: 'ism',
+    section: 'confianza',
     format: 'ratio',
     frequency: 'monthly',
     chart: 'line',
@@ -224,7 +224,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     id: 'eur_zew_sentiment',
     label: 'ZEW Sentimiento Económico',
     shortLabel: 'ZEW',
-    section: 'ism',
+    section: 'confianza',
     format: 'index',
     frequency: 'monthly',
     chart: 'line',

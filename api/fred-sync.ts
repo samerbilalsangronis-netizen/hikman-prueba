@@ -45,6 +45,8 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
+  // Confianza / Sentimiento
+  { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento
   // A diferencia de CPI/PPI (BLS usa NSA para el a/a), Census y la Fed
   // calculan el interanual de ventas minoristas y producción industrial

@@ -6,7 +6,14 @@ function valoracionColor(v: number): string {
   return 'var(--text-muted)';
 }
 
-export function ScorePanel({ rows, title = 'Score Compuesto USD' }: { rows: ScoreRow[]; title?: string }) {
+interface ScorePanelProps {
+  rows: ScoreRow[];
+  title?: string;
+  /** Si se pasa, cada fila se vuelve editable con un <select> que llama a esto. */
+  onChangeValoracion?: (id: string, valoracion: number) => void;
+}
+
+export function ScorePanel({ rows, title = 'Score Compuesto USD', onChangeValoracion }: ScorePanelProps) {
   const counted = rows.filter((r) => r.weight !== 'Informativo');
   const total = counted.reduce((sum, r) => sum + r.valoracion, 0);
   const max = counted.length * 2;
@@ -19,7 +26,9 @@ export function ScorePanel({ rows, title = 'Score Compuesto USD' }: { rows: Scor
             {title}
           </h2>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Suma de valoraciones manuales (−2 a +2) de los indicadores núcleo. Edítalo en “Actualizar Datos”.
+            {onChangeValoracion
+              ? 'Suma de valoraciones manuales (−2 a +2) de los indicadores núcleo. Se actualiza al instante.'
+              : 'Suma de valoraciones manuales (−2 a +2) de los indicadores núcleo.'}
           </p>
         </div>
         <div className="text-right">
@@ -50,13 +59,29 @@ export function ScorePanel({ rows, title = 'Score Compuesto USD' }: { rows: Scor
         {rows.map((row) => (
           <div key={row.id} className="flex items-center justify-between gap-2 py-1 text-sm">
             <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
-            <span
-              className="min-w-[2rem] rounded-md px-1.5 text-center text-xs font-semibold tabular-nums"
-              style={{ color: valoracionColor(row.valoracion), border: '1px solid var(--border)' }}
-            >
-              {row.valoracion > 0 ? '+' : ''}
-              {row.valoracion}
-            </span>
+            {onChangeValoracion ? (
+              <select
+                value={row.valoracion}
+                onChange={(e) => onChangeValoracion(row.id, Number(e.target.value))}
+                className="rounded-md px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums"
+                style={{ color: valoracionColor(row.valoracion), border: '1px solid var(--border)', background: 'var(--surface-2)' }}
+              >
+                {[-2, -1, 0, 1, 2].map((v) => (
+                  <option key={v} value={v}>
+                    {v > 0 ? '+' : ''}
+                    {v}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span
+                className="min-w-[2rem] rounded-md px-1.5 text-center text-xs font-semibold tabular-nums"
+                style={{ color: valoracionColor(row.valoracion), border: '1px solid var(--border)' }}
+              >
+                {row.valoracion > 0 ? '+' : ''}
+                {row.valoracion}
+              </span>
+            )}
           </div>
         ))}
       </div>
