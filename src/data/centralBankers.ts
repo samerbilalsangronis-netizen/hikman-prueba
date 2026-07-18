@@ -283,6 +283,100 @@ export const ECB_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR'): CentralBanker[] {
-  return currency === 'EUR' ? ECB_BANKERS : FED_BANKERS;
+// MPC del Banco de Inglaterra — verificado por WebSearch + página oficial
+// (jul-2026, no inventada): bankofengland.co.uk/about/people/monetary-policy-committee.
+// A diferencia de la Fed (rotación regional) y el BCE (rotación por grupos
+// de países), el MPC no tiene rotación: los 9 miembros votan siempre —
+// Governor, 3 Vicegobernadores (Política Monetaria, Estabilidad Financiera,
+// Mercados y Banca), el Economista Jefe, y 4 miembros externos nombrados
+// directo por el Chancellor (Ministro de Hacienda).
+export const BOE_BANKERS: CentralBanker[] = [
+  {
+    id: 'boe_bailey',
+    name: 'Andrew Bailey',
+    title: 'Gobernador del Banco de Inglaterra',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Andrew_Bailey_and_Jane_Hartley_%28Andrew_Bailey_3x4_cropped%29.jpg/500px-Andrew_Bailey_and_Jane_Hartley_%28Andrew_Bailey_3x4_cropped%29.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/andrew-bailey/biography',
+  },
+  {
+    id: 'boe_lombardelli',
+    name: 'Clare Lombardelli',
+    title: 'Vicegobernadora de Política Monetaria',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: '/bankers/lombardelli.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/clare-lombardelli/biography',
+  },
+  {
+    id: 'boe_breeden',
+    name: 'Sarah Breeden',
+    title: 'Vicegobernadora de Estabilidad Financiera',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: '/bankers/breeden.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/sarah-breeden/biography',
+  },
+  {
+    id: 'boe_ramsden',
+    name: 'Sir Dave Ramsden',
+    title: 'Vicegobernador de Mercados y Banca',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Dave_Ramsden.jpg/500px-Dave_Ramsden.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/david-ramsden/biography',
+  },
+  {
+    id: 'boe_pill',
+    name: 'Huw Pill',
+    title: 'Economista Jefe del Banco de Inglaterra',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: '/bankers/pill.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/huw-pill/biography',
+  },
+  {
+    id: 'boe_dhingra',
+    name: 'Swati Dhingra',
+    title: 'Miembro Externa del MPC',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: '/bankers/dhingra.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/swati-dhingra/biography',
+  },
+  {
+    id: 'boe_greene',
+    name: 'Megan Greene',
+    title: 'Miembro Externa del MPC',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: '/bankers/greene.jpg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/megan-greene/biography',
+  },
+  {
+    id: 'boe_mann',
+    name: 'Catherine L. Mann',
+    title: 'Miembro Externa del MPC',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Catherine_L._Mann_in_the_online_discussion_%27ACLF_2021_%E2%80%93_After_the_recession_%E2%80%93_how_should_we_renew_our_economies%27.png/500px-Catherine_L._Mann_in_the_online_discussion_%27ACLF_2021_%E2%80%93_After_the_recession_%E2%80%93_how_should_we_renew_our_economies%27.png",
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/catherine-mann/biography',
+  },
+  {
+    id: 'boe_taylor',
+    name: 'Prof. Alan M. Taylor',
+    title: 'Miembro Externo del MPC',
+    vote: 'voting',
+    currency: 'GBP',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Alan_M._Taylor%2C_Bank_of_England%2C_15_September_2011.jpeg/500px-Alan_M._Taylor%2C_Bank_of_England%2C_15_September_2011.jpeg',
+    bioUrl: 'https://www.bankofengland.co.uk/about/people/alan-taylor/biography',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP'): CentralBanker[] {
+  if (currency === 'EUR') return ECB_BANKERS;
+  if (currency === 'GBP') return BOE_BANKERS;
+  return FED_BANKERS;
 }

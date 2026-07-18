@@ -34,7 +34,9 @@ export function Crecimiento() {
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
             ? 'PIB, PMI, ventas minoristas y producción industrial de la Eurozona.'
-            : 'PIB, PMI (ISM y S&P Global), ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
+            : currency === 'GBP'
+              ? 'PIB mensual, PMI Flash y ventas minoristas del Reino Unido.'
+              : 'PIB, PMI (ISM y S&P Global), ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
         </p>
       </div>
 

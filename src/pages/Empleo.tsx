@@ -13,7 +13,9 @@ export function Empleo() {
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
             ? 'Tasa de desempleo, crecimiento salarial y coste laboral de la Eurozona.'
-            : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
+            : currency === 'GBP'
+              ? 'Tasa de desempleo, Claimant Count y crecimiento salarial (con y sin bonos) del Reino Unido.'
+              : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
         </p>
       </div>
       <SectionGrid section="empleo" months={36} />

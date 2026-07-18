@@ -5,11 +5,12 @@ import { useCurrency } from '../data/CurrencyContext';
 import { formatValue, formatDate } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from '../components/FreshnessBadge';
-import { FRED_MAPPINGS, CBBS_MAPPING, EUR_FRED_MAPPINGS, EUR_EUROSTAT_INDICATOR_ID } from '../data/fredMappings';
+import { FRED_MAPPINGS, CBBS_MAPPING, EUR_FRED_MAPPINGS, EUR_EUROSTAT_INDICATOR_ID, GBP_BOE_INDICATOR_ID } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
 const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
 const EUR_AUTO_COVERED = new Set([...EUR_FRED_MAPPINGS.map((m) => m.indicatorId), EUR_EUROSTAT_INDICATOR_ID]);
+const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID]);
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
@@ -26,7 +27,7 @@ function IndicatorRow({ id }: { id: string }) {
   const [savingForecast, setSavingForecast] = useState(false);
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
-  const isFred = FRED_COVERED.has(id) || EUR_AUTO_COVERED.has(id);
+  const isFred = FRED_COVERED.has(id) || EUR_AUTO_COVERED.has(id) || GBP_AUTO_COVERED.has(id);
   const currentForecast = forecasts[id];
 
   async function handleSave() {
@@ -61,10 +62,12 @@ function IndicatorRow({ id }: { id: string }) {
               title={
                 id === EUR_EUROSTAT_INDICATOR_ID
                   ? 'Se sincroniza automáticamente desde Eurostat'
-                  : 'Se sincroniza automáticamente desde FRED'
+                  : id === GBP_BOE_INDICATOR_ID
+                    ? 'Se sincroniza automáticamente desde el Banco de Inglaterra'
+                    : 'Se sincroniza automáticamente desde FRED'
               }
             >
-              {id === EUR_EUROSTAT_INDICATOR_ID ? 'EUROSTAT' : 'FRED'}
+              {id === EUR_EUROSTAT_INDICATOR_ID ? 'EUROSTAT' : id === GBP_BOE_INDICATOR_ID ? 'BOE' : 'FRED'}
             </span>
           )}
         </div>
@@ -242,8 +245,9 @@ export function Actualizar() {
   const [fredSyncing, setFredSyncing] = useState(false);
   const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
 
-  const syncEndpoint = currency === 'EUR' ? '/api/eur-sync' : '/api/fred-sync';
-  const syncLabel = currency === 'EUR' ? 'Sincronizar con FRED + Eurostat' : 'Sincronizar con FRED';
+  const syncEndpoint = currency === 'EUR' ? '/api/eur-sync' : currency === 'GBP' ? '/api/gbp-sync' : '/api/fred-sync';
+  const syncLabel =
+    currency === 'EUR' ? 'Sincronizar con FRED + Eurostat' : currency === 'GBP' ? 'Sincronizar con BoE' : 'Sincronizar con FRED';
 
   async function handleFredSync() {
     setFredSyncing(true);

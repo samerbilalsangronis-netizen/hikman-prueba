@@ -1,5 +1,6 @@
 import type { Currency, IndicatorMeta } from '../types';
 import { EUR_INDICATORS } from './indicatorsEur';
+import { GBP_INDICATORS } from './indicatorsGbp';
 
 const USD_INDICATORS: IndicatorMeta[] = [
   // PMI (section: crecimiento — son indicadores de actividad/crecimiento, no de confianza)
@@ -601,7 +602,7 @@ const USD_INDICATORS: IndicatorMeta[] = [
   },
 ];
 
-export const INDICATORS: IndicatorMeta[] = [...USD_INDICATORS, ...EUR_INDICATORS];
+export const INDICATORS: IndicatorMeta[] = [...USD_INDICATORS, ...EUR_INDICATORS, ...GBP_INDICATORS];
 
 export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   USD: {
@@ -615,6 +616,14 @@ export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   EUR: {
     score: 'Score EUR',
     tasas: 'Tasas y BCE',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    confianza: 'Confianza / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
+  GBP: {
+    score: 'Score GBP',
+    tasas: 'Tasas y BoE',
     inflacion: 'Inflación',
     empleo: 'Empleo',
     confianza: 'Confianza / Sentimiento',

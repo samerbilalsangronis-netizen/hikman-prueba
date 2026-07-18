@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import historicalSeries from './historical-series.json';
 import { SCORE_SEED as USD_SCORE_SEED } from './scoreSeed';
 import { EUR_SCORE_SEED } from './scoreSeedEur';
+import { GBP_SCORE_SEED } from './scoreSeedGbp';
 
-const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED];
+const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED, ...GBP_SCORE_SEED];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
 import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint, Statement } from '../types';
 

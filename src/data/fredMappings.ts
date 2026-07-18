@@ -99,3 +99,8 @@ export const EUR_FRED_MAPPINGS: FredMapping[] = [
 
 // Único indicador EUR sincronizado desde Eurostat en vez de FRED.
 export const EUR_EUROSTAT_INDICATOR_ID = 'eur_unemployment';
+
+// GBP — a diferencia de USD/EUR, casi todo queda manual (ver indicatorsGbp.ts:
+// la API de ONS está congelada/desactualizada). Único automatizado: la Bank
+// Rate del BoE, vía su IADB (api/gbp-sync.ts), no FRED.
+export const GBP_BOE_INDICATOR_ID = 'gbp_boe_rate';

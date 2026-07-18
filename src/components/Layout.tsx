@@ -7,7 +7,7 @@ import type { Currency } from '../types';
 function navFor(currency: Currency) {
   return [
     { to: '/', label: 'Resumen', end: true },
-    { to: '/tasas', label: currency === 'EUR' ? 'Tasas y BCE' : 'Tasas y Fed' },
+    { to: '/tasas', label: currency === 'EUR' ? 'Tasas y BCE' : currency === 'GBP' ? 'Tasas y BoE' : 'Tasas y Fed' },
     { to: '/inflacion', label: 'Inflación' },
     { to: '/empleo', label: 'Empleo' },
     { to: '/crecimiento', label: 'Crecimiento' },
