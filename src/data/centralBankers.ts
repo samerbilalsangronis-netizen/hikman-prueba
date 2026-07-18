@@ -133,6 +133,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Boston (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Susan_M_Collins_Official_Portrait.jpg/500px-Susan_M_Collins_Official_Portrait.jpg',
     bioUrl: 'https://www.bostonfed.org/about-us/susan-collins.aspx',
   },
   {
