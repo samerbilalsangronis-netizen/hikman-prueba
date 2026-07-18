@@ -4,6 +4,15 @@ import type { CentralBanker } from '../types';
 // federalreserve.gov/monetarypolicy/fomc.htm, federalreserve.gov/aboutthefed/bios,
 // ecb.europa.eu/ecb/orga. Cambios de personas (renuncias, rotaciones anuales de
 // voto) requieren revisión periódica — no asumir que esto queda fijo para siempre.
+//
+// Fotos en public/bankers/*.jpg: son copias locales, no hotlinks. Logan, Paulson,
+// Barkin, Musalem y Lane no tienen foto en Wikimedia Commons; hotlinkear directo al
+// sitio oficial del banco se probó primero y falló en el navegador real (curl daba
+// 200 pero Chrome mostraba ícono roto — Philadelphia Fed manda
+// Cross-Origin-Resource-Policy: same-origin, y los demás bancos parecen tener
+// protección anti-hotlinking similar que curl no detecta). Se autohospedan las
+// imágenes en su lugar. Si se agrega una foto nueva para otro banquero sin Commons,
+// replicar este patrón (descargar a public/bankers/, referenciar con ruta relativa).
 export const FED_BANKERS: CentralBanker[] = [
   // Junta de Gobernadores — votan siempre en el FOMC.
   {
@@ -105,7 +114,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Dallas (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
-    photoUrl: 'https://www.dallasfed.org/~/media/Images/People/dallasfed/Logan_Lorie.jpg',
+    photoUrl: '/bankers/logan.jpg',
     bioUrl: 'https://www.dallasfed.org/fed/leadership/logan',
   },
   {
@@ -114,7 +123,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Filadelfia (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
-    photoUrl: 'https://www.philadelphiafed.org/-/media/FRBP/Assets/Images/People/Executive-Leadership/25-06_Anna-Paulson.jpg',
+    photoUrl: '/bankers/paulson.jpg',
     bioUrl: 'https://www.philadelphiafed.org/our-people/anna-paulson',
   },
   // No votan este año (rotan en 2027).
@@ -132,7 +141,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Richmond (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
-    photoUrl: 'https://www.richmondfed.org/-/media/RichmondFedOrg/assets/images/standard/2018/barkin_pisi_20180807.jpg',
+    photoUrl: '/bankers/barkin.jpg',
     bioUrl: 'https://www.richmondfed.org/about_us/our_leadership/tom_barkin',
   },
   {
@@ -150,7 +159,7 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de St. Louis (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
-    photoUrl: 'https://www.stlouisfed.org/-/media/project/frbstl/stlouisfed/images/musalem/presidents-outreach/alberto-musalem-bio-600.jpg?sc_lang=en&hash=AF57A5C9F5AE39FDE9BA1D80A166C638',
+    photoUrl: '/bankers/musalem.jpg',
     bioUrl: 'https://www.stlouisfed.org/about-us/leadership-governance/bank-officers/executive-bios/alberto-musalem',
   },
   {
@@ -201,7 +210,7 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Economista Jefe del BCE (Comité Ejecutivo)',
     vote: 'voting',
     currency: 'EUR',
-    photoUrl: 'https://live.staticflickr.com/65535/48256087741_419152f8e8_b.jpg',
+    photoUrl: '/bankers/lane.jpg',
     bioUrl: 'https://www.ecb.europa.eu/ecb/decisions/html/cvlane.en.html',
   },
   {
