@@ -105,7 +105,8 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Dallas (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
-    bioUrl: 'https://www.dallasfed.org/about/people/logan',
+    photoUrl: 'https://www.dallasfed.org/~/media/Images/People/dallasfed/Logan_Lorie.jpg',
+    bioUrl: 'https://www.dallasfed.org/fed/leadership/logan',
   },
   {
     id: 'fed_paulson',
@@ -113,7 +114,8 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidenta de la Fed de Filadelfia (voto rotativo 2026)',
     vote: 'rotating',
     currency: 'USD',
-    bioUrl: 'https://www.philadelphiafed.org/the-fed/anna-paulson',
+    photoUrl: 'https://www.philadelphiafed.org/-/media/FRBP/Assets/Images/People/Executive-Leadership/25-06_Anna-Paulson.jpg',
+    bioUrl: 'https://www.philadelphiafed.org/our-people/anna-paulson',
   },
   // No votan este año (rotan en 2027).
   {
@@ -130,7 +132,8 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de Richmond (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
-    bioUrl: 'https://www.richmondfed.org/about_us/leadership/president/barkin_bio',
+    photoUrl: 'https://www.richmondfed.org/-/media/RichmondFedOrg/assets/images/standard/2018/barkin_pisi_20180807.jpg',
+    bioUrl: 'https://www.richmondfed.org/about_us/our_leadership/tom_barkin',
   },
   {
     id: 'fed_goolsbee',
@@ -147,7 +150,8 @@ export const FED_BANKERS: CentralBanker[] = [
     title: 'Presidente de la Fed de St. Louis (no vota en 2026)',
     vote: 'nonvoting',
     currency: 'USD',
-    bioUrl: 'https://www.stlouisfed.org/en/about-us/leadership/alberto-musalem',
+    photoUrl: 'https://www.stlouisfed.org/-/media/project/frbstl/stlouisfed/images/musalem/presidents-outreach/alberto-musalem-bio-600.jpg?sc_lang=en&hash=AF57A5C9F5AE39FDE9BA1D80A166C638',
+    bioUrl: 'https://www.stlouisfed.org/about-us/leadership-governance/bank-officers/executive-bios/alberto-musalem',
   },
   {
     id: 'fed_schmid',
@@ -197,7 +201,8 @@ export const ECB_BANKERS: CentralBanker[] = [
     title: 'Economista Jefe del BCE (Comité Ejecutivo)',
     vote: 'voting',
     currency: 'EUR',
-    bioUrl: 'https://www.ecb.europa.eu/ecb/orga/decisions/eb/html/index.en.html',
+    photoUrl: 'https://live.staticflickr.com/65535/48256087741_419152f8e8_b.jpg',
+    bioUrl: 'https://www.ecb.europa.eu/ecb/decisions/html/cvlane.en.html',
   },
   {
     id: 'ecb_schnabel',
