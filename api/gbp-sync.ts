@@ -7,12 +7,15 @@ import { createClient } from '@supabase/supabase-js';
 //
 // GBP es distinto de USD/EUR: casi todos sus indicadores quedan manuales (ver
 // src/data/indicatorsGbp.ts — la API de ONS está congelada/desactualizada).
-// Único automatizado: la Bank Rate del Banco de Inglaterra, vía su IADB (no
-// FRED — FRED tiene la serie de la Bank Rate discontinuada desde 2016).
+// Automatizados: la Bank Rate del Banco de Inglaterra, vía su IADB (no FRED
+// — FRED tiene la serie de la Bank Rate discontinuada desde 2016); y la
+// Balanza Comercial, que sí está viva en FRED (republicada desde ONS).
 
 const BOE_INDICATOR_ID = 'gbp_boe_rate';
 const BOE_SERIES_CODE = 'IUDBEDR';
 const BOE_IADB_URL = 'https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp';
+const TRADE_BALANCE_INDICATOR_ID = 'gbp_trade_balance';
+const TRADE_BALANCE_FRED_SERIES = 'XTNTVA01GBM664S'; // Trade Balance: Commodities, GBP, SA
 const BACKFILL_MONTHS = 36;
 
 interface Observation {
@@ -59,6 +62,23 @@ async function fetchBoeBankRate(): Promise<Observation[]> {
   return parseMonthlyFromDailyCsv(csv).slice(-BACKFILL_MONTHS);
 }
 
+// FRED republica la balanza comercial de bienes del Reino Unido (fuente
+// original: ONS) en libras esterlinas crudas (no miles/millones) —
+// dividimos por 1e6 para guardar en millones, la convención que usa el
+// formato 'trade' del dashboard (ver lib/format.ts).
+async function fetchTradeBalance(fredApiKey: string): Promise<Observation[]> {
+  const url =
+    `https://api.stlouisfed.org/fred/series/observations?series_id=${TRADE_BALANCE_FRED_SERIES}` +
+    `&api_key=${fredApiKey}&file_type=json&sort_order=desc&limit=${BACKFILL_MONTHS}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`FRED ${TRADE_BALANCE_FRED_SERIES}: HTTP ${res.status}`);
+  const json = (await res.json()) as { observations?: { date: string; value: string }[] };
+  return (json.observations ?? [])
+    .filter((o) => o.value !== '.')
+    .map((o) => ({ date: o.date, value: Number(o.value) / 1_000_000 }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -67,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const fredKey = process.env.FRED_API_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     res.status(500).json({ error: 'Falta configurar VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en Vercel.' });
@@ -77,17 +98,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const updated: { indicatorId: string; date: string; value: number; points: number }[] = [];
   const errors: { indicatorId: string; error: string }[] = [];
 
+  async function syncSeries(indicatorId: string, series: Observation[]) {
+    if (series.length === 0) return;
+    const rows = series.map((p) => ({ indicator_id: indicatorId, date: p.date, value: p.value }));
+    const { error } = await supabase.from('indicator_overrides').upsert(rows);
+    if (error) throw new Error(error.message);
+    const latest = series[series.length - 1];
+    updated.push({ indicatorId, date: latest.date, value: latest.value, points: series.length });
+  }
+
   try {
-    const series = await fetchBoeBankRate();
-    if (series.length > 0) {
-      const rows = series.map((p) => ({ indicator_id: BOE_INDICATOR_ID, date: p.date, value: p.value }));
-      const { error } = await supabase.from('indicator_overrides').upsert(rows);
-      if (error) throw new Error(error.message);
-      const latest = series[series.length - 1];
-      updated.push({ indicatorId: BOE_INDICATOR_ID, date: latest.date, value: latest.value, points: series.length });
-    }
+    await syncSeries(BOE_INDICATOR_ID, await fetchBoeBankRate());
   } catch (err) {
     errors.push({ indicatorId: BOE_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  if (!fredKey) {
+    errors.push({ indicatorId: TRADE_BALANCE_INDICATOR_ID, error: 'Falta la variable de entorno FRED_API_KEY en Vercel.' });
+  } else {
+    try {
+      await syncSeries(TRADE_BALANCE_INDICATOR_ID, await fetchTradeBalance(fredKey));
+    } catch (err) {
+      errors.push({ indicatorId: TRADE_BALANCE_INDICATOR_ID, error: (err as Error).message });
+    }
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });

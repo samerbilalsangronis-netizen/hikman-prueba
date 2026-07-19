@@ -248,4 +248,19 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'El Reino Unido, a diferencia de EE.UU. y la Eurozona, publica una estimación de PIB mensual (no solo trimestral). Carga manual.',
   },
+  {
+    id: 'gbp_trade_balance',
+    label: 'Balanza Comercial',
+    shortLabel: 'Balanza Com.',
+    section: 'crecimiento',
+    format: 'trade',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'GBP',
+    source: 'FRED (XTNTVA01GBM664S, vía ONS)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/XTNTVA01GBM664S',
+    goodDirection: 'up',
+    description:
+      'Balance comercial de bienes (mercancías) del Reino Unido, desestacionalizado — solo bienes, no incluye servicios (a diferencia de la balanza de USD, que sí los incluye). Verificado contra el comunicado de ONS de abril-2026.',
+  },
 ];

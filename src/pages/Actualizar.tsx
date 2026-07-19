@@ -11,13 +11,14 @@ import {
   EUR_FRED_MAPPINGS,
   EUR_EUROSTAT_INDICATOR_ID,
   GBP_BOE_INDICATOR_ID,
+  GBP_TRADE_BALANCE_INDICATOR_ID,
   CAD_AUTO_INDICATOR_IDS,
 } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
 const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
 const EUR_AUTO_COVERED = new Set([...EUR_FRED_MAPPINGS.map((m) => m.indicatorId), EUR_EUROSTAT_INDICATOR_ID]);
-const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID]);
+const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID, GBP_TRADE_BALANCE_INDICATOR_ID]);
 const CAD_AUTO_COVERED = new Set(CAD_AUTO_INDICATOR_IDS);
 
 function IndicatorRow({ id }: { id: string }) {

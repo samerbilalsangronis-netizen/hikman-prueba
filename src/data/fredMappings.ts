@@ -101,9 +101,12 @@ export const EUR_FRED_MAPPINGS: FredMapping[] = [
 export const EUR_EUROSTAT_INDICATOR_ID = 'eur_unemployment';
 
 // GBP — a diferencia de USD/EUR, casi todo queda manual (ver indicatorsGbp.ts:
-// la API de ONS está congelada/desactualizada). Único automatizado: la Bank
-// Rate del BoE, vía su IADB (api/gbp-sync.ts), no FRED.
+// la API de ONS está congelada/desactualizada). La Bank Rate se sincroniza
+// vía el IADB del BoE (no FRED); la Balanza Comercial sí está disponible en
+// FRED con datos vivos (XTNTVA01GBM664S, republicada desde ONS) — ambas se
+// sincronizan desde api/gbp-sync.ts.
 export const GBP_BOE_INDICATOR_ID = 'gbp_boe_rate';
+export const GBP_TRADE_BALANCE_INDICATOR_ID = 'gbp_trade_balance';
 
 // CAD — se sincroniza desde StatCan (Web Data Service) + Bank of Canada
 // Valet, no FRED (los derivados de FRED para Canadá están desactualizados o

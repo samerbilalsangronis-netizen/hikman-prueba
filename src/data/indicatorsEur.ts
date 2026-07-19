@@ -308,4 +308,19 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     description:
       'Variación mensual de producción industrial de la Eurozona. Carga manual: mismo motivo que Ventas Minoristas — la serie en vivo de Eurostat no coincidió con el valor de referencia al verificarla.',
   },
+  {
+    id: 'eur_trade_balance',
+    label: 'Balanza Comercial',
+    shortLabel: 'Balanza Com.',
+    section: 'crecimiento',
+    format: 'trade',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'EUR',
+    source: 'Eurostat (teiet210)',
+    sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/product/view/teiet210',
+    goodDirection: 'up',
+    description:
+      'Balance comercial de bienes de la Eurozona con el resto del mundo. Carga manual: el dataset teiet210 de Eurostat (geo=EA21, extra-EA21, SA) no coincidió con el comunicado oficial de mayo-2026 (dio -5.0mM cuando el titular publicado fue -7.8mM) — mismo motivo que Ventas Minoristas/Producción Industrial, no se automatiza con un dato no verificado.',
+  },
 ];
