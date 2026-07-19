@@ -235,14 +235,16 @@ export function Banqueros() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Banqueros Centrales — {currency === 'EUR' ? 'BCE' : currency === 'GBP' ? 'BoE' : 'Fed'}
+          Banqueros Centrales — {currency === 'EUR' ? 'BCE' : currency === 'GBP' ? 'BoE' : currency === 'CAD' ? 'BoC' : 'Fed'}
         </h1>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
             ? 'Comité Ejecutivo del BCE (votan siempre) y gobernadores nacionales del Grupo 1 (rotan el voto). Faltan los gobernadores del Grupo 2 — se agregan más adelante.'
             : currency === 'GBP'
               ? 'Los 9 miembros del Monetary Policy Committee (MPC) — a diferencia de la Fed y el BCE, todos votan siempre, no hay rotación.'
-              : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
+              : currency === 'CAD'
+                ? 'El Governing Council del Banco de Canadá decide por consenso (no por voto formal) — sus 6 miembros siempre participan de la decisión.'
+                : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
         </p>
       </div>
 

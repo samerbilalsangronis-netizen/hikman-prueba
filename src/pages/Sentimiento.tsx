@@ -15,7 +15,9 @@ export function Sentimiento() {
             ? 'Encuestas de confianza del consumidor, empresarial y ZEW de la Eurozona.'
             : currency === 'GBP'
               ? 'Barómetro de confianza del consumidor GfK del Reino Unido.'
-              : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
+              : currency === 'CAD'
+                ? 'Confianza empresarial y del consumidor de Canadá (Conference Board of Canada).'
+                : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
         </p>
       </div>
       <SectionGrid section="confianza" months={36} />

@@ -6,7 +6,7 @@ export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'confianza' |
 
 export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio' | 'trade';
 
-export type Currency = 'USD' | 'EUR' | 'GBP';
+export type Currency = 'USD' | 'EUR' | 'GBP' | 'CAD';
 
 export interface IndicatorMeta {
   id: string;

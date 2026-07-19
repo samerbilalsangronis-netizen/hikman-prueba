@@ -15,7 +15,9 @@ export function Empleo() {
             ? 'Tasa de desempleo, crecimiento salarial y coste laboral de la Eurozona.'
             : currency === 'GBP'
               ? 'Tasa de desempleo, Claimant Count y crecimiento salarial (con y sin bonos) del Reino Unido.'
-              : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
+              : currency === 'CAD'
+                ? 'Tasa de desempleo y cambios mensuales en el empleo de Canadá.'
+                : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
         </p>
       </div>
       <SectionGrid section="empleo" months={36} />

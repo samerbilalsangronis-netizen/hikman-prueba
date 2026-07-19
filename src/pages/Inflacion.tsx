@@ -15,7 +15,9 @@ export function Inflacion() {
             ? 'CPI y Core CPI (HICP), variación mensual e interanual.'
             : currency === 'GBP'
               ? 'CPI y Core CPI del Reino Unido, variación mensual e interanual.'
-              : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
+              : currency === 'CAD'
+                ? 'CPI y Core CPI de Canadá, variación mensual e interanual.'
+                : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
         </p>
       </div>
       <SectionGrid section="inflacion" months={36} />

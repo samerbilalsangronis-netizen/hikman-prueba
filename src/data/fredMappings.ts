@@ -104,3 +104,22 @@ export const EUR_EUROSTAT_INDICATOR_ID = 'eur_unemployment';
 // la API de ONS está congelada/desactualizada). Único automatizado: la Bank
 // Rate del BoE, vía su IADB (api/gbp-sync.ts), no FRED.
 export const GBP_BOE_INDICATOR_ID = 'gbp_boe_rate';
+
+// CAD — se sincroniza desde StatCan (Web Data Service) + Bank of Canada
+// Valet, no FRED (los derivados de FRED para Canadá están desactualizados o
+// discontinuados — verificado). PMI y encuestas de confianza quedan
+// manuales (sin API pública), igual que en el resto de las divisas.
+export const CAD_AUTO_INDICATOR_IDS = [
+  'cad_boc_rate',
+  'cad_cpi',
+  'cad_core_cpi',
+  'cad_cpi_yoy',
+  'cad_core_cpi_yoy',
+  'cad_unemployment',
+  'cad_employment_change',
+  'cad_retail_sales',
+  'cad_retail_sales_yoy',
+  'cad_gdp_mom',
+  'cad_gdp_yoy',
+  'cad_trade_balance',
+];

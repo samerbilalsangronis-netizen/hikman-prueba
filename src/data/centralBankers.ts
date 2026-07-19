@@ -375,8 +375,76 @@ export const BOE_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP'): CentralBanker[] {
+// Governing Council del Bank of Canada — verificado con la página oficial
+// (jul-2026): bankofcanada.ca/about/governing-council/. A diferencia de la
+// Fed/BCE/BoE, el BoC no vota formalmente — decide por consenso, todos sus
+// 6 miembros participan siempre (se usa 'voting' igual que el MPC del BoE,
+// no hay categoría de "consenso" separada en el tipo).
+//
+// OJO Nicolas Vincent: al momento de escribir esto (jul-2026) todavía es
+// "External Deputy Governor" (rol part-time, en el Council desde 2023) —
+// pasa a "Deputy Governor" full-time recién el 3-ago-2026. Si esta sesión
+// se retoma después de esa fecha, actualizar el título.
+export const BOC_BANKERS: CentralBanker[] = [
+  {
+    id: 'boc_macklem',
+    name: 'Tiff Macklem',
+    title: 'Gobernador del Banco de Canadá',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Tiff_Macklem_2018_%28cropped_3-4%29.jpg/500px-Tiff_Macklem_2018_%28cropped_3-4%29.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/tiff-macklem/',
+  },
+  {
+    id: 'boc_rogers',
+    name: 'Carolyn Rogers',
+    title: 'Vicegobernadora Principal (Senior Deputy Governor)',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: '/bankers/rogers.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/carolyn-rogers/',
+  },
+  {
+    id: 'boc_gravelle',
+    name: 'Toni Gravelle',
+    title: 'Vicegobernador',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: '/bankers/gravelle.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/toni-gravelle/',
+  },
+  {
+    id: 'boc_gosselin',
+    name: 'Marc-André Gosselin',
+    title: 'Vicegobernador',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: '/bankers/gosselin.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/marc-andre-gosselin/',
+  },
+  {
+    id: 'boc_alexopoulos',
+    name: 'Michelle Alexopoulos',
+    title: 'Vicegobernadora Externa (External Deputy Governor)',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: '/bankers/alexopoulos.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/michelle-alexopoulos/',
+  },
+  {
+    id: 'boc_vincent',
+    name: 'Nicolas Vincent',
+    title: 'Vicegobernador Externo (External Deputy Governor — pasa a tiempo completo el 3-ago-2026)',
+    vote: 'voting',
+    currency: 'CAD',
+    photoUrl: '/bankers/vincent.jpg',
+    bioUrl: 'https://www.bankofcanada.ca/profile/nicolas-vincent/',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
+  if (currency === 'CAD') return BOC_BANKERS;
   return FED_BANKERS;
 }
