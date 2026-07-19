@@ -13,11 +13,14 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP y CAD completos y en producción. AUD
-completa pero todavía SOLO en la rama de sesión** (`claude/handoff-review-8vej1i`),
-**no en la rama de producción** `claude/macro-usd-web-dashboard-xm5ypk` —
-falta el push final, ver nota de ramas. Faltan JPY, CHF, NZD — ver
-"Pendiente explícito" más abajo, incluye los datos crudos que ya mandó el
+**Estado actual: USD, EUR, GBP, CAD y AUD completos y en producción**
+(las dos ramas están sincronizadas al mismo commit al escribir esto).
+AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
+se agregaron Weighted Median y PPI, y se reordenaron las tarjetas de
+Inflación de TODAS las divisas (m/m junto a su a/a, no agrupados por
+separado) a pedido del usuario — ver lección AUD #21 y el commit
+correspondiente. Faltan JPY, CHF, NZD — ver "Pendiente explícito" más
+abajo, incluye los datos crudos que ya mandó el
 usuario (por captura de pantalla, no Excel) para esas 3.
 
 ## Dónde vive todo
@@ -143,6 +146,14 @@ insignia en la UI, el de `/api` es el que realmente sincroniza).
   reutilizar un id de otra divisa.**
 - **PMI siempre va a `crecimiento`** (es actividad, no confianza pura);
   encuestas de confianza del consumidor/empresarial van a `confianza`.
+- **Orden visual de las tarjetas dentro de cada sección: cada medida va
+  su variante de corto plazo (m/m o t/t) seguida INMEDIATAMENTE de su
+  a/a**, nunca todos los m/m agrupados primero y los a/a después — pedido
+  explícito del usuario, aplicado a USD/EUR/GBP/CAD/AUD en jul-2026. El
+  orden de las tarjetas es simplemente el orden del array en
+  `indicators{X}.ts` (no hay lógica de sorting en `SectionGrid`/
+  `ChartCard`) — al agregar un indicador nuevo con su par m/m+a/a,
+  colocarlos consecutivos en el archivo.
 - Patrón de sourcing por indicador (repetir para cada divisa nueva):
   1. Buscar si el dato está en FRED. **OJO**: FRED republica series de
      otros países pero a veces están discontinuadas o desactualizadas
@@ -218,15 +229,25 @@ Industrial de EUR: no se automatiza lo que no se pudo verificar).
   `cad_pmi_serv`, `cad_retail_sales`, `cad_business_confidence`,
   `cad_consumer_confidence`, `cad_gdp_yoy`.
 
-**AUD (16, agregada en esta sesión)**, `indicatorsAud.ts`, ids `aud_`:
+**AUD (20, agregada en esta sesión)**, `indicatorsAud.ts`, ids `aud_`:
 - Tasas (1, auto): `aud_rba_rate` (CSV público del RBA, tabla F1.1, serie
   `FIRMMCRT` — sin key, no vía API SDMX)
-- Inflación (4, todos auto vía **ABS Data API**, dataflow `CPI`):
-  `aud_cpi`/`aud_cpi_yoy` (headline, serie Original) +
+- Inflación (8, todos auto vía **ABS Data API**): `aud_cpi`/`aud_cpi_yoy`
+  (headline, dataflow `CPI`, serie Original) +
   `aud_core_cpi`/`aud_core_cpi_yoy` (**Trimmed Mean**, no "ex alimentos y
-  energía" — ver Decisiones técnicas #4). Historia corta (~14-25 meses)
-  por un quiebre real de metodología — ver #3 abajo, no se empalmó con la
-  serie trimestral vieja para no fabricar continuidad falsa.
+  energía" — ver Decisiones técnicas #4) +
+  `aud_weighted_median`/`aud_weighted_median_yoy` (**el RBA prioriza esta
+  medida en pie de igualdad con el Trimmed Mean desde oct-2025** —
+  agregada tras el pedido del usuario de revisar los datos de inflación,
+  ver lección #21) + `aud_ppi_qoq`/`aud_ppi_yoy` (dataflow `PPI_FD`,
+  trimestral — indicador que faltaba por completo, agregado en la misma
+  pasada). Las 3 series ligadas al CPI mensual (headline, trimmed mean,
+  weighted median) tienen historia corta (~14-25 meses) por un quiebre
+  real de metodología — ver #3/#21 abajo, no se empalmó con la serie
+  trimestral vieja para no fabricar continuidad falsa. **Orden de las
+  tarjetas: cada medida va m/m (o t/t) seguido de su a/a**, no todos los
+  m/m agrupados y después todos los a/a — a pedido explícito del usuario,
+  aplicado también a USD/EUR/GBP/CAD en la misma sesión.
 - Empleo (2, auto, ABS dataflow `LF`): `aud_unemployment`,
   `aud_employment_change`
 - Confianza (2, manuales — sin API pública, NAB / Westpac-Melbourne
@@ -461,6 +482,24 @@ nombre del dataflow lo delate):
     tasa) y un "Governance Board" separado (no modelado — no decide
     política monetaria). Si se busca la composición del RBA sin saber
     esto, es fácil terminar con nombres del board viejo o incompleto.
+21. **Trampa de metodología dual — la ABS sigue publicando en PARALELO la
+    serie de Trimmed Mean/Weighted Median "pre-October 2025 basis" (la
+    metodología vieja) junto con la vigente**, sin que el nombre del
+    indicador lo distinga claramente en un calendario económico de
+    terceros. El usuario mandó una captura de su fuente de referencia
+    mostrando Trimmed Mean=3.5%/Weighted Median=3.5%/CPI headline=4.1%
+    para el trimestre que termina en marzo-2026 — **esos son los valores
+    de la metodología VIEJA**; los correctos y vigentes (los que reporta
+    la ABS en su comunicado oficial y toda la prensa) son Trimmed
+    Mean=3.3%/Weighted Median=3.4%/CPI headline=4.6% para ese mismo
+    período. **Lección: cuando una fuente de referencia da un número
+    "razonablemente parecido pero no igual" al oficial, no asumir que es
+    solo redondeo o timing — puede ser literalmente una serie distinta y
+    deprecada que ABS mantiene por comparabilidad histórica durante la
+    transición.** Se agregó `aud_weighted_median`/`_yoy` (dataflow `CPI`,
+    `INDEX=999903`) siguiendo el mismo patrón que Trimmed Mean
+    (`INDEX=999902`) — ambas con la metodología vigente (TSEST=20,
+    MEASURE=2/3, FREQ=M).
 
 ## Pendiente explícito
 
