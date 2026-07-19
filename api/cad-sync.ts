@@ -72,12 +72,15 @@ function levelByMonth(points: StatCanPoint[]): Observation[] {
   return points.map((p) => ({ date: `${p.refPer}-01`, value: p.value }));
 }
 
-// Coordenadas StatCan verificadas contra "The Daily" antes de automatizar
-// (ver indicatorsCad.ts): el m/m de CPI calculado sobre 18-10-0006-01 dio
-// 0.5% para mayo-2026, coincide exacto con el comunicado oficial.
+// Coordenadas StatCan verificadas contra el dato real antes de automatizar
+// (ver indicatorsCad.ts): el CPI m/m "titular" que reportan medios/Trading
+// Economics para Canadá es la serie SIN desestacionalizar (NSA, tabla
+// 18-10-0004) — 1.0% para mayo-2026, no el 0.5% desestacionalizado (SA,
+// tabla 18-10-0006) que StatCan destaca en su propio comunicado. Se usa NSA
+// para las 4 series de CPI (m/m y a/a, headline y core), consistente.
 const STATCAN_SOURCES = {
-  cpiAll: { productId: 18100006, coordinate: '1.1.0.0.0.0.0.0.0.0' }, // CPI SA, all-items
-  cpiCore: { productId: 18100006, coordinate: '1.11.0.0.0.0.0.0.0.0' }, // CPI SA, ex food & energy
+  cpiAll: { productId: 18100004, coordinate: '2.2.0.0.0.0.0.0.0.0' }, // CPI NSA, all-items
+  cpiCore: { productId: 18100004, coordinate: '2.285.0.0.0.0.0.0.0.0' }, // CPI NSA, ex food & energy
   unemployment: { productId: 14100287, coordinate: '1.7.1.1.1.1.0.0.0.0' },
   employment: { productId: 14100287, coordinate: '1.3.1.1.1.1.0.0.0.0' },
   gdp: { productId: 36100434, coordinate: '1.1.1.1.0.0.0.0.0.0' }, // All industries, chained 2017$, SAAR

@@ -8,9 +8,20 @@ import type { IndicatorMeta } from '../types';
 // Se usó solo para identificar QUÉ indicadores importan y los pesos del
 // score (hoja DECISIONES); el histórico completo y el valor actual se
 // reconstruyeron desde cero directo de la fuente oficial (StatCan + Bank of
-// Canada), verificando cada uno contra el comunicado oficial antes de
-// automatizar (ver decisión técnica: el CPI m/m calculado dio 0.5%, coincide
-// exacto con "The Daily" de StatCan del 22-jun-2026).
+// Canada), verificando cada uno contra un dato real antes de automatizar.
+//
+// Lección de esta divisa (encontrada por el usuario, no en la verificación
+// inicial): el CPI m/m tiene DOS series oficiales válidas en StatCan — la
+// desestacionalizada (SA, tabla 18-10-0006, la que StatCan destaca en su
+// propio comunicado — 0.5% para mayo-2026) y la cruda (NSA, tabla
+// 18-10-0004 — 1.0%). El primer verificado usó SA y coincidía con el texto
+// de "The Daily", pero el usuario notó que el dato no coincidía con lo que
+// muestran los agregadores (Trading Economics y similares), que reportan
+// NSA. Se corrigió a NSA en las 4 series de CPI. Ambos números son reales y
+// oficiales — la lección no es "el dato estaba mal" sino "verificar contra
+// UNA fuente no alcanza si esa fuente tiene más de una convención posible;
+// hay que confirmar cuál es la que efectivamente usa el mercado/la UI de
+// referencia del usuario".
 export const CAD_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoC — una sola tasa (overnight rate target), como la Fed y el BoE.
   {
@@ -27,9 +38,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Tasa objetivo del mercado a un día (overnight rate target) del Banco de Canadá — su tasa de referencia.',
   },
-  // Inflación — serie desestacionalizada (SA) de StatCan: verificado que el
-  // m/m calculado sobre esta serie coincide con el dato oficial publicado
-  // (StatCan usa la SA para las comparaciones m/m, no la serie cruda).
+  // Inflación — serie SIN desestacionalizar (NSA, tabla 18-10-0004) de
+  // StatCan. OJO: StatCan destaca en su propio comunicado ("The Daily") la
+  // variación m/m de la serie desestacionalizada (SA, tabla 18-10-0006) —
+  // para mayo-2026 daba 0.5%, un número real y oficial, pero NO es lo que
+  // reportan los medios/Trading Economics como "CPI m/m" de Canadá (esos
+  // usan la NSA, que dio 1.0% — verificado y corregido tras detectar la
+  // discrepancia). Se usa NSA en las 4 series (m/m y a/a, headline y core)
+  // para consistencia con la convención de mercado.
   {
     id: 'cad_cpi',
     label: 'CPI (Inflación al Consumidor, m/m)',
@@ -39,10 +55,10 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0006-01, desestacionalizada)',
+    source: 'Statistics Canada (tabla 18-10-0004-01, sin desestacionalizar)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
-    description: 'Variación mensual del CPI de Canadá (serie desestacionalizada). Verificado: coincide exacto con el 0.5% publicado por StatCan para mayo-2026.',
+    description: 'Variación mensual del CPI de Canadá (serie NSA — la que reportan medios/Trading Economics). Verificado: 1.0% para mayo-2026.',
   },
   {
     id: 'cad_core_cpi',
@@ -53,10 +69,10 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0006-01)',
+    source: 'Statistics Canada (tabla 18-10-0004-01)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
-    description: 'CPI subyacente de Canadá (excluye alimentos y energía), serie desestacionalizada.',
+    description: 'CPI subyacente de Canadá (excluye alimentos y energía), serie NSA.',
   },
   {
     id: 'cad_cpi_yoy',
@@ -67,7 +83,7 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0006-01)',
+    source: 'Statistics Canada (tabla 18-10-0004-01)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
     description: 'Variación del CPI respecto al mismo mes del año anterior. Verificado: 3.2% calculado coincide con el dato oficial de mayo-2026.',
@@ -81,7 +97,7 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0006-01)',
+    source: 'Statistics Canada (tabla 18-10-0004-01)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
     description: 'CPI subyacente respecto al mismo mes del año anterior.',
