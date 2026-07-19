@@ -73,14 +73,18 @@ function levelByMonth(points: StatCanPoint[]): Observation[] {
 }
 
 // Coordenadas StatCan verificadas contra el dato real antes de automatizar
-// (ver indicatorsCad.ts): el CPI m/m "titular" que reportan medios/Trading
-// Economics para Canadá es la serie SIN desestacionalizar (NSA, tabla
-// 18-10-0004) — 1.0% para mayo-2026, no el 0.5% desestacionalizado (SA,
-// tabla 18-10-0006) que StatCan destaca en su propio comunicado. Se usa NSA
-// para las 4 series de CPI (m/m y a/a, headline y core), consistente.
+// (ver indicatorsCad.ts):
+// - CPI headline: el m/m "titular" que reportan medios/Trading Economics es
+//   la serie SIN desestacionalizar (NSA, tabla 18-10-0004) — 1.0% para
+//   mayo-2026, no el 0.5% desestacionalizado (SA, tabla 18-10-0006) que
+//   StatCan destaca en su propio comunicado.
+// - "Core CPI": NO es "ex alimentos y energía" — es la definición del BoC
+//   "ex 8 componentes más volátiles" (tabla 18-10-0256). Mezcla NSA/SA
+//   distinta por transform: m/m matchea con NSA (0.6%), a/a con SA (2.2%).
 const STATCAN_SOURCES = {
   cpiAll: { productId: 18100004, coordinate: '2.2.0.0.0.0.0.0.0.0' }, // CPI NSA, all-items
-  cpiCore: { productId: 18100004, coordinate: '2.285.0.0.0.0.0.0.0.0' }, // CPI NSA, ex food & energy
+  cpiCoreNsa: { productId: 18100256, coordinate: '1.5.0.0.0.0.0.0.0.0' }, // CPI ex-8-volátiles (BoC), NSA — para m/m
+  cpiCoreSa: { productId: 18100256, coordinate: '1.8.0.0.0.0.0.0.0.0' }, // CPI ex-8-volátiles (BoC), SA — para a/a
   unemployment: { productId: 14100287, coordinate: '1.7.1.1.1.1.0.0.0.0' },
   employment: { productId: 14100287, coordinate: '1.3.1.1.1.1.0.0.0.0' },
   gdp: { productId: 36100434, coordinate: '1.1.1.1.0.0.0.0.0.0' }, // All industries, chained 2017$, SAAR
@@ -90,20 +94,21 @@ const STATCAN_SOURCES = {
 
 // --- Bank of Canada Valet ---------------------------------------------------
 
-const BOC_RATE_SERIES = 'V39079'; // Target for the overnight rate
-
-async function fetchBocRate(): Promise<Observation[]> {
+// Series a nivel (tasa objetivo overnight) o ya publicadas como tasa a/a
+// (CPI-trim, CPI-median) — todas vienen del Valet como "2.25" (%), se
+// guardan como fracción.
+async function fetchBocSeries(seriesCode: string): Promise<Observation[]> {
   const dateFrom = new Date();
   dateFrom.setMonth(dateFrom.getMonth() - BACKFILL_MONTHS - 1);
   const isoDate = dateFrom.toISOString().slice(0, 10);
-  const res = await fetch(`https://www.bankofcanada.ca/valet/observations/${BOC_RATE_SERIES}/json?start_date=${isoDate}`, {
+  const res = await fetch(`https://www.bankofcanada.ca/valet/observations/${seriesCode}/json?start_date=${isoDate}`, {
     headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' },
   });
-  if (!res.ok) throw new Error(`BoC Valet ${BOC_RATE_SERIES}: HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`BoC Valet ${seriesCode}: HTTP ${res.status}`);
   const json = (await res.json()) as { observations?: { d: string; [key: string]: unknown }[] };
   const byMonth = new Map<string, number>();
   for (const obs of json.observations ?? []) {
-    const seriesVal = obs[BOC_RATE_SERIES] as { v?: string } | undefined;
+    const seriesVal = obs[seriesCode] as { v?: string } | undefined;
     if (!seriesVal?.v) continue;
     byMonth.set(obs.d.slice(0, 7), Number(seriesVal.v));
   }
@@ -140,7 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
-    { id: 'cad_boc_rate', run: () => fetchBocRate() },
+    { id: 'cad_boc_rate', run: () => fetchBocSeries('V39079') }, // Target for the overnight rate
+    { id: 'cad_cpi_median', run: () => fetchBocSeries('CPI_MEDIAN') },
+    { id: 'cad_cpi_trim', run: () => fetchBocSeries('CPI_TRIM') },
     {
       id: 'cad_cpi',
       run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiAll.productId, STATCAN_SOURCES.cpiAll.coordinate, BACKFILL_MONTHS + 13), 1),
@@ -151,11 +158,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     {
       id: 'cad_core_cpi',
-      run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiCore.productId, STATCAN_SOURCES.cpiCore.coordinate, BACKFILL_MONTHS + 13), 1),
+      run: async () =>
+        pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiCoreNsa.productId, STATCAN_SOURCES.cpiCoreNsa.coordinate, BACKFILL_MONTHS + 13), 1),
     },
     {
       id: 'cad_core_cpi_yoy',
-      run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiCore.productId, STATCAN_SOURCES.cpiCore.coordinate, BACKFILL_MONTHS + 13), 12),
+      run: async () =>
+        pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiCoreSa.productId, STATCAN_SOURCES.cpiCoreSa.coordinate, BACKFILL_MONTHS + 13), 12),
     },
     {
       id: 'cad_unemployment',

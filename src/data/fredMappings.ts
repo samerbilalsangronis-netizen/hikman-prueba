@@ -115,6 +115,8 @@ export const CAD_AUTO_INDICATOR_IDS = [
   'cad_core_cpi',
   'cad_cpi_yoy',
   'cad_core_cpi_yoy',
+  'cad_cpi_median',
+  'cad_cpi_trim',
   'cad_unemployment',
   'cad_employment_change',
   'cad_retail_sales',

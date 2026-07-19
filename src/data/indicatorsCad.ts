@@ -10,18 +10,29 @@ import type { IndicatorMeta } from '../types';
 // reconstruyeron desde cero directo de la fuente oficial (StatCan + Bank of
 // Canada), verificando cada uno contra un dato real antes de automatizar.
 //
-// Lección de esta divisa (encontrada por el usuario, no en la verificación
-// inicial): el CPI m/m tiene DOS series oficiales válidas en StatCan — la
-// desestacionalizada (SA, tabla 18-10-0006, la que StatCan destaca en su
-// propio comunicado — 0.5% para mayo-2026) y la cruda (NSA, tabla
-// 18-10-0004 — 1.0%). El primer verificado usó SA y coincidía con el texto
-// de "The Daily", pero el usuario notó que el dato no coincidía con lo que
-// muestran los agregadores (Trading Economics y similares), que reportan
-// NSA. Se corrigió a NSA en las 4 series de CPI. Ambos números son reales y
-// oficiales — la lección no es "el dato estaba mal" sino "verificar contra
-// UNA fuente no alcanza si esa fuente tiene más de una convención posible;
-// hay que confirmar cuál es la que efectivamente usa el mercado/la UI de
-// referencia del usuario".
+// Lecciones de esta divisa (encontradas por el usuario, no en la
+// verificación inicial — StatCan/BoC publican varias series "core"/CPI
+// legítimas a la vez, y no alcanza con verificar contra una sola fuente):
+//
+// 1. El CPI m/m tiene DOS series oficiales válidas en StatCan — la
+//    desestacionalizada (SA, tabla 18-10-0006, la que StatCan destaca en su
+//    propio comunicado — 0.5% para mayo-2026) y la cruda (NSA, tabla
+//    18-10-0004 — 1.0%, lo que reportan los agregadores tipo Trading
+//    Economics). Se usa NSA en cad_cpi/cad_cpi_yoy.
+//
+// 2. Lo que agregadores llaman "Core CPI" NO es "CPI ex alimentos y
+//    energía" (esa serie existe pero da otro número: 1.6% a/a) sino la
+//    definición propia del Banco de Canadá — "CPI ex 8 componentes más
+//    volátiles" (tabla 18-10-0256-01) — y encima con una mezcla NSA/SA
+//    distinta por transform: el m/m matchea con la serie NSA (0.6%) pero el
+//    a/a matchea con la SA (2.2%; la NSA da 2.1%, no coincide). Nunca
+//    asumir que m/m y a/a del mismo concepto comparten la misma serie base.
+//
+// 3. El BoC en realidad mira más de cerca sus DOS medidas preferidas desde
+//    2016 — CPI-trim y CPI-median (cad_cpi_trim/cad_cpi_median) — que el
+//    "core CPI" genérico de arriba. Faltaban en la primera pasada; el BoC
+//    las publica directo como tasa a/a (Valet: CPI_TRIM/CPI_MEDIAN), sin
+//    necesidad de derivarlas de un índice.
 export const CAD_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoC — una sola tasa (overnight rate target), como la Fed y el BoE.
   {
@@ -69,10 +80,11 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0004-01)',
+    source: 'Statistics Canada (tabla 18-10-0256-01, definición BoC)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
-    description: 'CPI subyacente de Canadá (excluye alimentos y energía), serie NSA.',
+    description:
+      'CPI subyacente de Canadá — "ex 8 componentes más volátiles" (definición del BoC, tabla 18-10-0256), NO "ex alimentos y energía" (esa es otra serie que no coincide con lo que reportan los agregadores). Verificado: 0.6% m/m para mayo-2026.',
   },
   {
     id: 'cad_cpi_yoy',
@@ -97,10 +109,43 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 18-10-0004-01)',
+    source: 'Statistics Canada (tabla 18-10-0256-01, definición BoC)',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260622/dq260622a-eng.htm',
     goodDirection: 'neutral',
-    description: 'CPI subyacente respecto al mismo mes del año anterior.',
+    description:
+      'CPI subyacente respecto al mismo mes del año anterior. A diferencia del resto de las series CAD, esta usa la versión desestacionalizada (SA) — es la que coincide con el dato de referencia (2.2% para mayo-2026); la NSA da 2.1%, no matchea.',
+  },
+  // Medidas de inflación subyacente preferidas del Banco de Canadá desde
+  // 2016 (CPI-trim y CPI-median) — el BoC las mira más que el "core CPI"
+  // clásico para calibrar política monetaria. BoC las publica directo como
+  // tasa a/a (no hay que derivarlas de un índice).
+  {
+    id: 'cad_cpi_median',
+    label: 'CPI-Median (a/a)',
+    shortLabel: 'CPI-Median',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'CAD',
+    source: 'Bank of Canada (Valet: CPI_MEDIAN)',
+    sourceUrl: 'https://www.bankofcanada.ca/rates/price-indexes/cpi/',
+    goodDirection: 'neutral',
+    description: 'Mediana ponderada de las variaciones de precios a/a de los componentes del CPI — una de las dos medidas de inflación subyacente que prioriza el BoC.',
+  },
+  {
+    id: 'cad_cpi_trim',
+    label: 'CPI-Trim (a/a)',
+    shortLabel: 'CPI-Trim',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'CAD',
+    source: 'Bank of Canada (Valet: CPI_TRIM)',
+    sourceUrl: 'https://www.bankofcanada.ca/rates/price-indexes/cpi/',
+    goodDirection: 'neutral',
+    description: 'Media recortada (excluye los componentes con variaciones más extremas) de las variaciones de precios a/a del CPI — la otra medida que prioriza el BoC.',
   },
   // Empleo
   {
