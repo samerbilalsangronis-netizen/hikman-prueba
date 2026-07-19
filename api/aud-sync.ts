@@ -70,6 +70,16 @@ function shiftMonths(ym: string, months: number): string {
   return `${newY}-${String(newM).padStart(2, '0')}`;
 }
 
+// Igual que shiftMonths pero para períodos trimestrales ABS ('YYYY-Qn') —
+// shiftMonths no sirve acá porque intenta parsear "Qn" como número.
+function shiftQuarters(yq: string, quarters: number): string {
+  const [y, q] = yq.split('-Q').map(Number);
+  const total = y * 4 + (q - 1) - quarters;
+  const newY = Math.floor(total / 4);
+  const newQ = (total % 4) + 1;
+  return `${newY}-Q${newQ}`;
+}
+
 // Series de ABS que ya vienen como % (2.5 = 2.5%) -> se guardan como fracción.
 async function pctSeries(dataflow: string, key: string, startPeriod: string): Promise<Observation[]> {
   const points = await fetchAbsSeries(dataflow, key, startPeriod);
@@ -99,7 +109,7 @@ async function gdpYoySeries(): Promise<Observation[]> {
   const byPeriod = new Map(points.map((p) => [p.period, p.value]));
   const out: Observation[] = [];
   for (const p of points) {
-    const prev = byPeriod.get(shiftMonths(p.period, 12));
+    const prev = byPeriod.get(shiftQuarters(p.period, 4));
     if (prev !== undefined && prev !== 0) out.push({ date: periodToDate(p.period), value: p.value / prev - 1 });
   }
   return out;
