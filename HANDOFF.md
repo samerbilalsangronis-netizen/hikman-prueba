@@ -1,7 +1,8 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 19-jul-2026. Pega este archivo completo (o pedile a
-Claude que lo lea desde el repo) al abrir el chat nuevo.
+Fecha de este resumen: 19-jul-2026 (actualizado en la misma sesión que
+agregó AUD). Pega este archivo completo (o pedile a Claude que lo lea
+desde el repo) al abrir el chat nuevo.
 
 ## Qué es esto
 
@@ -12,19 +13,35 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP y CAD completos y en producción.** Faltan
-JPY, AUD, CHF, NZD — ver "Pendiente explícito" más abajo, incluye los datos
-crudos que ya mandó el usuario (por captura de pantalla, no Excel) para
-esas 4.
+**Estado actual: USD, EUR, GBP y CAD completos y en producción. AUD
+completa pero todavía SOLO en la rama de sesión** (`claude/handoff-review-8vej1i`),
+**no en la rama de producción** `claude/macro-usd-web-dashboard-xm5ypk` —
+falta el push final, ver nota de ramas. Faltan JPY, CHF, NZD — ver
+"Pendiente explícito" más abajo, incluye los datos crudos que ya mandó el
+usuario (por captura de pantalla, no Excel) para esas 3.
 
 ## Dónde vive todo
 
 - **Repo**: `samerbilalsangronis-netizen/hikman-prueba` (GitHub)
-- **Ramas de trabajo**: `claude/handoff-documentation-review-k28bsl` y
-  `claude/macro-usd-web-dashboard-xm5ypk` — **ambas están sincronizadas al
-  mismo commit** al escribir esto (se pushea a las dos siempre). Igual,
-  cualquier sesión nueva debería confirmar con `git log <rama> -1` en las
-  dos y comparar con lo desplegado en Vercel antes de asumir.
+- **Rama de producción real** (la que deployea Vercel, confirmado
+  comparando el bundle JS servido con el hash de cada rama): `claude/macro-usd-web-dashboard-xm5ypk`
+  — es también la rama HEAD por defecto del repo (`git remote show
+  origin`). **Esta sesión trabajó en `claude/handoff-review-8vej1i`**
+  (asignada por el entorno) y **pusheó el commit de AUD solo ahí** — el
+  workflow habitual de sesiones previas era pushear siempre a dos ramas a
+  la vez, pero esta sesión tiene restricción de no pushear a una rama
+  distinta de la asignada sin permiso explícito del usuario. **Si el
+  usuario quiere AUD en producción, hay que pushear (o mergear)
+  `claude/handoff-review-8vej1i` a `claude/macro-usd-web-dashboard-xm5ypk`
+  explícitamente** — no asumir que ya está ahí. También existe
+  `claude/handoff-documentation-review-k28bsl` (rama de una sesión
+  anterior, sincronizada con producción al momento de escribir esto).
+  **Cualquier sesión nueva DEBE confirmar con `git fetch origin --prune` +
+  `git log origin/<rama> -1` en todas las ramas conocidas + comparar con
+  el bundle JS servido en producción antes de asumir cuál está realmente
+  desplegada** — un `git log` sin fetch previo puede mostrar un ref local
+  desactualizado (pasó en esta sesión: parecía que la rama de producción
+  no tenía el último commit, y sí lo tenía — solo faltaba el fetch).
 - **Deploy**: Vercel, auto-deploy en cada push a la rama de producción
 - **URL en producción**: https://hikman-prueba.vercel.app
 - **Pestaña del navegador**: "HIKMAN ENDÓGENO"
@@ -56,22 +73,23 @@ React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Recharts 3 + React Router
 
 ```
 src/
-  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'),
+  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'),
                               IndicatorMeta, ScoreRow, CentralBanker, BankerNote,
                               Statement, BankerVoteStatus, Stance
   data/
-    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD],
+    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD],
                               SECTION_LABELS (por Currency), indicatorsBySection(section, currency)
-    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts — ids con prefijo eur_/gbp_/cad_
+    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts — ids con prefijo eur_/gbp_/cad_/aud_
     historical-series.json  — histórico sembrado, TODAS las divisas mezcladas en un solo objeto
     fredMappings.ts          — FRED_MAPPINGS (USD) + EUR_FRED_MAPPINGS + EUR_EUROSTAT_INDICATOR_ID
-                              + GBP_BOE_INDICATOR_ID + CAD_AUTO_INDICATOR_IDS (lista simple, CAD no usa FRED)
+                              + GBP_BOE_INDICATOR_ID + CAD_AUTO_INDICATOR_IDS + AUD_AUTO_INDICATOR_IDS
+                              (listas simples, CAD/AUD no usan FRED)
                               — copia usada SOLO por el frontend para la insignia de fuente en Actualizar.tsx
     fomcMeetings.ts          — calendario oficial FOMC 2026 (hardcodeado, solo USD)
-    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts
-    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[],
+    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts
+    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[],
                               bankersForCurrency(currency). Ver sección Banqueros más abajo.
-    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD'], localStorage
+    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD'], localStorage
     MacroDataContext.tsx     — contexto React: overrides, forecasts, score, fomcWatch, bankerNotes.
                               Supabase si está configurado, si no localStorage. fetchAllRows() pagina
                               indicator_overrides (ver bug de 1000 filas en decisiones técnicas).
@@ -84,13 +102,15 @@ src/
   pages/
     Dashboard.tsx, Tasas.tsx, Inflacion.tsx, Empleo.tsx, Crecimiento.tsx (acordeón PMI),
     Sentimiento.tsx (ruta /confianza), Banqueros.tsx, Actualizar.tsx
-    — TODAS tienen ternarios por currency para textos/labels; al agregar una divisa nueva
-      hay que tocar las 7 páginas + Layout.tsx (grep "'EUR'" en src/ para encontrarlas todas)
+    — TODAS (salvo Dashboard.tsx, que es genérico) tienen ternarios por currency para
+      textos/labels; al agregar una divisa nueva hay que tocar las 6 páginas + Layout.tsx +
+      Actualizar.tsx (grep "'CAD'" en src/ para encontrarlas todas)
 api/
   fred-sync.ts   — USD, vía FRED
   eur-sync.ts    — EUR, vía FRED + Eurostat directo (desempleo)
-  gbp-sync.ts    — GBP, SOLO la Bank Rate vía BoE IADB (resto manual, ver por qué abajo)
+  gbp-sync.ts    — GBP, SOLO la Bank Rate + Balanza Comercial vía FRED/BoE IADB (resto manual, ver por qué abajo)
   cad-sync.ts    — CAD, vía StatCan WDS + Bank of Canada Valet (11 de 15 indicadores automatizados)
+  aud-sync.ts    — AUD, vía ABS Data API (SDMX) + CSV público del RBA (12 de 16 indicadores automatizados)
 public/
   bankers/*.jpg  — fotos de banqueros AUTOHOSPEDADAS (no hotlink) — ver por qué abajo
 supabase/
@@ -155,15 +175,21 @@ ver handoffs previos o `supabase/schema.sql` para el DDL completo:
 
 ## Indicadores actuales por divisa
 
-**USD (~43)** y **EUR (20)**: sin cambios esta sesión, ver historial de
-commits para el desglose. **Pendiente**: agregar `eur_trade_balance` (EUR
-ya tiene PIB pero no Balanza Comercial) — el usuario lo pidió explícitamente
-para dejar EUR/GBP a la par de USD/CAD, **todavía no se hizo** (ver
-Pendiente explícito).
+**USD (~43)**: sin cambios recientes, ver historial de commits para el
+desglose.
 
-**GBP (15)**, `indicatorsGbp.ts`, ids `gbp_`:
+**EUR (21)**: `eur_trade_balance` agregada en la sesión anterior a esta —
+**queda MANUAL** (el dataset `teiet210` de Eurostat no coincidió con el
+comunicado oficial de may-2026 pese a varios intentos de ajustar
+geografía/partner; mismo criterio que Ventas Minoristas/Producción
+Industrial de EUR: no se automatiza lo que no se pudo verificar).
+
+**GBP (16)**, `indicatorsGbp.ts`, ids `gbp_`:
 - Tasas (1, auto vía **BoE IADB**, no FRED — FRED tiene la Bank Rate
   discontinuada desde 2016): `gbp_boe_rate`
+- `gbp_trade_balance` (auto, agregada en la sesión anterior a esta — vía
+  FRED `XTNTVA01GBM664S`, republicada desde ONS, verificada contra el
+  comunicado de ONS de abril-2026 — solo bienes, no bienes+servicios).
 - Resto (14) **todos manuales**: CPI/Core CPI m/m y a/a, Desempleo,
   Claimant Count Change, Salario ±Bonus a/a, Confianza GfK, PMI
   Manuf/Serv Flash, Ventas Minoristas (total y subyacente), Productividad,
@@ -173,9 +199,9 @@ Pendiente explícito).
   un alert explícito "no longer being updated... up to January 2026", y
   `retail-sales-index` sigue en su versión de feb-2026 pese a que el
   `next_release` anunciado ya pasó hace meses. Automatizar ahí arriesgaría
-  mostrar un dato viejo sin avisar. **Pendiente**: agregar `gbp_trade_balance`.
+  mostrar un dato viejo sin avisar.
 
-**CAD (17 tras la corrección de esta sesión)**, `indicatorsCad.ts`, ids `cad_`:
+**CAD (17)**, `indicatorsCad.ts`, ids `cad_`:
 - Tasas (1, auto): `cad_boc_rate` (Bank of Canada Valet, serie `V39079`)
 - Inflación (6, todos auto — **CAD tiene la automatización más completa de
   las divisas no-USD**): `cad_cpi`, `cad_cpi_yoy`, `cad_core_cpi`,
@@ -190,18 +216,36 @@ Pendiente explícito).
   compartido CAD/JPY/AUD/CHF/NZD, ver Pendiente explícito): `cad_cpi`,
   `cad_unemployment`, `cad_employment_change`, `cad_pmi_manuf`,
   `cad_pmi_serv`, `cad_retail_sales`, `cad_business_confidence`,
-  `cad_consumer_confidence`, `cad_gdp_yoy`. Total actual: **+6**.
+  `cad_consumer_confidence`, `cad_gdp_yoy`.
+
+**AUD (16, agregada en esta sesión)**, `indicatorsAud.ts`, ids `aud_`:
+- Tasas (1, auto): `aud_rba_rate` (CSV público del RBA, tabla F1.1, serie
+  `FIRMMCRT` — sin key, no vía API SDMX)
+- Inflación (4, todos auto vía **ABS Data API**, dataflow `CPI`):
+  `aud_cpi`/`aud_cpi_yoy` (headline, serie Original) +
+  `aud_core_cpi`/`aud_core_cpi_yoy` (**Trimmed Mean**, no "ex alimentos y
+  energía" — ver Decisiones técnicas #4). Historia corta (~14-25 meses)
+  por un quiebre real de metodología — ver #3 abajo, no se empalmó con la
+  serie trimestral vieja para no fabricar continuidad falsa.
+- Empleo (2, auto, ABS dataflow `LF`): `aud_unemployment`,
+  `aud_employment_change`
+- Confianza (2, manuales — sin API pública, NAB / Westpac-Melbourne
+  Institute): `aud_business_confidence`, `aud_consumer_confidence`
+- Crecimiento (7): `aud_pmi_manuf`, `aud_pmi_serv` (manuales) +
+  `aud_retail_sales`/`aud_retail_sales_yoy` (auto, dataflow `HSI_M` — ver
+  #2 abajo) + `aud_gdp_qoq`/`aud_gdp_yoy` (auto, dataflow `ANA_AGG`) +
+  `aud_trade_balance` (auto, dataflow `ITGS`, solo bienes)
+- Score (`scoreSeedAud.ts`, 9 filas de la hoja DECISIONES): `aud_cpi`,
+  `aud_unemployment`, `aud_employment_change`, `aud_pmi_manuf`,
+  `aud_pmi_serv`, `aud_retail_sales`, `aud_business_confidence`,
+  `aud_consumer_confidence`, `aud_gdp_yoy`. Confianza Empresarial (-0.5→-1)
+  y PIB (1.5→2) redondeados a la escala ±2, mismo criterio que CAD/EUR.
 
 ## Sección de Banqueros Centrales (`/banqueros`)
 
-**Fed (19)** y **BCE (10)**: sin cambios esta sesión (ver handoffs previos).
-**Corrección esta sesión**: los 5 que no tenían foto verificada (Logan,
-Paulson, Barkin, Musalem del Fed) **ahora sí tienen foto** — se
-autohospedaron desde la página oficial del banco regional respectivo (ver
-"Por qué autohospedar fotos" abajo). Susan Collins (Fed Boston) también
-tenía foto faltante y se agregó (SÍ estaba en Wikimedia Commons, bajo
-"Susan M. Collins (economist)" — cuidado con no confundirla con la
-senadora homónima). **Con esto los 32 banqueros de Fed+BCE tienen foto.**
+**Fed (19)** y **BCE (10)**: sin cambios recientes (ver handoffs previos —
+los 5 sin foto de Wikimedia del Fed se autohospedaron en una sesión
+anterior, con esto los 32 banqueros de Fed+BCE tienen foto).
 
 **BoE (9, `BOE_BANKERS`)**: Monetary Policy Committee — Governor (Bailey),
 3 Vicegobernadores (Lombardelli=Política Monetaria, Breeden=Estabilidad
@@ -223,7 +267,22 @@ resto (el tipo no tiene categoría "consenso" separada). Verificado con
 fecha, actualizar `centralBankers.ts`. Solo Macklem tiene foto en
 Wikimedia; los otros 5 se autohospedaron desde bankofcanada.ca.
 
-### Por qué autohospedar fotos en vez de hotlinkear (encontrado esta sesión)
+**RBA (9, `RBA_BANKERS`, agregado en esta sesión)**: Monetary Policy Board
+— Governor=Chair (Bullock), Deputy Governor=Deputy Chair (Hauser),
+Secretary to the Treasury=ex officio (Wilkinson), + 6 no-ejecutivos (Baker,
+Fry-McKibbin, Harper, Hewson, Ross, Preston). **Board nuevo, creado
+1-mar-2025** — reemplazó al "Reserve Bank Board" que hasta entonces
+combinaba política monetaria y gobernanza institucional; ahora están
+separados (hay un "Governance Board" aparte que no modelamos, no decide la
+tasa). **Los 9 votan siempre, no hay rotación** (igual que BoE/BoC).
+Verificado con `rba.gov.au/about-rba/boards/monetary-policy-board/`. **OJO
+Ian Harper**: su mandato termina el **31-ago-2026** — si se retoma después
+de esa fecha, verificar si sigue o hay reemplazo. Ninguno de los 9 estaba
+en Wikimedia Commons — los 9 se autohospedaron directo desde las páginas
+oficiales `rba.gov.au/assets/images/people/...` (sin siquiera probar el
+hotlink primero, ver nota de abajo).
+
+### Por qué autohospedar fotos en vez de hotlinkear (encontrado en una sesión anterior)
 
 Para los banqueros de Fed/BoE/BoC que no estaban en Wikimedia Commons, el
 primer intento fue hotlinkear directo al sitio oficial del banco (mismo
@@ -340,18 +399,76 @@ StatCan/BoC publican varias series válidas del "mismo" concepto a la vez):
     oficial del banco central, nunca confiar en esa fila del Excel para
     ninguna divisa nueva.
 
+**AUD** (agregada en esta sesión — la ABS tiene una API SDMX 2.1 moderna,
+pero varios datasets clásicos fueron discontinuados/migrados sin que el
+nombre del dataflow lo delate):
+
+13. **ABS Data API**: `https://data.api.abs.gov.au/rest/data/{dataflow}/{key}?format=jsondata`,
+    sin key (distinta de la "ABS Indicator API", esa sí pide key por
+    email). El `key` son los códigos de cada dimensión separados por punto
+    en el orden que define el DSD (`GET
+    .../rest/datastructure/ABS/{dataflow}` para ver el orden y los
+    codelists) — dejar una posición vacía = wildcard para esa dimensión.
+    `GET .../rest/availableconstraint/{dataflow}` devuelve XML (ignora
+    `format=json`) con los valores que **alguna vez** existieron por
+    dimensión — no garantiza que una combinación específica tenga datos
+    (hay que probar la key completa).
+14. **ABS discontinuó "Retail Trade, Australia" tras jun-2025** (verificado:
+    la key que antes daba datos en vivo corta en 2025-06 en vez de dar
+    404 — no hay error, el dataflow simplemente no se actualiza más — mismo
+    patrón silencioso que la API vieja de ONS con GBP). El reemplazo
+    oficial es el **Monthly Household Spending Indicator** (dataflow
+    `HSI_M`, Business Indicators, Australia) — se usa para
+    `aud_retail_sales`/`aud_retail_sales_yoy`. **Lección repetida: que un
+    dataflow/endpoint responda 200 con datos no prueba que siga vigente —
+    siempre revisar la fecha del último punto contra la fecha de hoy.**
+15. **"Core CPI" para Australia = Trimmed Mean (media recortada)**, no "ex
+    alimentos y energía" (Australia ni siquiera publica esa definición como
+    serie estándar) — es la medida que el propio RBA destaca en sus
+    comunicados de política monetaria. Dataflow `CPI`, `INDEX=999902`.
+16. **Quiebre real de metodología en el CPI, no solo una convención
+    distinta**: Australia migró de CPI trimestral a CPI **mensual
+    completo** recién en nov-2025. La serie mensual nueva coincide exacto
+    con prensa/comunicados (4.6% a/a marzo-2026, 4.0% a/a mayo-2026,
+    verificado) pero **encadenar el índice trimestral histórico da un a/a
+    de ~4.1% para el mismo trimestre — 0.5pp de diferencia real, no
+    redondeo**. Son dos series con metodología distinta (cobertura y
+    momento de recolección de precios), no la misma serie a distinta
+    frecuencia. **Se optó por NO empalmar la serie trimestral vieja con la
+    mensual nueva** aunque eso deja el histórico de
+    `aud_cpi`/`aud_core_cpi` corto (~14-25 meses en vez de 15-20 años) —
+    fabricar una continuidad falsa habría sido peor que un gráfico corto
+    pero honesto. Si el usuario prefiere más historia a costa de ese
+    quiebre, se puede reconsiderar — quedó sin implementar a propósito.
+17. **RBA cash rate**: sin API JSON, solo CSV público —
+    `https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv` (tabla
+    F1.1, columna/serie `FIRMMCRT` = "Cash Rate Target"). CSV con BOM
+    UTF-8 y fechas en formato `DD/MM/YYYY` (no ISO) — hay que parsear a
+    mano, no hay librería de CSV en las funciones serverless.
+18. **PIB (Australia solo publica trimestral, no mensual como CAD/GBP)**:
+    ABS National Accounts, dataflow `ANA_AGG`, `DATA_ITEM=GPM`. El a/a NO
+    viene como medida directa (`MEASURE` solo tiene t/t) — se deriva del
+    nivel encadenado en volumen comparando contra el mismo trimestre del
+    año anterior (verificado: 2.5% para el Q1-2026, coincide con el
+    comunicado oficial).
+19. **Balanza comercial AUD**: dataflow `ITGS` (International Trade in
+    Goods), `DATA_ITEM=170` ("Goods", ya es el balance neto — no hay que
+    restar credits menos debits a mano), desestacionalizado. Solo bienes,
+    no bienes+servicios (mismo alcance que GBP).
+20. **RBA reformó su gobernanza el 1-mar-2025**: el viejo "Reserve Bank
+    Board" (que combinaba política monetaria y gobernanza institucional)
+    se dividió en un **Monetary Policy Board** (9 miembros, decide la
+    tasa) y un "Governance Board" separado (no modelado — no decide
+    política monetaria). Si se busca la composición del RBA sin saber
+    esto, es fácil terminar con nombres del board viejo o incompleto.
+
 ## Pendiente explícito
 
-**1. Terminar EUR/GBP**: agregar `eur_trade_balance` y `gbp_trade_balance`
-(sección crecimiento, informativo, no en el score — mismo patrón que
-`eur_gdp_qoq`/`gbp_gdp_mom`). Pedido explícito del usuario, todavía no
-implementado.
-
-**2. JPY, AUD, CHF, NZD** — el usuario mandó capturas de pantalla (no el
-.xlsx completo, tuvo problemas para subirlo) de un Excel compartido con
-hojas `CAD | JPY | AUD | CHF | NZD | DECISIONES`, formato snapshot estilo
+**1. JPY, CHF, NZD** — el usuario mandó capturas de pantalla (no el .xlsx
+completo, tuvo problemas para subirlo) de un Excel compartido con hojas
+`CAD | JPY | AUD | CHF | NZD | DECISIONES`, formato snapshot estilo
 Trading Economics (Reciente/Anterior/Más Alto/Más Bajo/Fecha), **datos de
-2025, desactualizados** — mismo tratamiento que CAD: se usa solo para
+2025, desactualizados** — mismo tratamiento que CAD/AUD: se usa solo para
 identificar indicadores y pesos del score, el histórico y valor actual se
 reconstruyen desde la fuente oficial de cada país, verificando cada serie
 contra una referencia real (comunicado oficial Y agregador de mercado, ver
@@ -376,57 +493,66 @@ usuario; pesos entre paréntesis):
 | Tipos de Interés (fila NO usable — corrupta, ver lección #12) | 22.5 | 0.5 | 3.6 | 0 | 22.5 | — |
 | **TOTAL Excel** (referencia solamente, no vamos a replicarlo exacto por el bug de rango del `<select>`) | 4.5 | 4 | 4 | 2.5 | 1.5 | — |
 
-Recordar (lección #3): al armar `scoreSeed{Jpy,Aud,Chf,Nzd}.ts`, redondear
+Recordar (lección #3): al armar `scoreSeed{Jpy,Chf,Nzd}.ts`, redondear
 cualquier valoración fuera de -2..2 antes de cargarla (ej. NZD Inflación=4
-→ probablemente 2; CAD PIB=-3 se redondeó a -2).
+→ probablemente 2; CAD PIB=-3 se redondeó a -2; AUD ya se hizo — Confianza
+Empresarial -0.5→-1, PIB 1.5→2).
 
-Cada hoja individual (JPY/AUD/CHF/NZD) tiene la misma estructura de columnas
+Cada hoja individual (JPY/CHF/NZD) tiene la misma estructura de columnas
 que CAD (Reciente/Anterior/Más Alto/Más Bajo/Fecha) con estas filas: Stock
 Market, GDP Growth Rate, GDP Annual Growth Rate, Inflation Rate MoM,
-Inflation Rate, Unemployment Rate, Employment Change (AUD: "Employed
-Persons"), Retail Sales MoM (AUD: "Retail Sales"), Manufacturing PMI,
-Services PMI, Business Confidence, Consumer Confidence, Interest Rate,
-Government Budget, Balance of Trade, Current Account, Current Account to
-GDP, Government Debt to GDP, Corporate Tax Rate, Personal Income Tax Rate.
-**Mismo criterio que CAD**: solo se implementan como indicadores los que
-están en el score + Balanza Comercial + PIB (pedido explícito del
-usuario) + la tasa del banco central — no Stock Market/impuestos/deuda.
+Inflation Rate, Unemployment Rate, Employment Change, Retail Sales MoM,
+Manufacturing PMI, Services PMI, Business Confidence, Consumer Confidence,
+Interest Rate, Government Budget, Balance of Trade, Current Account,
+Current Account to GDP, Government Debt to GDP, Corporate Tax Rate,
+Personal Income Tax Rate. **Mismo criterio que CAD/AUD**: solo se
+implementan como indicadores los que están en el score + Balanza Comercial
++ PIB (pedido explícito del usuario) + la tasa del banco central — no
+Stock Market/impuestos/deuda.
 
 Investigación de fuentes por país (de una sesión previa a GBP, **repetir el
-proceso de verificación con cada una, no asumir que sigue vigente** — GBP y
-CAD ya mostraron que las APIs cambian o que la convención asumida estaba
-mal):
-- **CAD** → ya hecho, ver arriba (StatCan WDS + BoC Valet).
+proceso de verificación con cada una, no asumir que sigue vigente** — GBP,
+CAD y AUD ya mostraron que las APIs cambian, se discontinúan sin aviso
+claro, o que la convención asumida estaba mal):
+- **CAD** → hecho, ver arriba (StatCan WDS + BoC Valet).
+- **AUD** → hecho en esta sesión, ver arriba (ABS Data API SDMX + CSV del
+  RBA — la "ABS Indicator API" con key por email NO hizo falta, existe una
+  alternativa sin key).
 - **CHF** → SNB Data Portal `data.snb.ch` (sin key, REST público) — no
-  investigado a fondo todavía esta sesión.
+  investigado a fondo todavía.
 - **JPY** → BOJ Time-Series API + e-Stat Dashboard API (sin key) — no
-  investigado a fondo todavía esta sesión.
-- **AUD** → ABS Indicator API (key gratis por email, no instantánea —
-  pedirla apenas se retome AUD si hace falta) — no investigado a fondo.
+  investigado a fondo todavía.
 - **NZD** → RBNZ (solo archivos descargables, no API REST limpia — va a
-  ser la más manual de las 4) — no investigado a fondo.
+  ser la más manual de las 3 que faltan) — no investigado a fondo.
 
-**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC — WebSearch
-+ página oficial antes de escribir nombres, nunca asumir vigente sin
-verificar): RBA (Australia), RBNZ (Nueva Zelanda), SNB (Suiza), BOJ (Japón).
+**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA —
+WebSearch + página oficial antes de escribir nombres, nunca asumir vigente
+sin verificar): RBNZ (Nueva Zelanda), SNB (Suiza), BOJ (Japón).
 
 **Previsión de tasas estilo FedWatch** — sigue sin solución gratuita para
 ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
 descartó CME FedWatch/rateprobability.com) — se omite el panel para
-GBP/CAD y probablemente para las 4 que faltan también.
+GBP/CAD/AUD y probablemente para las 3 que faltan también.
 
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
 - Atlanta Fed sin presidente confirmado (vacante desde renuncia de Bostic).
 - Ninguna divisa no-USD tiene panel de previsión de tasas tipo FOMC Watch.
-- EUR/GBP no tienen Balanza Comercial todavía (pendiente #1 arriba).
 - Histórico de `eur_cpi_yoy`/`eur_core_cpi_yoy` en `historical-series.json`
   tiene un sesgo de ~0.1pp en los meses viejos (ver handoff previo) — solo
   el último punto está corregido.
 - BoC: Nicolas Vincent pasa de "External Deputy Governor" a "Deputy
   Governor" full-time el 3-ago-2026 — actualizar título en
   `centralBankers.ts` cuando se retome después de esa fecha.
+- RBA: Ian Harper (Monetary Policy Board) termina mandato el 31-ago-2026 —
+  verificar si sigue o hay reemplazo cuando se retome después de esa fecha.
+- `aud_cpi`/`aud_cpi_yoy`/`aud_core_cpi`/`aud_core_cpi_yoy` tienen historia
+  corta (~14-25 meses) a propósito — ver lección AUD #16, no se empalmó
+  con la serie trimestral vieja por el quiebre de metodología real.
+- `aud_pmi_manuf`/`aud_pmi_serv`/`aud_business_confidence`/`aud_consumer_confidence`
+  no tienen ningún dato cargado todavía (sin API pública, igual que el
+  resto de las divisas — quedan a la espera de carga manual).
 - No se guarda la fecha real de publicación de cada dato, solo el período
   de referencia (`YYYY-MM-01`) — el usuario preguntó por esto, se le
   explicó que es la misma convención que usan FRED/StatCan/ONS/Eurostat en
@@ -458,6 +584,17 @@ curl -s "https://hikman-prueba.vercel.app/api/fred-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/eur-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/gbp-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/cad-sync" -X POST --max-time 45
+curl -s "https://hikman-prueba.vercel.app/api/aud-sync" -X POST --max-time 45
+
+# ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
+curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
+# Valores válidos por dimensión (marginal, no garantiza la combinación exacta)
+curl -s "https://data.api.abs.gov.au/rest/availableconstraint/LF?format=json" -A "Mozilla/5.0"
+# Traer datos de una serie con key completo (orden: ver datastructure)
+curl -s "https://data.api.abs.gov.au/rest/data/LF/M13.3.1599.20.AUS.M?format=jsondata&startPeriod=2026-01" -A "Mozilla/5.0"
+
+# RBA cash rate (CSV público, tabla F1.1, serie FIRMMCRT)
+curl -s "https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv" -A "Mozilla/5.0"
 
 # StatCan WDS: sacar dimensiones/memberId de una tabla antes de armar el coordinate
 curl -s -X POST "https://www150.statcan.gc.ca/t1/wds/rest/getCubeMetadata" \
