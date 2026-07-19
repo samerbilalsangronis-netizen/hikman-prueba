@@ -9,7 +9,16 @@ function navFor(currency: Currency) {
     { to: '/', label: 'Resumen', end: true },
     {
       to: '/tasas',
-      label: currency === 'EUR' ? 'Tasas y BCE' : currency === 'GBP' ? 'Tasas y BoE' : currency === 'CAD' ? 'Tasas y BoC' : 'Tasas y Fed',
+      label:
+        currency === 'EUR'
+          ? 'Tasas y BCE'
+          : currency === 'GBP'
+            ? 'Tasas y BoE'
+            : currency === 'CAD'
+              ? 'Tasas y BoC'
+              : currency === 'AUD'
+                ? 'Tasas y RBA'
+                : 'Tasas y Fed',
     },
     { to: '/inflacion', label: 'Inflación' },
     { to: '/empleo', label: 'Empleo' },

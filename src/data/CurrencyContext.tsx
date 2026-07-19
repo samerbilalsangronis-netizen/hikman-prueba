@@ -3,7 +3,7 @@ import type { Currency } from '../types';
 
 const CURRENCY_KEY = 'macro-dashboard:currency:v1';
 
-export const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'CAD'];
+export const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
 
 interface CurrencyContextValue {
   currency: Currency;
@@ -15,7 +15,7 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrency] = useState<Currency>(() => {
     const stored = localStorage.getItem(CURRENCY_KEY);
-    return stored === 'EUR' || stored === 'GBP' || stored === 'CAD' ? stored : 'USD';
+    return stored === 'EUR' || stored === 'GBP' || stored === 'CAD' || stored === 'AUD' ? stored : 'USD';
   });
 
   useEffect(() => {

@@ -15,7 +15,9 @@ export function Tasas() {
               ? 'Tasas y Banco de Inglaterra'
               : currency === 'CAD'
                 ? 'Tasas y Bank of Canada'
-                : 'Tasas y Reserva Federal'}
+                : currency === 'AUD'
+                  ? 'Tasas y Reserve Bank of Australia'
+                  : 'Tasas y Reserva Federal'}
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
@@ -24,7 +26,9 @@ export function Tasas() {
               ? 'El BoE, a diferencia del BCE, mueve una sola tasa oficial (Bank Rate) — no un corredor.'
               : currency === 'CAD'
                 ? 'El BoC, como la Fed y el BoE, mueve una sola tasa oficial (overnight rate target).'
-                : 'Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.'}
+                : currency === 'AUD'
+                  ? 'El RBA, como la Fed/BoE/BoC, mueve una sola tasa oficial (cash rate target).'
+                  : 'Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.'}
         </p>
       </div>
       {currency === 'USD' && <FomcWatchPanel />}

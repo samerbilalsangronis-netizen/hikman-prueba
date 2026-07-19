@@ -1,0 +1,197 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+
+// Función serverless autocontenida (mismo motivo que fred-sync.ts / eur-sync.ts
+// / gbp-sync.ts / cad-sync.ts: Vercel empaqueta cada función de /api por
+// separado y no rastrea imports que cruzan a /src).
+//
+// AUD se sincroniza desde la ABS Data API (data.api.abs.gov.au, SDMX 2.1,
+// sin key) + el CSV público del RBA (sin key). PMI y encuestas de confianza
+// (privados, sin API gratis) quedan manuales — ver indicatorsAud.ts.
+
+const BACKFILL_MONTHS = 36;
+const ABS_START_PERIOD_M = '2015-01';
+const ABS_START_PERIOD_Q = '2015-Q1';
+
+interface Observation {
+  date: string; // YYYY-MM-01
+  value: number;
+}
+
+// --- ABS Data API -----------------------------------------------------------
+
+interface AbsObservation {
+  period: string; // '2026-05' o '2026-Q1'
+  value: number;
+}
+
+function periodToDate(period: string): string {
+  if (period.includes('Q')) {
+    const [y, q] = period.split('-Q');
+    const month = (Number(q) - 1) * 3 + 1;
+    return `${y}-${String(month).padStart(2, '0')}-01`;
+  }
+  const [y, m] = period.split('-');
+  return `${y}-${m}-01`;
+}
+
+async function fetchAbsSeries(dataflow: string, key: string, startPeriod: string): Promise<AbsObservation[]> {
+  const url = `https://data.api.abs.gov.au/rest/data/${dataflow}/${key}?format=jsondata&startPeriod=${startPeriod}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' } });
+  if (!res.ok) throw new Error(`ABS ${dataflow}/${key}: HTTP ${res.status}`);
+  const json = (await res.json()) as {
+    data?: {
+      dataSets?: { series?: Record<string, { observations?: Record<string, [number | string | null, ...unknown[]]> }> }[];
+      structures?: { dimensions?: { observation?: { values?: { id: string }[] }[] } }[];
+    };
+  };
+  const series = json.data?.dataSets?.[0]?.series;
+  const seriesKey = series ? Object.keys(series)[0] : undefined;
+  if (!series || !seriesKey) throw new Error(`ABS ${dataflow}/${key}: sin series en la respuesta`);
+  const observations = series[seriesKey].observations ?? {};
+  const timeValues = json.data?.structures?.[0]?.dimensions?.observation?.[0]?.values ?? [];
+  const out: AbsObservation[] = [];
+  for (const [idx, obs] of Object.entries(observations)) {
+    const raw = obs[0];
+    if (raw === null || raw === undefined) continue;
+    const period = timeValues[Number(idx)]?.id;
+    if (!period) continue;
+    out.push({ period, value: Number(raw) });
+  }
+  out.sort((a, b) => a.period.localeCompare(b.period));
+  return out;
+}
+
+function shiftMonths(ym: string, months: number): string {
+  const [y, m] = ym.split('-').map(Number);
+  const total = y * 12 + (m - 1) - months;
+  const newY = Math.floor(total / 12);
+  const newM = (total % 12) + 1;
+  return `${newY}-${String(newM).padStart(2, '0')}`;
+}
+
+// Series de ABS que ya vienen como % (2.5 = 2.5%) -> se guardan como fracción.
+async function pctSeries(dataflow: string, key: string, startPeriod: string): Promise<Observation[]> {
+  const points = await fetchAbsSeries(dataflow, key, startPeriod);
+  return points.map((p) => ({ date: periodToDate(p.period), value: p.value / 100 }));
+}
+
+// Empleo: ABS LF publica el nivel en miles de personas (M3) — se calcula la
+// diferencia mes a mes y se multiplica x1000 para guardar en personas
+// crudas, mismo transform que usa USD para NFP (diff_x1000).
+async function employmentChangeSeries(): Promise<Observation[]> {
+  const points = await fetchAbsSeries('LF', 'M3.3.1599.20.AUS.M', ABS_START_PERIOD_M);
+  const byPeriod = new Map(points.map((p) => [p.period, p.value]));
+  const out: Observation[] = [];
+  for (const p of points) {
+    const prev = byPeriod.get(shiftMonths(p.period, 1));
+    if (prev !== undefined) out.push({ date: periodToDate(p.period), value: (p.value - prev) * 1000 });
+  }
+  return out;
+}
+
+// PIB a/a: ANA_AGG no publica el % interanual directo (solo t/t) — se
+// deriva del nivel encadenado en volumen (M1), comparando contra el mismo
+// trimestre del año anterior. Verificado contra el dato oficial (2.5% para
+// el primer trimestre de 2026).
+async function gdpYoySeries(): Promise<Observation[]> {
+  const points = await fetchAbsSeries('ANA_AGG', 'M1.GPM.20.AUS.Q', ABS_START_PERIOD_Q);
+  const byPeriod = new Map(points.map((p) => [p.period, p.value]));
+  const out: Observation[] = [];
+  for (const p of points) {
+    const prev = byPeriod.get(shiftMonths(p.period, 12));
+    if (prev !== undefined && prev !== 0) out.push({ date: periodToDate(p.period), value: p.value / prev - 1 });
+  }
+  return out;
+}
+
+// Balanza comercial: ABS ITGS (International Trade in Goods), ya en
+// millones de AUD, desestacionalizado — se guarda tal cual (mismo patrón
+// que USD/CAD, format 'trade').
+async function tradeBalanceSeries(): Promise<Observation[]> {
+  const points = await fetchAbsSeries('ITGS', 'M1.170.20.AUS.M', ABS_START_PERIOD_M);
+  return points.map((p) => ({ date: periodToDate(p.period), value: p.value }));
+}
+
+// --- RBA (CSV público, sin key) ---------------------------------------------
+
+// Tabla F1.1 (Interest Rates and Yields — Money Market), columna Cash Rate
+// Target, serie FIRMMCRT. CSV con BOM UTF-8, formato de fecha DD/MM/YYYY.
+async function fetchRbaCashRate(): Promise<Observation[]> {
+  const res = await fetch('https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' },
+  });
+  if (!res.ok) throw new Error(`RBA F1.1: HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const text = new TextDecoder('utf-8').decode(buf).replace(/^﻿/, '');
+  const lines = text.split('\n');
+  const out: Observation[] = [];
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - BACKFILL_MONTHS - 1);
+  for (const line of lines) {
+    const parts = line.split(',');
+    const dateField = parts[0]?.trim();
+    if (!dateField || !dateField.includes('/')) continue;
+    const [d, m, y] = dateField.split('/');
+    if (!d || !m || !y || Number.isNaN(Number(d)) || Number.isNaN(Number(m)) || Number.isNaN(Number(y))) continue;
+    const val = parts[1]?.trim();
+    if (!val) continue;
+    const date = new Date(Number(y), Number(m) - 1, 1);
+    if (date < cutoff) continue;
+    out.push({ date: `${y}-${m.padStart(2, '0')}-01`, value: Number(val) / 100 });
+  }
+  return out;
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    res.status(500).json({ error: 'Falta configurar VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en Vercel.' });
+    return;
+  }
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  const updated: { indicatorId: string; date: string; value: number; points: number }[] = [];
+  const errors: { indicatorId: string; error: string }[] = [];
+
+  async function syncSeries(indicatorId: string, series: Observation[]) {
+    const trimmed = series.slice(-BACKFILL_MONTHS);
+    if (trimmed.length === 0) return;
+    const rows = trimmed.map((p) => ({ indicator_id: indicatorId, date: p.date, value: p.value }));
+    const { error } = await supabase.from('indicator_overrides').upsert(rows);
+    if (error) throw new Error(error.message);
+    const latest = trimmed[trimmed.length - 1];
+    updated.push({ indicatorId, date: latest.date, value: latest.value, points: trimmed.length });
+  }
+
+  const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
+    { id: 'aud_rba_rate', run: fetchRbaCashRate },
+    { id: 'aud_cpi', run: () => pctSeries('CPI', '2.10001.10.50.M', ABS_START_PERIOD_M) },
+    { id: 'aud_cpi_yoy', run: () => pctSeries('CPI', '3.10001.10.50.M', ABS_START_PERIOD_M) },
+    { id: 'aud_core_cpi', run: () => pctSeries('CPI', '2.999902.20.50.M', ABS_START_PERIOD_M) },
+    { id: 'aud_core_cpi_yoy', run: () => pctSeries('CPI', '3.999902.20.50.M', ABS_START_PERIOD_M) },
+    { id: 'aud_unemployment', run: () => pctSeries('LF', 'M13.3.1599.20.AUS.M', ABS_START_PERIOD_M) },
+    { id: 'aud_employment_change', run: employmentChangeSeries },
+    { id: 'aud_retail_sales', run: () => pctSeries('HSI_M', '8.TOT.CUR.20.AUS.M', ABS_START_PERIOD_M) },
+    { id: 'aud_retail_sales_yoy', run: () => pctSeries('HSI_M', '9.TOT.CUR.20.AUS.M', ABS_START_PERIOD_M) },
+    { id: 'aud_gdp_qoq', run: () => pctSeries('ANA_AGG', 'M2.GPM.20.AUS.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_gdp_yoy', run: gdpYoySeries },
+    { id: 'aud_trade_balance', run: tradeBalanceSeries },
+  ];
+
+  for (const job of jobs) {
+    try {
+      await syncSeries(job.id, await job.run());
+    } catch (err) {
+      errors.push({ indicatorId: job.id, error: (err as Error).message });
+    }
+  }
+
+  res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });
+}

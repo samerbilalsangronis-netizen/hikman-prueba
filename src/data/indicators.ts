@@ -2,6 +2,7 @@ import type { Currency, IndicatorMeta } from '../types';
 import { EUR_INDICATORS } from './indicatorsEur';
 import { GBP_INDICATORS } from './indicatorsGbp';
 import { CAD_INDICATORS } from './indicatorsCad';
+import { AUD_INDICATORS } from './indicatorsAud';
 
 const USD_INDICATORS: IndicatorMeta[] = [
   // PMI (section: crecimiento — son indicadores de actividad/crecimiento, no de confianza)
@@ -603,7 +604,7 @@ const USD_INDICATORS: IndicatorMeta[] = [
   },
 ];
 
-export const INDICATORS: IndicatorMeta[] = [...USD_INDICATORS, ...EUR_INDICATORS, ...GBP_INDICATORS, ...CAD_INDICATORS];
+export const INDICATORS: IndicatorMeta[] = [...USD_INDICATORS, ...EUR_INDICATORS, ...GBP_INDICATORS, ...CAD_INDICATORS, ...AUD_INDICATORS];
 
 export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   USD: {
@@ -633,6 +634,14 @@ export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   CAD: {
     score: 'Score CAD',
     tasas: 'Tasas y BoC',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    confianza: 'Confianza / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
+  AUD: {
+    score: 'Score AUD',
+    tasas: 'Tasas y RBA',
     inflacion: 'Inflación',
     empleo: 'Empleo',
     confianza: 'Confianza / Sentimiento',

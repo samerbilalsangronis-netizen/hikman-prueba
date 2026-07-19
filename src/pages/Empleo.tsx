@@ -17,7 +17,9 @@ export function Empleo() {
               ? 'Tasa de desempleo, Claimant Count y crecimiento salarial (con y sin bonos) del Reino Unido.'
               : currency === 'CAD'
                 ? 'Tasa de desempleo y cambios mensuales en el empleo de Canadá.'
-                : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
+                : currency === 'AUD'
+                  ? 'Tasa de desempleo y cambios mensuales en el empleo de Australia.'
+                  : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
         </p>
       </div>
       <SectionGrid section="empleo" months={36} />

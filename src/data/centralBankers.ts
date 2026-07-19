@@ -442,9 +442,107 @@ export const BOC_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD'): CentralBanker[] {
+// Monetary Policy Board del RBA — verificado con la página oficial (jul-2026):
+// rba.gov.au/about-rba/boards/monetary-policy-board/. Creado el 1-mar-2025
+// en reemplazo del antiguo "Reserve Bank Board" (reforma de gobernanza del
+// RBA): separa las decisiones de política monetaria de las de gobernanza
+// institucional (esta última quedó en un "Governance Board" aparte, no
+// modelado acá — solo nos importa quién decide la tasa). 9 miembros, todos
+// votan siempre (no hay rotación, igual que el MPC del BoE): 3 ex officio
+// (Governor=Chair, Deputy Governor=Deputy Chair, Secretary to the Treasury)
+// + 6 no-ejecutivos designados por el Tesorero.
+//
+// OJO Ian Harper: su mandato termina el 31-ago-2026 — si esta sesión se
+// retoma después de esa fecha, verificar si sigue en el board o hay
+// reemplazo.
+export const RBA_BANKERS: CentralBanker[] = [
+  {
+    id: 'rba_bullock',
+    name: 'Michele Bullock',
+    title: 'Gobernadora del RBA (Chair)',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/michele-bullock.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/our-people/executive/governor.html',
+  },
+  {
+    id: 'rba_hauser',
+    name: 'Andrew Hauser',
+    title: 'Vicegobernador del RBA (Deputy Chair)',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/andrew-hauser.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/our-people/executive/deputy-governor.html',
+  },
+  {
+    id: 'rba_wilkinson',
+    name: 'Jenny Wilkinson PSM',
+    title: 'Secretaria del Tesoro (miembro ex officio)',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/jenny-wilkinson.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/jenny-wilkinson.html',
+  },
+  {
+    id: 'rba_baker',
+    name: 'Marnie Baker AM',
+    title: 'Miembro No Ejecutiva del Monetary Policy Board',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/marnie-baker.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/marnie-baker.html',
+  },
+  {
+    id: 'rba_fry_mckibbin',
+    name: 'Renée Fry-McKibbin',
+    title: 'Miembro No Ejecutiva del Monetary Policy Board',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/renee-fry-mckibbin.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/renee-fry-mckibbin.html',
+  },
+  {
+    id: 'rba_harper',
+    name: 'Ian Harper AO',
+    title: 'Miembro No Ejecutivo del Monetary Policy Board (mandato termina 31-ago-2026)',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/ian-harper.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/ian-harper.html',
+  },
+  {
+    id: 'rba_hewson',
+    name: 'Carolyn Hewson AO',
+    title: 'Miembro No Ejecutiva del Monetary Policy Board',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/carolyn-hewson.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/carolyn-hewson.html',
+  },
+  {
+    id: 'rba_ross',
+    name: 'Iain Ross AO',
+    title: 'Miembro No Ejecutivo del Monetary Policy Board',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/iain-ross.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/iain-ross.html',
+  },
+  {
+    id: 'rba_preston',
+    name: 'Bruce Preston',
+    title: 'Miembro No Ejecutivo del Monetary Policy Board',
+    vote: 'voting',
+    currency: 'AUD',
+    photoUrl: '/bankers/bruce-preston.jpg',
+    bioUrl: 'https://www.rba.gov.au/about-rba/boards/monetary-policy-board/bruce-preston.html',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
   if (currency === 'CAD') return BOC_BANKERS;
+  if (currency === 'AUD') return RBA_BANKERS;
   return FED_BANKERS;
 }

@@ -128,3 +128,22 @@ export const CAD_AUTO_INDICATOR_IDS = [
   'cad_gdp_yoy',
   'cad_trade_balance',
 ];
+
+// AUD — se sincroniza desde la ABS Data API (SDMX, sin key) + CSV público
+// del RBA, no FRED (FRED no republica la mayoría de estas series para
+// Australia). PMI y encuestas de confianza (privados, sin API gratis)
+// quedan manuales, igual que en el resto de las divisas.
+export const AUD_AUTO_INDICATOR_IDS = [
+  'aud_rba_rate',
+  'aud_cpi',
+  'aud_cpi_yoy',
+  'aud_core_cpi',
+  'aud_core_cpi_yoy',
+  'aud_unemployment',
+  'aud_employment_change',
+  'aud_retail_sales',
+  'aud_retail_sales_yoy',
+  'aud_gdp_qoq',
+  'aud_gdp_yoy',
+  'aud_trade_balance',
+];

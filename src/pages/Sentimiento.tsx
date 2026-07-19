@@ -17,7 +17,9 @@ export function Sentimiento() {
               ? 'Barómetro de confianza del consumidor GfK del Reino Unido.'
               : currency === 'CAD'
                 ? 'Confianza empresarial y del consumidor de Canadá (Conference Board of Canada).'
-                : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
+                : currency === 'AUD'
+                  ? 'Confianza empresarial (NAB) y del consumidor (Westpac-Melbourne Institute) de Australia.'
+                  : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
         </p>
       </div>
       <SectionGrid section="confianza" months={36} />
