@@ -23,36 +23,43 @@ import type { IndicatorMeta } from '../types';
 //    alimentos y energía" genérico (Australia ni siquiera publica esa
 //    definición como serie estándar).
 //
-// 3. Australia migró de un CPI trimestral a un CPI mensual COMPLETO recién
-//    en nov-2025. La serie mensual nueva (que sí matchea contra prensa:
-//    4.6% a/a marzo-2026, 4.0% a/a mayo-2026 — verificado) NO es una
-//    resampleada de la serie trimestral histórica: encadenar el índice
-//    trimestral legado da un a/a de ~4.1% para el mismo trimestre, no
-//    4.6% — un quiebre real de metodología, no redondeo. Por eso
-//    aud_cpi/aud_cpi_yoy/aud_core_cpi/aud_core_cpi_yoy tienen historia
-//    corta (desde 2024-05 m/m, desde 2025-04 a/a) en vez de los 15-20 años
-//    del resto de las divisas — empalmar la serie trimestral vieja habría
-//    sido más historia pero un dato falso.
+// 3. Australia migró de un CPI trimestral a un CPI mensual COMPLETO desde
+//    nov-2025 — PERO la ABS sigue publicando el CPI/Trimmed Mean/Weighted
+//    Median TRIMESTRALES en paralelo (tabla embebida dentro de cada
+//    publicación mensual de marzo/junio/septiembre/diciembre), calculados
+//    en base "pre-October 2025" (la metodología de recolección de antes
+//    de la transición) — NO es una serie deprecada ni un dato viejo, es
+//    un release oficial y vigente que la ABS sigue actualizando cada
+//    trimestre. La serie mensual nueva (a/a) y la trimestral vieja
+//    genuinamente NO reconcilian para el mismo trimestre (4.6% mensual vs
+//    ~4.1% trimestral para marzo-2026) — son dos mediciones reales y
+//    paralelas, no un error de una de las dos.
 //
 // 4. La Balanza Comercial (ABS "International Trade in Goods", dataflow
 //    ITGS) es solo bienes (no bienes+servicios) — mismo alcance que GBP.
 //
 // 5. El RBA prioriza DOS medidas de inflación subyacente por igual desde
 //    la actualización de metodología de oct-2025 — Trimmed Mean Y
-//    Weighted Median (ambas dieron 3.6% a/a en mayo-2026) — mismo patrón
-//    que CPI-trim/CPI-median en CAD. Se agregan ambas.
+//    Weighted Median — mismo patrón que CPI-trim/CPI-median en CAD. Se
+//    agregan ambas.
 //
-// 6. Cuidado con una fuente de referencia tipo calendario económico que
-//    muestre "IPC/Trimmed Mean/Weighted Median YoY Q1" con valores más
-//    altos que estos (ej. Trimmed Mean 3.5% en vez de 3.3% para el
-//    trimestre que termina en marzo-2026): esos números corresponden a la
-//    metodología VIEJA ("pre-October 2025 basis"), que ABS sigue
-//    publicando en paralelo durante la transición pero que ya no es la
-//    que reporta como cifra oficial en sus comunicados — no son "más
-//    actualizados", son la serie deprecada. Confirmado contra el
-//    comunicado oficial de la ABS (mar-2026: CPI 4.6%, Trimmed Mean 3.3%,
-//    Weighted Median 3.4%) y contra prensa especializada (may-2026: CPI
-//    4.0%, Trimmed Mean y Weighted Median ambas 3.6%).
+// 6. **Decisión explícita del usuario (verificó su propia fuente de
+//    referencia, un calendario económico tipo Investing.com, y preguntó
+//    por qué no coincidía)**: aud_cpi/aud_cpi_yoy/aud_core_cpi/
+//    aud_core_cpi_yoy/aud_weighted_median/aud_weighted_median_yoy usan la
+//    base TRIMESTRAL "pre-October 2025" (frequency: 'quarterly'), NO la
+//    mensual nueva — porque es la que efectivamente sigue la fuente de
+//    referencia del usuario. La serie mensual nueva quedó sin agregar
+//    como indicador aparte (se puede sumar si en algún momento se quiere
+//    trackear ambas). Fuentes: dataflow `CPI` (TSEST=10, FREQ=Q) para el
+//    headline — el a/a NO viene como medida directa ahí, se deriva del
+//    índice de nivel (measure=1) comparando 4 trimestres atrás — y
+//    dataflow `CPI_Q` (TSEST=20, FREQ=Q, INDEX=999902/999903) para
+//    Trimmed Mean/Weighted Median, que sí publican t/t y a/a directo.
+//    Verificado contra la captura del usuario para el Q1-2026: CPI a/a
+//    4.10% (calculado, coincide), Trimmed Mean a/a 3.5%/t/t 0.8%
+//    (coincide exacto), Weighted Median a/a 3.5%/t/t 0.8% (coincide
+//    exacto).
 //
 // 7. PPI (Producer Price Indexes, Final Demand): dataflow PPI_FD,
 //    trimestral, key MEASURE.INDEX.SOURCE.DESTINATION.FREQ con
@@ -74,22 +81,25 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Tasa objetivo de efectivo (cash rate target) del RBA — su tasa de referencia.',
   },
-  // Inflación — CPI mensual completo (metodología nueva desde nov-2025).
-  // Orden: cada medida va m/m seguido de su a/a (no todos los m/m juntos y
-  // luego todos los a/a) para que se lean emparejados en pantalla.
+  // Inflación — CPI TRIMESTRAL, base "pre-October 2025" (la que sigue
+  // publicando la ABS cada trimestre dentro de la publicación mensual de
+  // marzo/junio/septiembre/diciembre, y la que sigue la fuente de
+  // referencia del usuario tipo Investing.com). Orden: cada medida va
+  // t/t seguido de su a/a (no todos los t/t juntos y luego todos los
+  // a/a) para que se lean emparejados en pantalla.
   {
     id: 'aud_cpi',
-    label: 'CPI (Inflación al Consumidor, m/m)',
+    label: 'CPI (Inflación al Consumidor, t/t)',
     shortLabel: 'CPI',
     section: 'inflacion',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (CPI mensual, serie Original)',
+    source: 'Australian Bureau of Statistics (CPI trimestral, serie Original)',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Variación mensual del CPI de Australia (serie Original, sin desestacionalizar). Verificado: -0.7% para mayo-2026.',
+    description: 'Variación trimestral del CPI de Australia (serie Original, base "pre-October 2025"). Verificado contra la fuente de referencia del usuario: +1.4% para el primer trimestre de 2026.',
   },
   {
     id: 'aud_cpi_yoy',
@@ -97,27 +107,28 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'CPI a/a',
     section: 'inflacion',
     format: 'pct',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'line',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (CPI mensual, serie Original)',
+    source: 'Australian Bureau of Statistics (CPI trimestral, serie Original)',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Variación del CPI respecto al mismo mes del año anterior. Verificado: 4.0% para mayo-2026 (bajando de 4.2% en abril).',
+    description:
+      'Variación del CPI respecto al mismo trimestre del año anterior. La ABS no publica esta tasa directo para la serie trimestral — se deriva del índice de nivel comparando 4 trimestres atrás. Verificado: 4.1% para el primer trimestre de 2026, coincide con la fuente de referencia del usuario. No coincide con el 4.6% que reporta la ABS para la serie MENSUAL nueva del mismo trimestre — son dos mediciones oficiales distintas que corren en paralelo, no un error de una de las dos.',
   },
   {
     id: 'aud_core_cpi',
-    label: 'Core CPI — Trimmed Mean (m/m)',
+    label: 'Core CPI — Trimmed Mean (t/t)',
     shortLabel: 'Core CPI',
     section: 'inflacion',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (Trimmed Mean, desestacionalizado)',
+    source: 'Australian Bureau of Statistics (Trimmed Mean, base "pre-October 2025")',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Media recortada (Trimmed Mean) — una de las dos medidas de inflación subyacente que prioriza el RBA por igual, no "CPI ex alimentos y energía". Verificado: 0.4% m/m para mayo-2026.',
+    description: 'Media recortada (Trimmed Mean) — una de las dos medidas de inflación subyacente que prioriza el RBA por igual, no "CPI ex alimentos y energía". Verificado: 0.8% t/t para el primer trimestre de 2026.',
   },
   {
     id: 'aud_core_cpi_yoy',
@@ -125,27 +136,27 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Core CPI a/a',
     section: 'inflacion',
     format: 'pct',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'line',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (Trimmed Mean, desestacionalizado)',
+    source: 'Australian Bureau of Statistics (Trimmed Mean, base "pre-October 2025")',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Trimmed Mean respecto al mismo mes del año anterior. Verificado: 3.6% para mayo-2026 (metodología vigente desde oct-2025 — no confundir con la serie "pre-October 2025 basis" que ABS sigue publicando en paralelo con valores más altos).',
+    description: 'Trimmed Mean respecto al mismo trimestre del año anterior. Verificado: 3.5% para el primer trimestre de 2026, coincide con la fuente de referencia del usuario.',
   },
   {
     id: 'aud_weighted_median',
-    label: 'Weighted Median (m/m)',
+    label: 'Weighted Median (t/t)',
     shortLabel: 'W. Median',
     section: 'inflacion',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (Weighted Median, desestacionalizado)',
+    source: 'Australian Bureau of Statistics (Weighted Median, base "pre-October 2025")',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Mediana ponderada — la otra medida de inflación subyacente que prioriza el RBA, junto al Trimmed Mean. Verificado: 0.4% m/m para mayo-2026.',
+    description: 'Mediana ponderada — la otra medida de inflación subyacente que prioriza el RBA, junto al Trimmed Mean. Verificado: 0.8% t/t para el primer trimestre de 2026.',
   },
   {
     id: 'aud_weighted_median_yoy',
@@ -153,13 +164,13 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'W. Median a/a',
     section: 'inflacion',
     format: 'pct',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'line',
     currency: 'AUD',
-    source: 'Australian Bureau of Statistics (Weighted Median, desestacionalizado)',
+    source: 'Australian Bureau of Statistics (Weighted Median, base "pre-October 2025")',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
-    description: 'Mediana ponderada respecto al mismo mes del año anterior. Verificado: 3.6% para mayo-2026 — empató con el Trimmed Mean ese mes.',
+    description: 'Mediana ponderada respecto al mismo trimestre del año anterior. Verificado: 3.5% para el primer trimestre de 2026, coincide con la fuente de referencia del usuario.',
   },
   {
     id: 'aud_ppi_qoq',

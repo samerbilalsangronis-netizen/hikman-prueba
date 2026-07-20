@@ -115,6 +115,21 @@ async function gdpYoySeries(): Promise<Observation[]> {
   return out;
 }
 
+// CPI headline a/a (base trimestral "pre-October 2025", ver
+// indicatorsAud.ts): la ABS no publica esta tasa directo para la serie
+// trimestral — se deriva del índice de nivel comparando 4 trimestres
+// atrás. Verificado: 4.1% para el primer trimestre de 2026.
+async function cpiYoySeries(): Promise<Observation[]> {
+  const points = await fetchAbsSeries('CPI', '1.10001.10.50.Q', ABS_START_PERIOD_Q);
+  const byPeriod = new Map(points.map((p) => [p.period, p.value]));
+  const out: Observation[] = [];
+  for (const p of points) {
+    const prev = byPeriod.get(shiftQuarters(p.period, 4));
+    if (prev !== undefined && prev !== 0) out.push({ date: periodToDate(p.period), value: p.value / prev - 1 });
+  }
+  return out;
+}
+
 // Balanza comercial: ABS ITGS (International Trade in Goods), ya en
 // millones de AUD, desestacionalizado — se guarda tal cual (mismo patrón
 // que USD/CAD, format 'trade').
@@ -182,12 +197,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     { id: 'aud_rba_rate', run: fetchRbaCashRate },
-    { id: 'aud_cpi', run: () => pctSeries('CPI', '2.10001.10.50.M', ABS_START_PERIOD_M) },
-    { id: 'aud_cpi_yoy', run: () => pctSeries('CPI', '3.10001.10.50.M', ABS_START_PERIOD_M) },
-    { id: 'aud_core_cpi', run: () => pctSeries('CPI', '2.999902.20.50.M', ABS_START_PERIOD_M) },
-    { id: 'aud_core_cpi_yoy', run: () => pctSeries('CPI', '3.999902.20.50.M', ABS_START_PERIOD_M) },
-    { id: 'aud_weighted_median', run: () => pctSeries('CPI', '2.999903.20.50.M', ABS_START_PERIOD_M) },
-    { id: 'aud_weighted_median_yoy', run: () => pctSeries('CPI', '3.999903.20.50.M', ABS_START_PERIOD_M) },
+    // CPI/Trimmed Mean/Weighted Median: base trimestral "pre-October 2025"
+    // (dataflow CPI para headline, CPI_Q para las dos subyacentes) — la
+    // que sigue la fuente de referencia del usuario. Ver indicatorsAud.ts.
+    { id: 'aud_cpi', run: () => pctSeries('CPI', '2.10001.10.50.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_cpi_yoy', run: cpiYoySeries },
+    { id: 'aud_core_cpi', run: () => pctSeries('CPI_Q', '2.999902.20.50.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_core_cpi_yoy', run: () => pctSeries('CPI_Q', '3.999902.20.50.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_weighted_median', run: () => pctSeries('CPI_Q', '2.999903.20.50.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_weighted_median_yoy', run: () => pctSeries('CPI_Q', '3.999903.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_ppi_qoq', run: () => pctSeries('PPI_FD', '2.TOT.TOT.TOTXE.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_ppi_yoy', run: () => pctSeries('PPI_FD', '3.TOT.TOT.TOTXE.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_unemployment', run: () => pctSeries('LF', 'M13.3.1599.20.AUS.M', ABS_START_PERIOD_M) },

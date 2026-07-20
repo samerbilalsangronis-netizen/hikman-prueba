@@ -18,7 +18,7 @@ export function Inflacion() {
               : currency === 'CAD'
                 ? 'CPI y Core CPI de Canadá, variación mensual e interanual.'
                 : currency === 'AUD'
-                  ? 'CPI y Trimmed Mean (Core CPI) de Australia, variación mensual e interanual.'
+                  ? 'CPI, Trimmed Mean, Weighted Median y PPI de Australia, variación trimestral e interanual.'
                   : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
         </p>
       </div>
