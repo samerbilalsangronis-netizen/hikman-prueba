@@ -16,11 +16,13 @@ de automatizarla.
 **Estado actual: USD, EUR, GBP, CAD y AUD completos y en producción**
 (las dos ramas están sincronizadas al mismo commit al escribir esto).
 AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
-se agregaron Weighted Median y PPI, y se reordenaron las tarjetas de
-Inflación de TODAS las divisas (m/m junto a su a/a, no agrupados por
-separado) a pedido del usuario — ver lección AUD #21 y el commit
-correspondiente. Faltan JPY, CHF, NZD — ver "Pendiente explícito" más
-abajo, incluye los datos crudos que ya mandó el
+se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
+Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
+pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
+release oficial paralelo que sigue la fuente de referencia del usuario),
+y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
+junto a su a/a, no agrupados por separado). Faltan JPY, CHF, NZD — ver
+"Pendiente explícito" más abajo, incluye los datos crudos que ya mandó el
 usuario (por captura de pantalla, no Excel) para esas 3.
 
 ## Dónde vive todo
@@ -232,21 +234,22 @@ Industrial de EUR: no se automatiza lo que no se pudo verificar).
 **AUD (20, agregada en esta sesión)**, `indicatorsAud.ts`, ids `aud_`:
 - Tasas (1, auto): `aud_rba_rate` (CSV público del RBA, tabla F1.1, serie
   `FIRMMCRT` — sin key, no vía API SDMX)
-- Inflación (8, todos auto vía **ABS Data API**): `aud_cpi`/`aud_cpi_yoy`
-  (headline, dataflow `CPI`, serie Original) +
-  `aud_core_cpi`/`aud_core_cpi_yoy` (**Trimmed Mean**, no "ex alimentos y
-  energía" — ver Decisiones técnicas #4) +
-  `aud_weighted_median`/`aud_weighted_median_yoy` (**el RBA prioriza esta
-  medida en pie de igualdad con el Trimmed Mean desde oct-2025** —
-  agregada tras el pedido del usuario de revisar los datos de inflación,
-  ver lección #21) + `aud_ppi_qoq`/`aud_ppi_yoy` (dataflow `PPI_FD`,
-  trimestral — indicador que faltaba por completo, agregado en la misma
-  pasada). Las 3 series ligadas al CPI mensual (headline, trimmed mean,
-  weighted median) tienen historia corta (~14-25 meses) por un quiebre
-  real de metodología — ver #3/#21 abajo, no se empalmó con la serie
-  trimestral vieja para no fabricar continuidad falsa. **Orden de las
-  tarjetas: cada medida va m/m (o t/t) seguido de su a/a**, no todos los
-  m/m agrupados y después todos los a/a — a pedido explícito del usuario,
+- Inflación (8, todos auto vía **ABS Data API**, TODOS trimestrales —
+  base "pre-October 2025", ver lección #22): `aud_cpi`/`aud_cpi_yoy`
+  (headline, dataflow `CPI`) + `aud_core_cpi`/`aud_core_cpi_yoy`
+  (**Trimmed Mean**, dataflow `CPI_Q`, no "ex alimentos y energía" — ver
+  Decisiones técnicas #4) + `aud_weighted_median`/`aud_weighted_median_yoy`
+  (dataflow `CPI_Q` — **el RBA prioriza esta medida en pie de igualdad
+  con el Trimmed Mean desde oct-2025** — agregada tras el pedido del
+  usuario de revisar los datos de inflación) + `aud_ppi_qoq`/`aud_ppi_yoy`
+  (dataflow `PPI_FD`, trimestral — indicador que faltaba por completo).
+  105 trimestres de historia (desde 2000) para las 6 primeras — ver
+  lección #21/#22 sobre por qué NO se usa la serie mensual nueva (aunque
+  esa sí coincide con el comunicado oficial "CPI rose X%..." de la ABS):
+  el usuario pidió específicamente la base que sigue su fuente de
+  referencia. **Orden de las tarjetas: cada medida va m/m (o t/t) seguido
+  de su a/a**, no todos los m/m agrupados y después todos los a/a — a
+  pedido explícito del usuario,
   aplicado también a USD/EUR/GBP/CAD en la misma sesión.
 - Empleo (2, auto, ABS dataflow `LF`): `aud_unemployment`,
   `aud_employment_change`
@@ -482,24 +485,47 @@ nombre del dataflow lo delate):
     tasa) y un "Governance Board" separado (no modelado — no decide
     política monetaria). Si se busca la composición del RBA sin saber
     esto, es fácil terminar con nombres del board viejo o incompleto.
-21. **Trampa de metodología dual — la ABS sigue publicando en PARALELO la
-    serie de Trimmed Mean/Weighted Median "pre-October 2025 basis" (la
-    metodología vieja) junto con la vigente**, sin que el nombre del
-    indicador lo distinga claramente en un calendario económico de
-    terceros. El usuario mandó una captura de su fuente de referencia
-    mostrando Trimmed Mean=3.5%/Weighted Median=3.5%/CPI headline=4.1%
-    para el trimestre que termina en marzo-2026 — **esos son los valores
-    de la metodología VIEJA**; los correctos y vigentes (los que reporta
-    la ABS en su comunicado oficial y toda la prensa) son Trimmed
-    Mean=3.3%/Weighted Median=3.4%/CPI headline=4.6% para ese mismo
-    período. **Lección: cuando una fuente de referencia da un número
-    "razonablemente parecido pero no igual" al oficial, no asumir que es
-    solo redondeo o timing — puede ser literalmente una serie distinta y
-    deprecada que ABS mantiene por comparabilidad histórica durante la
-    transición.** Se agregó `aud_weighted_median`/`_yoy` (dataflow `CPI`,
-    `INDEX=999903`) siguiendo el mismo patrón que Trimmed Mean
-    (`INDEX=999902`) — ambas con la metodología vigente (TSEST=20,
-    MEASURE=2/3, FREQ=M).
+21. **La ABS publica en PARALELO dos mediciones reales de CPI/Trimmed
+    Mean/Weighted Median para el mismo trimestre — no es una vieja y una
+    nueva, son dos releases oficiales vigentes que corren juntos.** Desde
+    nov-2025 existe el CPI mensual completo (recolección de precios
+    mensual para ~todos los ítems). Pero la ABS **sigue publicando
+    también, cada trimestre, una tabla trimestral en base "pre-October
+    2025"** (la metodología de recolección de antes de la transición —
+    varios ítems solo se relevaban trimestralmente) **embebida dentro de
+    la publicación mensual de marzo/junio/septiembre/diciembre** — ya no
+    es un release separado, pero el número sigue siendo un dato real,
+    vigente, que la ABS actualiza cada trimestre. El primer intento de
+    esta sesión asumió que ese número trimestral estaba "deprecado" y lo
+    descartó — **error**: el usuario preguntó por qué su fuente de
+    referencia (un calendario tipo Investing.com) seguía mostrando esos
+    valores, y la respuesta correcta es que Investing trackea ese release
+    trimestral como su propio evento de calendario (distinto del "Monthly
+    CPI Indicator"), y sigue siendo válido. **Lección: cuando una fuente
+    de referencia da un número que no coincide con el comunicado que uno
+    encontró, no asumir que la fuente está atrasada — investigar si hay
+    dos mediciones oficiales corriendo en paralelo antes de descartar
+    ninguna.**
+22. **Decisión final (a pedido explícito del usuario, tras verificar
+    contra su fuente de referencia): `aud_cpi`/`aud_cpi_yoy`/
+    `aud_core_cpi`/`aud_core_cpi_yoy`/`aud_weighted_median`/
+    `aud_weighted_median_yoy` usan la base TRIMESTRAL "pre-October 2025"**
+    (frequency `'quarterly'`), no la mensual nueva — porque es la que
+    sigue la referencia real del usuario (mismo principio que la lección
+    CAD #6: "confirmar cuál es la que efectivamente usa la referencia
+    real del usuario"). Fuentes: dataflow `CPI` (`TSEST=10`, `FREQ=Q`,
+    `INDEX=10001`) para el headline — el a/a no viene como medida directa
+    ahí (`MEASURE` solo tiene t/t para esta combinación), se deriva del
+    índice de nivel (`MEASURE=1`) comparando 4 trimestres atrás — y
+    dataflow `CPI_Q` (`TSEST=20`, `FREQ=Q`, `INDEX=999902`/`999903`) para
+    Trimmed Mean/Weighted Median, que sí publican t/t y a/a directo.
+    Ventaja no buscada: la serie trimestral tiene 105 trimestres de
+    historia (desde 2000) contra los 14-25 meses de la serie mensual, así
+    que el cambio también mejoró la profundidad histórica de los
+    gráficos. La serie mensual nueva (la que se había usado primero, y
+    que sí matchea el comunicado oficial "CPI rose X% in the year to..."
+    de la ABS) quedó sin indicador propio — se puede agregar aparte si en
+    algún momento se quiere trackear ambas en simultáneo.
 
 ## Pendiente explícito
 
