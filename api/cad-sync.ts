@@ -85,6 +85,14 @@ const STATCAN_SOURCES = {
   cpiAll: { productId: 18100004, coordinate: '2.2.0.0.0.0.0.0.0.0' }, // CPI NSA, all-items
   cpiCoreNsa: { productId: 18100256, coordinate: '1.5.0.0.0.0.0.0.0.0' }, // CPI ex-8-volátiles (BoC), NSA — para m/m
   cpiCoreSa: { productId: 18100256, coordinate: '1.8.0.0.0.0.0.0.0.0' }, // CPI ex-8-volátiles (BoC), SA — para a/a
+  // CPI-median/CPI-trim: misma tabla 18-10-0256, ya publicadas directo como
+  // tasa a/a (miembros 2 y 3). Antes venían del Valet del BoC, pero el BoC
+  // actualiza sus tablas con REZAGO respecto a StatCan (el día del release
+  // de CPI de jun-2026, StatCan ya tenía 1.9%/1.8% y el Valet seguía en
+  // mayo) — el usuario lo notó porque el resto de las series CAD sí
+  // actualizó y estas dos no. StatCan publica el mismo número, el mismo día.
+  cpiMedian: { productId: 18100256, coordinate: '1.2.0.0.0.0.0.0.0.0' }, // CPI-median (a/a directo)
+  cpiTrim: { productId: 18100256, coordinate: '1.3.0.0.0.0.0.0.0.0' }, // CPI-trim (a/a directo)
   unemployment: { productId: 14100287, coordinate: '1.7.1.1.1.1.0.0.0.0' },
   employment: { productId: 14100287, coordinate: '1.3.1.1.1.1.0.0.0.0' },
   gdp: { productId: 36100434, coordinate: '1.1.1.1.0.0.0.0.0.0' }, // All industries, chained 2017$, SAAR
@@ -146,8 +154,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     { id: 'cad_boc_rate', run: () => fetchBocSeries('V39079') }, // Target for the overnight rate
-    { id: 'cad_cpi_median', run: () => fetchBocSeries('CPI_MEDIAN') },
-    { id: 'cad_cpi_trim', run: () => fetchBocSeries('CPI_TRIM') },
+    {
+      id: 'cad_cpi_median',
+      run: async () =>
+        levelByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiMedian.productId, STATCAN_SOURCES.cpiMedian.coordinate, BACKFILL_MONTHS)).map((o) => ({
+          date: o.date,
+          value: o.value / 100,
+        })),
+    },
+    {
+      id: 'cad_cpi_trim',
+      run: async () =>
+        levelByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiTrim.productId, STATCAN_SOURCES.cpiTrim.coordinate, BACKFILL_MONTHS)).map((o) => ({
+          date: o.date,
+          value: o.value / 100,
+        })),
+    },
     {
       id: 'cad_cpi',
       run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.cpiAll.productId, STATCAN_SOURCES.cpiAll.coordinate, BACKFILL_MONTHS + 13), 1),

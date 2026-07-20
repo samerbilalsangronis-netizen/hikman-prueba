@@ -128,10 +128,11 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Bank of Canada (Valet: CPI_MEDIAN)',
-    sourceUrl: 'https://www.bankofcanada.ca/rates/price-indexes/cpi/',
+    source: 'Statistics Canada (tabla 18-10-0256-01, definición BoC)',
+    sourceUrl: 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810025601',
     goodDirection: 'neutral',
-    description: 'Mediana ponderada de las variaciones de precios a/a de los componentes del CPI — una de las dos medidas de inflación subyacente que prioriza el BoC.',
+    description:
+      'Mediana ponderada de las variaciones de precios a/a de los componentes del CPI — una de las dos medidas de inflación subyacente que prioriza el BoC. Se sincroniza desde StatCan (no del Valet del BoC, que publica el mismo número con rezago de hasta un día).',
   },
   {
     id: 'cad_cpi_trim',
@@ -142,10 +143,11 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Bank of Canada (Valet: CPI_TRIM)',
-    sourceUrl: 'https://www.bankofcanada.ca/rates/price-indexes/cpi/',
+    source: 'Statistics Canada (tabla 18-10-0256-01, definición BoC)',
+    sourceUrl: 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810025601',
     goodDirection: 'neutral',
-    description: 'Media recortada (excluye los componentes con variaciones más extremas) de las variaciones de precios a/a del CPI — la otra medida que prioriza el BoC.',
+    description:
+      'Media recortada (excluye los componentes con variaciones más extremas) de las variaciones de precios a/a del CPI — la otra medida que prioriza el BoC. Se sincroniza desde StatCan (no del Valet del BoC, que publica el mismo número con rezago de hasta un día).',
   },
   // Empleo
   {
