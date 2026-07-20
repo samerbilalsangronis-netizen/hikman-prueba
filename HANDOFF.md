@@ -401,9 +401,16 @@ StatCan/BoC publican varias series válidas del "mismo" concepto a la vez):
    siquiera dentro de la misma tabla.**
 8. **El BoC en la práctica mira más de cerca sus dos medidas de inflación
    subyacente preferidas desde 2016** — CPI-trim y CPI-median (no el "core
-   CPI" genérico de arriba) — publicadas **directo como tasa a/a** por el
-   Valet (`CPI_TRIM`, `CPI_MEDIAN`, sin necesidad de derivarlas de un
-   índice). Se agregaron como `cad_cpi_trim`/`cad_cpi_median`.
+   CPI" genérico de arriba) — publicadas directo como tasa a/a. **OJO
+   fuente (corregido 20-jul-2026): NO usar el Valet del BoC para estas
+   dos** (`CPI_TRIM`/`CPI_MEDIAN`) — el Valet actualiza sus tablas con
+   REZAGO respecto a StatCan: el día del release de CPI de jun-2026, el
+   resto de las series CAD actualizó y estas dos no (el Valet seguía en
+   mayo), lo notó el usuario. StatCan publica el mismo número el mismo
+   día en la tabla `18-10-0256-01` (miembros 2=CPI-median, 3=CPI-trim,
+   ya como tasa a/a) — es la fuente actual de
+   `cad_cpi_trim`/`cad_cpi_median`. El Valet queda solo para la tasa
+   overnight (V39079), dato propio del BoC que siempre está al día.
 9. **Empleo (Cambios en el Empleo)**: el nivel de empleo de StatCan (tabla
    `14-10-0287-01`) ya viene en miles de personas — se usa el mismo
    transform `diff_x1000` que USD usa para NFP (diferencia mes a mes,
