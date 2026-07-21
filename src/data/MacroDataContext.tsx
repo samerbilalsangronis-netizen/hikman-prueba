@@ -6,8 +6,17 @@ import { GBP_SCORE_SEED } from './scoreSeedGbp';
 import { CAD_SCORE_SEED } from './scoreSeedCad';
 import { AUD_SCORE_SEED } from './scoreSeedAud';
 import { NZD_SCORE_SEED } from './scoreSeedNzd';
+import { JPY_SCORE_SEED } from './scoreSeedJpy';
 
-const SCORE_SEED = [...USD_SCORE_SEED, ...EUR_SCORE_SEED, ...GBP_SCORE_SEED, ...CAD_SCORE_SEED, ...AUD_SCORE_SEED, ...NZD_SCORE_SEED];
+const SCORE_SEED = [
+  ...USD_SCORE_SEED,
+  ...EUR_SCORE_SEED,
+  ...GBP_SCORE_SEED,
+  ...CAD_SCORE_SEED,
+  ...AUD_SCORE_SEED,
+  ...NZD_SCORE_SEED,
+  ...JPY_SCORE_SEED,
+];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
 import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint, Statement } from '../types';
 

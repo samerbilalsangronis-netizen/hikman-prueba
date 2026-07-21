@@ -4,6 +4,7 @@ import { GBP_INDICATORS } from './indicatorsGbp';
 import { CAD_INDICATORS } from './indicatorsCad';
 import { AUD_INDICATORS } from './indicatorsAud';
 import { NZD_INDICATORS } from './indicatorsNzd';
+import { JPY_INDICATORS } from './indicatorsJpy';
 
 const USD_INDICATORS: IndicatorMeta[] = [
   // PMI (section: crecimiento — son indicadores de actividad/crecimiento, no de confianza)
@@ -613,6 +614,7 @@ export const INDICATORS: IndicatorMeta[] = [
   ...CAD_INDICATORS,
   ...AUD_INDICATORS,
   ...NZD_INDICATORS,
+  ...JPY_INDICATORS,
 ];
 
 export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
@@ -659,6 +661,14 @@ export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   NZD: {
     score: 'Score NZD',
     tasas: 'Tasas y RBNZ',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    confianza: 'Confianza / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
+  JPY: {
+    score: 'Score JPY',
+    tasas: 'Tasas y BOJ',
     inflacion: 'Inflación',
     empleo: 'Empleo',
     confianza: 'Confianza / Sentimiento',

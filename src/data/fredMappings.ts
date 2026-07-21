@@ -158,3 +158,24 @@ export const AUD_AUTO_INDICATOR_IDS = [
 // ~400MB sin comprimir) y Balanza Comercial (solo XLSX) también quedan
 // manuales — ver indicatorsNzd.ts para el detalle de cada decisión.
 export const NZD_AUTO_INDICATOR_IDS = ['nzd_cpi', 'nzd_cpi_yoy', 'nzd_gdp_qoq', 'nzd_gdp_yoy', 'nzd_retail_sales', 'nzd_retail_sales_yoy'];
+
+// JPY — se sincroniza desde el e-Stat Dashboard API (dashboard.e-stat.go.jp,
+// sin key — distinta de la API principal de e-Stat, que sí exige un appId
+// registrado), el CSV público del BOJ (stat-search.boj.or.jp, no bloqueado
+// a diferencia de rbnz.govt.nz) y el CSV de Aduanas de Japón
+// (customs.go.jp). PMI, Tankan y confianza del consumidor quedan
+// manuales — ver indicatorsJpy.ts para el detalle de cada decisión.
+export const JPY_AUTO_INDICATOR_IDS = [
+  'jpy_boj_rate',
+  'jpy_cpi',
+  'jpy_cpi_yoy',
+  'jpy_core_cpi',
+  'jpy_core_cpi_yoy',
+  'jpy_unemployment',
+  'jpy_employment_change',
+  'jpy_retail_sales',
+  'jpy_retail_sales_yoy',
+  'jpy_gdp_qoq',
+  'jpy_gdp_yoy',
+  'jpy_trade_balance',
+];
