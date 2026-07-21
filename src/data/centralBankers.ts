@@ -539,10 +539,69 @@ export const RBA_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD'): CentralBanker[] {
+// Monetary Policy Committee del RBNZ — verificado vía WebSearch (jul-2026);
+// la web oficial (rbnz.govt.nz) bloquea todo fetch automatizado (Cloudflare
+// devuelve 403 incluso en la portada, con headers de navegador reales — no
+// es un problema del proxy, se confirmó también con WebFetch). 6 miembros,
+// todos votan siempre (no hay rotación, igual que el MPC del BoE/RBA): 3
+// internos (Gobernadora=Chair, Assistant Governor, Chief Economist) + 3
+// externos designados a término fijo.
+export const RBNZ_BANKERS: CentralBanker[] = [
+  {
+    id: 'rbnz_breman',
+    name: 'Anna Breman',
+    title: 'Gobernadora del RBNZ (Chair) — mandato hasta 30-nov-2030',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/our-executive-leadership-team/anna-breman',
+  },
+  {
+    id: 'rbnz_silk',
+    name: 'Karen Silk',
+    title: 'Assistant Governor Money (miembro interno) — mandato hasta 15-may-2027',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
+  },
+  {
+    id: 'rbnz_conway',
+    name: 'Paul Conway',
+    title: 'Chief Economist (miembro interno) — mandato hasta 10-sep-2027',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
+  },
+  {
+    id: 'rbnz_gourley',
+    name: 'Hayley Gourley',
+    title: 'Miembro Externa del Monetary Policy Committee — mandato hasta 30-sep-2029',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
+  },
+  {
+    id: 'rbnz_gai',
+    name: 'Prasanna Gai',
+    title: 'Miembro Externo del Monetary Policy Committee — mandato hasta 30-jun-2028',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
+  },
+  {
+    id: 'rbnz_hansen',
+    name: 'Carl Hansen',
+    title: 'Miembro Externo del Monetary Policy Committee — mandato hasta 31-mar-2027',
+    vote: 'voting',
+    currency: 'NZD',
+    bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
   if (currency === 'CAD') return BOC_BANKERS;
   if (currency === 'AUD') return RBA_BANKERS;
+  if (currency === 'NZD') return RBNZ_BANKERS;
   return FED_BANKERS;
 }

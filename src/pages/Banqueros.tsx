@@ -236,7 +236,17 @@ export function Banqueros() {
       <div>
         <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
           Banqueros Centrales —{' '}
-          {currency === 'EUR' ? 'BCE' : currency === 'GBP' ? 'BoE' : currency === 'CAD' ? 'BoC' : currency === 'AUD' ? 'RBA' : 'Fed'}
+          {currency === 'EUR'
+            ? 'BCE'
+            : currency === 'GBP'
+              ? 'BoE'
+              : currency === 'CAD'
+                ? 'BoC'
+                : currency === 'AUD'
+                  ? 'RBA'
+                  : currency === 'NZD'
+                    ? 'RBNZ'
+                    : 'Fed'}
         </h1>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
@@ -247,7 +257,9 @@ export function Banqueros() {
                 ? 'El Governing Council del Banco de Canadá decide por consenso (no por voto formal) — sus 6 miembros siempre participan de la decisión.'
                 : currency === 'AUD'
                   ? 'Los 9 miembros del Monetary Policy Board del RBA (3 ex officio + 6 no-ejecutivos) — todos votan siempre, no hay rotación. Creado en mar-2025 en reemplazo del antiguo Reserve Bank Board.'
-                  : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
+                  : currency === 'NZD'
+                    ? 'Los 6 miembros del Monetary Policy Committee del RBNZ (3 internos + 3 externos) — todos votan siempre, no hay rotación.'
+                    : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
         </p>
       </div>
 

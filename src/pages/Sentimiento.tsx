@@ -19,7 +19,9 @@ export function Sentimiento() {
                 ? 'Confianza empresarial y del consumidor de Canadá (Conference Board of Canada).'
                 : currency === 'AUD'
                   ? 'Confianza empresarial (NAB) y del consumidor (Westpac-Melbourne Institute) de Australia.'
-                  : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
+                  : currency === 'NZD'
+                    ? 'Confianza empresarial (ANZ Business Outlook) y del consumidor (ANZ-Roy Morgan) de Nueva Zelanda.'
+                    : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
         </p>
       </div>
       <SectionGrid section="confianza" months={36} />

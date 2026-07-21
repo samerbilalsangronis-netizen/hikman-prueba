@@ -18,7 +18,9 @@ function navFor(currency: Currency) {
               ? 'Tasas y BoC'
               : currency === 'AUD'
                 ? 'Tasas y RBA'
-                : 'Tasas y Fed',
+                : currency === 'NZD'
+                  ? 'Tasas y RBNZ'
+                  : 'Tasas y Fed',
     },
     { to: '/inflacion', label: 'Inflación' },
     { to: '/empleo', label: 'Empleo' },

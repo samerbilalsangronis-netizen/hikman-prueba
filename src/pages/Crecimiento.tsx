@@ -40,7 +40,9 @@ export function Crecimiento() {
                 ? 'PIB mensual, PMI, ventas minoristas y balanza comercial de Canadá.'
                 : currency === 'AUD'
                   ? 'PIB trimestral, PMI, gasto de los hogares y balanza comercial de Australia.'
-                  : 'PIB, PMI (ISM y S&P Global), ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
+                  : currency === 'NZD'
+                    ? 'PIB trimestral, PMI, ventas minoristas y balanza comercial de Nueva Zelanda.'
+                    : 'PIB, PMI (ISM y S&P Global), ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
         </p>
       </div>
 
