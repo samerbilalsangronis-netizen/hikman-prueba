@@ -1,7 +1,7 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
 Fecha de este resumen: 21-jul-2026 (actualizado en la misma sesión que
-agregó NZD). Pega este archivo completo (o pedile a Claude que lo lea
+agregó JPY). Pega este archivo completo (o pedile a Claude que lo lea
 desde el repo) al abrir el chat nuevo.
 
 ## Qué es esto
@@ -13,22 +13,27 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP, CAD, AUD y NZD completos y en producción**
-(las dos ramas de producción están sincronizadas al mismo commit al
-escribir esto — el usuario dio permiso explícito de pushear NZD a
-`claude/macro-usd-web-dashboard-xm5ypk` el 21-jul-2026, ya deployado en
-Vercel y con `/api/nzd-sync` corrido una vez contra Supabase real sin
-errores). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
+**Estado actual: USD, EUR, GBP, CAD, AUD y NZD completos y en producción.
+JPY está completo pero SOLO pusheado a `claude/handoff-review-8vej1i`** —
+esta sesión tiene la misma restricción que sesiones previas de no pushear
+a la rama de producción sin permiso explícito del usuario (ver "Dónde vive
+todo" más abajo); falta mergear/pushear a
+`claude/macro-usd-web-dashboard-xm5ypk` para que salga a producción, y
+recién ahí correr `/api/jpy-sync` contra Supabase real (quedó pendiente,
+no se pudo verificar en producción por el mismo motivo — sí se verificó
+localmente con `npm run preview`, que lee `historical-series.json`
+directo, sin pasar por Supabase). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
 se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
 Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
 pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
 release oficial paralelo que sigue la fuente de referencia del usuario),
 y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
 junto a su a/a, no agrupados por separado). NZD tiene 14 indicadores (solo
-6 automáticos — la divisa con menos automatización hasta ahora, ver
-lecciones NZD abajo). Faltan JPY, CHF — ver "Pendiente explícito" más
-abajo, incluye los datos crudos que ya mandó el usuario (por captura de
-pantalla, no Excel) para esas 2.
+6 automáticos — la divisa con menos automatización hasta ahora). JPY
+tiene 16 indicadores, 12 automáticos — la divisa no-USD MÁS automatizada
+hasta ahora, ver "Lecciones JPY" más abajo. Falta CHF — ver "Pendiente
+explícito" más abajo, incluye los datos crudos que ya mandó el usuario
+(por captura de pantalla, no Excel).
 
 ## Dónde vive todo
 
@@ -83,24 +88,24 @@ React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Recharts 3 + React Router
 
 ```
 src/
-  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'|'NZD'),
+  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'|'NZD'|'JPY'),
                               IndicatorMeta, ScoreRow, CentralBanker, BankerNote,
                               Statement, BankerVoteStatus, Stance
   data/
-    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD, ...NZD],
+    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD, ...NZD, ...JPY],
                               SECTION_LABELS (por Currency), indicatorsBySection(section, currency)
-    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts / indicatorsNzd.ts — ids con prefijo eur_/gbp_/cad_/aud_/nzd_
+    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts / indicatorsNzd.ts / indicatorsJpy.ts — ids con prefijo eur_/gbp_/cad_/aud_/nzd_/jpy_
     historical-series.json  — histórico sembrado, TODAS las divisas mezcladas en un solo objeto
     fredMappings.ts          — FRED_MAPPINGS (USD) + EUR_FRED_MAPPINGS + EUR_EUROSTAT_INDICATOR_ID
                               + GBP_BOE_INDICATOR_ID + CAD_AUTO_INDICATOR_IDS + AUD_AUTO_INDICATOR_IDS
-                              + NZD_AUTO_INDICATOR_IDS
-                              (listas simples, CAD/AUD/NZD no usan FRED)
+                              + NZD_AUTO_INDICATOR_IDS + JPY_AUTO_INDICATOR_IDS
+                              (listas simples, CAD/AUD/NZD/JPY no usan FRED)
                               — copia usada SOLO por el frontend para la insignia de fuente en Actualizar.tsx
     fomcMeetings.ts          — calendario oficial FOMC 2026 (hardcodeado, solo USD)
-    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts / scoreSeedNzd.ts
-    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[] / RBNZ_BANKERS[],
+    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts / scoreSeedNzd.ts / scoreSeedJpy.ts
+    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[] / RBNZ_BANKERS[] / BOJ_BANKERS[],
                               bankersForCurrency(currency). Ver sección Banqueros más abajo.
-    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD','NZD'], localStorage
+    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD','NZD','JPY'], localStorage
     MacroDataContext.tsx     — contexto React: overrides, forecasts, score, fomcWatch, bankerNotes.
                               Supabase si está configurado, si no localStorage. fetchAllRows() pagina
                               indicator_overrides (ver bug de 1000 filas en decisiones técnicas).
@@ -270,6 +275,45 @@ Industrial de EUR: no se automatiza lo que no se pudo verificar).
   `aud_pmi_serv`, `aud_retail_sales`, `aud_business_confidence`,
   `aud_consumer_confidence`, `aud_gdp_yoy`. Confianza Empresarial (-0.5→-1)
   y PIB (1.5→2) redondeados a la escala ±2, mismo criterio que CAD/EUR.
+
+**NZD (14, agregada el 21-jul-2026)**, `indicatorsNzd.ts`, ids `nzd_`: solo
+6 automáticos (la divisa con menos automatización hasta ahora) — CPI m/m y
+a/a + PIB t/t y a/a (Stats NZ CSV) + Ventas Minoristas m/m y a/a
+(Electronic Card Transactions). El resto (OCR, desempleo/empleo, PMI,
+confianza, balanza comercial) queda manual — ver "Lecciones NZD" más
+abajo para el detalle de cada bloqueo (rbnz.govt.nz completamente
+bloqueado por Cloudflare, HLFS en un ZIP de ~400MB, balanza comercial
+solo en XLSX).
+
+**JPY (16, agregada el 21-jul-2026)**, `indicatorsJpy.ts`, ids `jpy_`:
+- Tasas (1, auto): `jpy_boj_rate` (CSV del BOJ, serie FM01, uncollateralized
+  overnight call rate — a diferencia de RBNZ, boj.or.jp NO está bloqueado)
+- Inflación (4, todos auto vía **e-Stat Dashboard API** — distinta de la
+  API principal de e-Stat, que exige un `appId` registrado y se descarta):
+  `jpy_cpi`/`jpy_cpi_yoy` (general) + `jpy_core_cpi`/`jpy_core_cpi_yoy`
+  ("ex alimentos frescos", la medida que target-ea el BOJ — NO "ex
+  alimentos y energía", esa es la "core-core CPI" japonesa, una serie
+  aparte). Las 4 se derivan del índice de nivel desestacionalizado — el
+  Dashboard no publica el % m/m como serie separada.
+- Empleo (2, auto): `jpy_unemployment` (desestacionalizado) +
+  `jpy_employment_change` (derivado del nivel de empleados en 万人, x10000
+  para guardar personas crudas — Japón no publica esta variación como
+  serie m/m separada, solo a/a en sus comunicados)
+- Confianza (2, manuales): `jpy_business_confidence` (Tankan del propio
+  BOJ — tiene descarga pública en stat-search.boj.or.jp, no se automatizó
+  en esta primera pasada) + `jpy_consumer_confidence` (Gabinete de Japón,
+  sin URL estable encontrada)
+- Crecimiento (7): `jpy_pmi_manuf`, `jpy_pmi_serv` (manuales) +
+  `jpy_retail_sales`/`jpy_retail_sales_yoy` (auto, derivados del nivel —
+  **sin versión desestacionalizada** en el Dashboard, a diferencia de
+  CPI/desempleo/PIB) + `jpy_gdp_qoq` (auto, directo del Dashboard, SIN
+  anualizar) + `jpy_gdp_yoy` (auto, derivado del nivel) + `jpy_trade_balance`
+  (auto, CSV de Aduanas de Japón — el Dashboard tiene una serie con ese
+  nombre pero es la de balanza de pagos, no la aduanera que reportan los
+  medios, ver "Lecciones JPY" más abajo)
+- Score (`scoreSeedJpy.ts`, 9 filas de la hoja DECISIONES): todas las
+  valoraciones ya caían en el rango ±2, no hizo falta reescalar ninguna
+  (a diferencia de CAD/AUD/NZD).
 
 ## Sección de Banqueros Centrales (`/banqueros`)
 
@@ -635,20 +679,128 @@ las fuentes disponibles para Nueva Zelanda:
    oficial — casi siempre trae una foto de perfil, y el `og:image`/`alt`
    de esa nota suele confirmar la identidad de la persona.
 
+## Lecciones JPY (la divisa no-USD MÁS automatizada hasta ahora)
+
+Agregada el 21-jul-2026, a pedido explícito del usuario ("SIGAMOS CON
+JPY"). 16 indicadores, 12 automáticos (vs. 6/14 de NZD y 16/20 de AUD —
+JPY tiene la mejor cobertura de todas las no-USD).
+
+1. **La API principal de e-Stat (`api.e-stat.go.jp`) exige un `appId`
+   registrado** — mismo bloqueo que la Aotearoa Data Explorer de Stats NZ
+   y la "ABS Indicator API", se descarta. Pero existe una SEGUNDA API,
+   distinta y sin key: el **"e-Stat Dashboard API"**
+   (`dashboard.e-stat.go.jp/api/1.0/`), pensado para series estándar tipo
+   tablero. Formato: `getData?IndicatorCode={code}&RegionCode=00000&TimeFrom={periodo}&IsSeasonalAdjustment={1|2}`
+   — `RegionCode=00000` (nacional) e `IsSeasonalAdjustment` (1=original,
+   2=desestacionalizada) SÍ filtran del lado del servidor (verificado
+   pidiendo Tokio contra un indicador nacional-only → vacío, y pidiendo
+   ambas variantes de SA por separado → resultados distintos). El período
+   mensual usa `YYYYMM00`, el trimestral `YYYYnQ00` (ej. `20261Q00` = Q1
+   2026) — el formato equivocado no da error, solo responde "sin datos".
+   No hay endpoint de búsqueda de códigos documentado, pero
+   `getIndicatorInfo?SearchIndicatorWord={término en japonés}` funciona
+   igual (sin key) y devuelve todos los códigos que matchean por nombre —
+   así se encontraron todos los códigos usados en `indicatorsJpy.ts`.
+
+2. **A diferencia de RBNZ, boj.or.jp y stat-search.boj.or.jp NO están
+   bloqueados** — devuelven 200 sin problema (probado con curl real desde
+   el entorno de la sesión, no solo "debería funcionar"). La tasa de
+   política (uncollateralized overnight call rate, la tasa operativa desde
+   que Japón salió de tasas negativas en mar-2024) se sincroniza de un CSV
+   público diario, serie FM01:
+   `stat-search.boj.or.jp/ssi/mtshtml/csv/fm01_d_1.csv`. El CSV viene en
+   Shift-JIS pero las filas de datos (fecha,valor) son ASCII puro —
+   decodificar como UTF-8 y matchear con regex alcanza, las líneas de
+   cabecera en japonés simplemente no matchean y se ignoran (mismo truco
+   que serviría para cualquier CSV Shift-JIS cuyas filas de datos sean
+   ASCII). La serie vieja `ir01_*` ("Basic Loan Rate", el antiguo tipo de
+   descuento) NO es la tasa operativa actual — no usar.
+
+3. **El "Core CPI" de Japón es "CPI ex alimentos frescos"**
+   (生鮮食品を除く総合), NO "ex alimentos y energía" (esa es la
+   "core-core CPI" japonesa, una serie aparte) — es la medida que el BOJ
+   target-ea y la que reportan los agregadores como "Japan Core CPI". Ni
+   el CPI general ni el Core CPI publican el % m/m o a/a como serie
+   separada en el Dashboard — las 4 series (`jpy_cpi`, `jpy_cpi_yoy`,
+   `jpy_core_cpi`, `jpy_core_cpi_yoy`) se derivan del índice de nivel
+   desestacionalizado. Verificado: CPI general a/a 1.52% calculado
+   (redondea a 1.5%, coincide exacto) y Core CPI a/a 1.44% calculado
+   (redondea a 1.4%, coincide exacto) para mayo-2026.
+
+4. **Balanza Comercial: el Dashboard de e-Stat tiene una serie con ese
+   nombre pero es la incorrecta** (código de balanza de pagos, no la
+   aduanera que reportan los medios) — probado en vivo: el Dashboard daba
+   un superávit chico (+69 億円) cuando el dato real reportado era un
+   déficit grande (-¥378.6B) — signo Y escala mal, no solo un desfasaje de
+   timing. La fuente correcta es el CSV público de Aduanas de Japón
+   (Ministry of Finance): `customs.go.jp/toukei/suii/html/data/d41ma.csv`
+   ("World Monthly Data", en miles de yenes, columnas
+   `Years/Months,Exp-Total,Imp-Total`) — se calcula Exportaciones menos
+   Importaciones. Los meses todavía no publicados vienen con "0,0", hay
+   que filtrarlos. Lección general: cuando una API tiene una serie con el
+   nombre exacto que buscás, igual hay que verificar el valor contra un
+   dato real antes de confiar en el código — el nombre puede coincidir por
+   casualidad con una definición distinta (balanza de pagos vs. aduanera
+   son conceptualmente parecidas pero numéricamente muy distintas).
+
+5. **Ventas Minoristas NO tiene versión desestacionalizada en el
+   Dashboard** (código `0601010201010010000`, solo `IsSeasonalAdjustment=1`
+   tiene datos) — a diferencia de CPI/desempleo/PIB. El m/m derivado del
+   nivel puede tener ruido estacional real y visible en el gráfico (ej.
+   diciembre siempre sube fuerte por fin de año) — documentado como
+   limitación conocida en la descripción del indicador, no se intentó
+   corregir.
+
+6. **Cambios en el Empleo** se deriva de "Empleados (ambos sexos)"
+   desestacionalizado (código `0301010000010010010`), NO existe una
+   serie "employment change" m/m separada como en AUD/CAD — Japón reporta
+   más bien el cambio interanual en sus comunicados. Unidad nativa: 万人
+   (decenas de miles de personas) — se multiplica x10000 para guardar
+   personas crudas, mismo transform que usa AUD. Verificado: nivel de
+   68.82 millones para mayo-2026, coincide con lo reportado ("employment
+   rose to a record high of 68.82 million").
+
+7. **PIB t/t viene directo pero a/a no** — código `0705020501000040000`
+   (t/t, desestacionalizado, SIN anualizar — Japón también publica una
+   versión anualizada, `0705020501000060000`, que no se usa acá para
+   mantener la misma convención "sin anualizar" que el resto de las
+   divisas no-USD) da el t/t directo. El a/a se deriva del nivel
+   (`0705020501000010000`) comparando 4 trimestres atrás, mismo patrón que
+   AUD/NZD — Japón no lo publica como serie separada. Verificado: t/t 0.5%
+   coincide EXACTO con el dato oficial revisado de junio-2026 (la revisión
+   bajó el t/t original de 0.51% a 0.45%≈0.5% y el anualizado de 2.1% a
+   1.8% — el Dashboard ya refleja la revisión, no el dato preliminar). El
+   a/a calculado (0.32%) queda algo por debajo del ~0.4% que citan algunos
+   agregadores — diferencia normal entre vintages, mismo motivo que la
+   lección NZD sobre PIB.
+
+8. **Banqueros del BOJ investigados con la página oficial directa**
+   (`boj.or.jp`, accesible — a diferencia de RBNZ). Policy Board de 9
+   miembros (Gobernador + 2 Vicegobernadores + 6 miembros), todos votan
+   siempre. Se sacó el mandato de cada uno de su página bio oficial
+   ("Present Term of Office"), no de un resumen de búsqueda — un resumen
+   de WebSearch listaba a "NAKAGAWA Junko" como miembro vigente, pero la
+   página oficial no la lista (su mandato terminó jun-2026, reemplazada
+   por Ayano Sato). Fotos: Wikimedia Commons tenía a Ueda y Himino, para
+   el resto no se buscó en esta primera pasada (quedan con el placeholder
+   de iniciales) — si el usuario pide insistir, usar la misma técnica que
+   funcionó para RBNZ (buscar la cobertura de prensa del nombramiento y
+   revisar el `og:image`).
+
 ## Pendiente explícito
 
-**1. JPY, CHF** — el usuario mandó capturas de pantalla (no el .xlsx
+**1. CHF** — el usuario mandó capturas de pantalla (no el .xlsx
 completo, tuvo problemas para subirlo) de un Excel compartido con hojas
 `CAD | JPY | AUD | CHF | NZD | DECISIONES`, formato snapshot estilo
 Trading Economics (Reciente/Anterior/Más Alto/Más Bajo/Fecha), **datos de
-2025, desactualizados** — mismo tratamiento que CAD/AUD/NZD: se usa solo
-para identificar indicadores y pesos del score, el histórico y valor actual
-se reconstruyen desde la fuente oficial de cada país, verificando cada
-serie contra una referencia real (comunicado oficial Y agregador de
-mercado, ver lección CAD #6-7 arriba) antes de automatizar. La columna NZD
-de la tabla DECISIONES de abajo ya se usó (ver Lecciones NZD arriba) — se
-deja en la tabla solo como referencia histórica de dónde salió cada
-valoracion.
+2025, desactualizados** — mismo tratamiento que CAD/AUD/NZD/JPY: se usa
+solo para identificar indicadores y pesos del score, el histórico y valor
+actual se reconstruyen desde la fuente oficial de cada país, verificando
+cada serie contra una referencia real (comunicado oficial Y agregador de
+mercado, ver lección CAD #6-7 arriba) antes de automatizar. Las columnas
+NZD y JPY de la tabla DECISIONES de abajo ya se usaron (ver "Lecciones
+NZD"/"Lecciones JPY" arriba) — se dejan en la tabla solo como referencia
+histórica de dónde salió cada valoracion.
 
 **Datos crudos ya capturados (para no tener que pedir las imágenes de
 nuevo)**:
@@ -669,11 +821,11 @@ usuario; pesos entre paréntesis):
 | Tipos de Interés (fila NO usable — corrupta, ver lección #12) | 22.5 | 0.5 | 3.6 | 0 | 22.5 | — |
 | **TOTAL Excel** (referencia solamente, no vamos a replicarlo exacto por el bug de rango del `<select>`) | 4.5 | 4 | 4 | 2.5 | 1.5 | — |
 
-Recordar (lección #3): al armar `scoreSeed{Jpy,Chf}.ts`, redondear
-cualquier valoración fuera de -2..2 antes de cargarla, siempre hacia
-afuera del cero (ej. CAD PIB=-3 se redondeó a -2; AUD Confianza Empresarial
--0.5→-1, PIB 1.5→2; NZD ya se hizo — Inflación 4→2, PIB 1.5→2, ver
-scoreSeedNzd.ts).
+Recordar (lección #3): al armar `scoreSeedChf.ts`, redondear cualquier
+valoración fuera de -2..2 antes de cargarla, siempre hacia afuera del cero
+(ej. CAD PIB=-3 se redondeó a -2; AUD Confianza Empresarial -0.5→-1, PIB
+1.5→2; NZD Inflación 4→2, PIB 1.5→2; JPY no necesitó reescalar nada, ver
+scoreSeedNzd.ts/scoreSeedJpy.ts).
 
 Cada hoja individual (JPY/CHF/NZD) tiene la misma estructura de columnas
 que CAD (Reciente/Anterior/Más Alto/Más Bajo/Fecha) con estas filas: Stock
@@ -682,15 +834,15 @@ Inflation Rate, Unemployment Rate, Employment Change, Retail Sales MoM,
 Manufacturing PMI, Services PMI, Business Confidence, Consumer Confidence,
 Interest Rate, Government Budget, Balance of Trade, Current Account,
 Current Account to GDP, Government Debt to GDP, Corporate Tax Rate,
-Personal Income Tax Rate. **Mismo criterio que CAD/AUD/NZD**: solo se
+Personal Income Tax Rate. **Mismo criterio que CAD/AUD/NZD/JPY**: solo se
 implementan como indicadores los que están en el score + Balanza Comercial
 + PIB (pedido explícito del usuario) + la tasa del banco central — no
 Stock Market/impuestos/deuda.
 
 Investigación de fuentes por país (de una sesión previa a GBP, **repetir el
 proceso de verificación con cada una, no asumir que sigue vigente** — GBP,
-CAD y AUD ya mostraron que las APIs cambian, se discontinúan sin aviso
-claro, o que la convención asumida estaba mal):
+CAD, AUD y RBNZ ya mostraron que las APIs cambian, se discontinúan sin
+aviso claro, o que la convención asumida estaba mal):
 - **CAD** → hecho, ver arriba (StatCan WDS + BoC Valet).
 - **AUD** → hecho en esta sesión, ver arriba (ABS Data API SDMX + CSV del
   RBA — la "ABS Indicator API" con key por email NO hizo falta, existe una
@@ -700,14 +852,15 @@ claro, o que la convención asumida estaba mal):
   bloqueos tipo Cloudflare/Imperva (como pasó con rbnz.govt.nz), probarlo
   con curl real desde el entorno de la sesión, no solo confiar en que "sin
   key" documentado signifique "fetch automatizado funciona".
-- **JPY** → BOJ Time-Series API + e-Stat Dashboard API (sin key) — no
-  investigado a fondo todavía. Mismo ojo que CHF.
+- **JPY** → hecho en la sesión del 21-jul-2026, ver "Lecciones JPY" arriba
+  (e-Stat Dashboard API + CSV del BOJ + CSV de Aduanas de Japón, todo sin
+  key — boj.or.jp NO está bloqueado, a diferencia de rbnz.govt.nz).
 - **NZD** → hecho en la sesión del 21-jul-2026, ver "Lecciones NZD" arriba
   (Stats NZ CSV por release, sin key — RBNZ bloqueado por completo).
 
-**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA/RBNZ —
+**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA/RBNZ/BOJ —
 WebSearch + página oficial antes de escribir nombres, nunca asumir vigente
-sin verificar): SNB (Suiza), BOJ (Japón).
+sin verificar): SNB (Suiza).
 
 **Previsión de tasas estilo FedWatch** — sigue sin solución gratuita para
 ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
@@ -744,6 +897,19 @@ GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
   `nzd_pmi_manuf`, `nzd_pmi_serv` no tienen ningún dato cargado todavía —
   son manuales por límites reales de fuente (ver "Lecciones NZD" arriba),
   no por falta de API pública nada más.
+- **JPY todavía NO está en producción** — solo en
+  `claude/handoff-review-8vej1i`, falta mergear/pushear a la rama de
+  producción (ver "Estado actual" y "Dónde vive todo" arriba) y recién ahí
+  correr `/api/jpy-sync` una vez contra Supabase real. Verificado
+  localmente con `npm run preview` (lee `historical-series.json` directo,
+  sin Supabase) — todos los valores coinciden con lo documentado en
+  `indicatorsJpy.ts`.
+- `jpy_pmi_manuf`, `jpy_pmi_serv`, `jpy_business_confidence`,
+  `jpy_consumer_confidence` no tienen ningún dato cargado todavía —
+  manuales, ver "Lecciones JPY" arriba.
+- Banqueros del BOJ: solo Kazuo Ueda y Ryozo Himino tienen foto (Wikimedia
+  Commons) — los otros 7 quedan con el placeholder de iniciales, no se
+  buscó en prensa en esta primera pasada (ver "Lecciones JPY" #8).
 - ~~Los 6 miembros del Monetary Policy Committee del RBNZ no tienen
   foto~~ — resuelto: ninguno estaba en Wikimedia Commons (nombramientos
   recientes), pero el usuario pasó la foto de Anna Breman (sacada del
