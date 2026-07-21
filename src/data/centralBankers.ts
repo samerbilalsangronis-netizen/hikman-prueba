@@ -553,6 +553,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Gobernadora del RBNZ (Chair) — mandato hasta 30-nov-2030',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/anna-breman.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/our-executive-leadership-team/anna-breman',
   },
   {
