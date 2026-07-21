@@ -151,3 +151,10 @@ export const AUD_AUTO_INDICATOR_IDS = [
   'aud_gdp_yoy',
   'aud_trade_balance',
 ];
+
+// NZD — se sincroniza desde CSV públicos de Stats NZ (sin key), no FRED. El
+// RBNZ está bloqueado para fetch automatizado (Cloudflare devuelve 403 en
+// todo el dominio) — OCR queda manual. Desempleo/Empleo (HLFS, ZIP de
+// ~400MB sin comprimir) y Balanza Comercial (solo XLSX) también quedan
+// manuales — ver indicatorsNzd.ts para el detalle de cada decisión.
+export const NZD_AUTO_INDICATOR_IDS = ['nzd_cpi', 'nzd_cpi_yoy', 'nzd_gdp_qoq', 'nzd_gdp_yoy', 'nzd_retail_sales', 'nzd_retail_sales_yoy'];

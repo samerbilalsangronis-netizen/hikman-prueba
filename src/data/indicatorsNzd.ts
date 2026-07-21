@@ -1,0 +1,279 @@
+import type { IndicatorMeta } from '../types';
+
+// Indicadores de NZD. Mismo criterio que CAD/AUD: la hoja "NZD" del Excel
+// compartido (CAD/JPY/AUD/CHF/NZD) solo traía un snapshot puntual
+// (Reciente/Anterior/Más Alto/Más Bajo) con datos de 2025 sin serie
+// histórica utilizable — se usó solo para identificar QUÉ indicadores
+// importan y los pesos del score (hoja DECISIONES); histórico y valor
+// actual se reconstruyeron desde cero desde Stats NZ, verificando cada
+// serie contra el comunicado oficial y contra lo que reportan agregadores
+// (FXStreet/investinglive) antes de automatizar.
+//
+// Lecciones de esta divisa — la más manual de las 5 no-USD hasta ahora:
+//
+// 1. **rbnz.govt.nz está completamente bloqueado para fetch automatizado**
+//    — todo el dominio (incluida la portada) devuelve HTTP 403 (Cloudflare
+//    bot management), confirmado tanto con curl (headers de navegador
+//    reales) como con la propia herramienta WebFetch. Esto bloquea el
+//    Official Cash Rate, el tipo de cambio/TWI y cualquier otra serie del
+//    banco central — quedan sin fuente automatizable. Como el RBNZ decide
+//    la tasa solo 7-8 veces al año, nzd_ocr_rate queda de carga manual
+//    (mismo criterio que las encuestas privadas del resto de las divisas).
+//
+// 2. **Stats NZ tiene DOS caminos de acceso, uno bloqueado y otro
+//    abierto**: la API nueva "Aotearoa Data Explorer" (SDMX,
+//    api.data.stats.govt.nz) exige una subscription key obtenida por
+//    registro manual (portal.apis.stats.govt.nz) — se descarta, igual que
+//    se descartó la "ABS Indicator API" para AUD. En cambio, los CSV de
+//    cada publicación trimestral/mensual (carpeta "Download-data" de cada
+//    /information-releases/) son públicos y sin key, con un patrón de URL
+//    predecible por fecha de release: `Consumers-price-index-{Mes}-{Año}-
+//    quarter/.../consumers-price-index-{mes}-{año}-quarter-index-numbers.csv`
+//    (mismo patrón para GDP y Electronic Card Transactions). Se prueba el
+//    trimestre/mes actual y se retrocede si todavía no salió el release
+//    (ver `fetchLatestQuarterly`/`fetchLatestMonthly` en nzd-sync.ts).
+//
+// 3. **El desempleo/empleo (HLFS) NO se automatiza** pese a que Stats NZ sí
+//    publica un CSV con los códigos correctos (HLFQ.S1F3S = tasa de
+//    desempleo, HLFQ.S1A3S = empleados) — verificado manualmente que el
+//    ZIP trae ~400MB de CSV sin comprimir (todos los cruces por
+//    edad/sexo/región/industria en un solo archivo) para extraer 2
+//    números. Descomprimir eso dentro de una función serverless es fràgil
+//    (riesgo real de memoria/timeout) para un dato trimestral — se prefiere
+//    carga manual antes que una automatización poco confiable.
+//
+// 4. **La Balanza Comercial (Overseas Merchandise Trade) solo se publica en
+//    XLSX**, no en CSV plano (a diferencia de CPI/GDP/ECT) — con una
+//    estructura de encabezados multi-fila que hace la extracción
+//    automática bastante más frágil que el resto. Queda de carga manual.
+//
+// 5. **"Ventas Minoristas" usa Electronic Card Transactions (ECT), no el
+//    Retail Trade Survey trimestral** — ECT es mensual, desestacionalizado,
+//    y es la cifra que efectivamente sigue el mercado como "NZ Retail
+//    Sales" (el RTS trimestral es menos seguido). Serie ECTM.S19S2PC
+//    ("RTS core industries", desestacionalizado) publica el m/m directo; el
+//    a/a se deriva del nivel (ECTM.S19S2) comparando 12 meses atrás.
+//
+// 6. El CPI a/a se deriva del nivel (CPIQ.SE9A, "CPI All Groups") — Stats
+//    NZ no publica el a/a como serie separada en el CSV de index numbers.
+//    Verificado: 4.06% calculado para el segundo trimestre de 2026,
+//    coincide con lo reportado por agregadores (~4.1%).
+//
+// 7. El PIB (Total GDP, chain-volume, desestacionalizado) también se
+//    deriva de un nivel (serie SG01RSC00B01 del CSV de visualización) —
+//    igual que AUD. Verificado: +0.8% t/t para el primer trimestre de 2026,
+//    coincide con el dato oficial ("GDP rose 0.8 percent in the March 2026
+//    quarter").
+export const NZD_INDICATORS: IndicatorMeta[] = [
+  // Tasas / RBNZ — una sola tasa (Official Cash Rate), como el resto de los
+  // bancos centrales no-USD. Sin fuente automatizable (ver lección 1) —
+  // carga manual, el RBNZ solo decide 7-8 veces al año.
+  {
+    id: 'nzd_ocr_rate',
+    label: 'Official Cash Rate del RBNZ',
+    shortLabel: 'OCR',
+    section: 'tasas',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'area',
+    currency: 'NZD',
+    source: 'Reserve Bank of New Zealand',
+    sourceUrl: 'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate',
+    goodDirection: 'neutral',
+    description:
+      'Tasa objetivo (Official Cash Rate) del RBNZ — su tasa de referencia. rbnz.govt.nz bloquea todo fetch automatizado (Cloudflare, HTTP 403 en todo el dominio) — carga manual, igual que las encuestas privadas.',
+  },
+  // Inflación — CPI trimestral (único que publica Nueva Zelanda, no hay
+  // dato mensual como AUD/CAD).
+  {
+    id: 'nzd_cpi',
+    label: 'CPI (Inflación al Consumidor, t/t)',
+    shortLabel: 'CPI',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Consumers Price Index, "All Groups")',
+    sourceUrl: 'https://www.stats.govt.nz/topics/consumers-price-index/',
+    goodDirection: 'neutral',
+    description: 'Variación trimestral del CPI de Nueva Zelanda ("All Groups"). Verificado: +1.5% para el segundo trimestre de 2026.',
+  },
+  {
+    id: 'nzd_cpi_yoy',
+    label: 'CPI Interanual (a/a)',
+    shortLabel: 'CPI a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Consumers Price Index, "All Groups")',
+    sourceUrl: 'https://www.stats.govt.nz/topics/consumers-price-index/',
+    goodDirection: 'neutral',
+    description:
+      'Variación del CPI respecto al mismo trimestre del año anterior. Stats NZ no publica esta tasa directo — se deriva del índice de nivel comparando 4 trimestres atrás. Verificado: 4.06% para el segundo trimestre de 2026, coincide con lo reportado por agregadores (~4.1%).',
+  },
+  // Empleo — HLFS trimestral. Sin automatizar (ver lección 3) — carga
+  // manual.
+  {
+    id: 'nzd_unemployment',
+    label: 'Tasa de Desempleo',
+    shortLabel: 'Desempleo',
+    section: 'empleo',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Household Labour Force Survey, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
+    goodDirection: 'down',
+    description:
+      'Tasa de desempleo de Nueva Zelanda, serie desestacionalizada. Stats NZ solo publica el CSV completo del HLFS dentro de un ZIP de ~400MB sin comprimir (todos los cruces demográficos) — poco práctico de automatizar en una función serverless para 1 solo dato trimestral. Carga manual. Verificado: 5.3% para el primer trimestre de 2026.',
+  },
+  {
+    id: 'nzd_employment_change',
+    label: 'Cambios en el Empleo',
+    shortLabel: 'Empleo',
+    section: 'empleo',
+    format: 'thousands',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Household Labour Force Survey, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
+    goodDirection: 'up',
+    description: 'Variación trimestral del empleo total, en miles de personas. Misma limitación que la tasa de desempleo — carga manual.',
+  },
+  // Confianza — sin API pública (encuestas privadas, ANZ / Westpac
+  // McDermott Miller), igual que el resto de las divisas.
+  {
+    id: 'nzd_business_confidence',
+    label: 'Confianza Empresarial',
+    shortLabel: 'Conf. Empresarial',
+    section: 'confianza',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'ANZ Business Outlook',
+    sourceUrl: 'https://www.anz.co.nz/about-us/economic-markets-research/business-outlook/',
+    goodDirection: 'up',
+    description: 'Encuesta de confianza empresarial de ANZ. Sin API pública — carga manual.',
+  },
+  {
+    id: 'nzd_consumer_confidence',
+    label: 'Confianza del Consumidor',
+    shortLabel: 'Conf. Consumidor',
+    section: 'confianza',
+    format: 'index',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Westpac McDermott Miller Consumer Confidence',
+    sourceUrl: 'https://www.westpac.co.nz/who-we-are/economic-updates/consumer-confidence/',
+    goodDirection: 'up',
+    description: 'Índice de confianza del consumidor Westpac McDermott Miller. Sin API pública — carga manual.',
+  },
+  // Crecimiento — PMI van acá (actividad, no confianza pura).
+  {
+    id: 'nzd_pmi_manuf',
+    label: 'PMI Manufactura',
+    shortLabel: 'PMI Manuf.',
+    section: 'crecimiento',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'BNZ - BusinessNZ Performance of Manufacturing Index (PMI)',
+    sourceUrl: 'https://www.businessnz.org.nz/resources/economic-reports-and-indexes/pmi',
+    goodDirection: 'up',
+    description: 'PMI manufacturero de Nueva Zelanda. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+  },
+  {
+    id: 'nzd_pmi_serv',
+    label: 'PMI Servicios',
+    shortLabel: 'PMI Serv.',
+    section: 'crecimiento',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'BNZ - BusinessNZ Performance of Services Index (PSI)',
+    sourceUrl: 'https://www.businessnz.org.nz/resources/economic-reports-and-indexes/psi',
+    goodDirection: 'up',
+    description: 'PMI de servicios de Nueva Zelanda (PSI). Sin API pública — carga manual.',
+  },
+  {
+    id: 'nzd_retail_sales',
+    label: 'Ventas Minoristas (m/m)',
+    shortLabel: 'Ventas Min.',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Electronic Card Transactions, core retail, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
+    goodDirection: 'up',
+    description:
+      'Variación mensual del gasto minorista "core" con tarjeta electrónica, desestacionalizado — la cifra de "ventas minoristas" que efectivamente sigue el mercado para Nueva Zelanda (el Retail Trade Survey trimestral es menos seguido). Verificado: -1.5% para junio-2026.',
+  },
+  {
+    id: 'nzd_retail_sales_yoy',
+    label: 'Ventas Minoristas Interanual (a/a)',
+    shortLabel: 'Ventas Min. a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Electronic Card Transactions, core retail, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
+    goodDirection: 'up',
+    description: 'Gasto minorista "core" respecto al mismo mes del año anterior — derivado del nivel (Stats NZ no publica el a/a directo). Verificado: +0.6% para junio-2026.',
+  },
+  {
+    id: 'nzd_gdp_qoq',
+    label: 'PIB Trimestral (t/t)',
+    shortLabel: 'PIB t/t',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Gross Domestic Product, Total GDP, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/gross-domestic-product/',
+    goodDirection: 'up',
+    description: 'Crecimiento del PIB real, variación trimestral SIN anualizar. Verificado: +0.8% para el primer trimestre de 2026, coincide con el dato oficial.',
+  },
+  {
+    id: 'nzd_gdp_yoy',
+    label: 'PIB Interanual (a/a)',
+    shortLabel: 'PIB a/a',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Gross Domestic Product, Total GDP, desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/gross-domestic-product/',
+    goodDirection: 'up',
+    description: 'PIB real respecto al mismo trimestre del año anterior — la cifra de "PIB" usada en el score. Verificado: +1.5% para el primer trimestre de 2026 (derivado del nivel, Stats NZ no publica el a/a directo).',
+  },
+  {
+    id: 'nzd_trade_balance',
+    label: 'Balanza Comercial',
+    shortLabel: 'Balanza Com.',
+    section: 'crecimiento',
+    format: 'trade',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Overseas Merchandise Trade)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/imports-and-exports/',
+    goodDirection: 'up',
+    description:
+      'Balance de comercio internacional de bienes de Nueva Zelanda (no incluye servicios). Stats NZ solo publica esta tabla en XLSX (no CSV, a diferencia de CPI/GDP/Ventas Minoristas), con encabezados multi-fila poco prácticos de parsear en una función serverless — carga manual.',
+  },
+];

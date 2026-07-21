@@ -14,6 +14,7 @@ import {
   GBP_TRADE_BALANCE_INDICATOR_ID,
   CAD_AUTO_INDICATOR_IDS,
   AUD_AUTO_INDICATOR_IDS,
+  NZD_AUTO_INDICATOR_IDS,
 } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
@@ -22,6 +23,7 @@ const EUR_AUTO_COVERED = new Set([...EUR_FRED_MAPPINGS.map((m) => m.indicatorId)
 const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID, GBP_TRADE_BALANCE_INDICATOR_ID]);
 const CAD_AUTO_COVERED = new Set(CAD_AUTO_INDICATOR_IDS);
 const AUD_AUTO_COVERED = new Set(AUD_AUTO_INDICATOR_IDS);
+const NZD_AUTO_COVERED = new Set(NZD_AUTO_INDICATOR_IDS);
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
@@ -39,7 +41,12 @@ function IndicatorRow({ id }: { id: string }) {
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
   const isFred =
-    FRED_COVERED.has(id) || EUR_AUTO_COVERED.has(id) || GBP_AUTO_COVERED.has(id) || CAD_AUTO_COVERED.has(id) || AUD_AUTO_COVERED.has(id);
+    FRED_COVERED.has(id) ||
+    EUR_AUTO_COVERED.has(id) ||
+    GBP_AUTO_COVERED.has(id) ||
+    CAD_AUTO_COVERED.has(id) ||
+    AUD_AUTO_COVERED.has(id) ||
+    NZD_AUTO_COVERED.has(id);
   const currentForecast = forecasts[id];
 
   async function handleSave() {
@@ -80,7 +87,9 @@ function IndicatorRow({ id }: { id: string }) {
                       ? 'Se sincroniza automáticamente desde StatCan / Bank of Canada'
                       : AUD_AUTO_COVERED.has(id)
                         ? 'Se sincroniza automáticamente desde ABS / RBA'
-                        : 'Se sincroniza automáticamente desde FRED'
+                        : NZD_AUTO_COVERED.has(id)
+                          ? 'Se sincroniza automáticamente desde Stats NZ'
+                          : 'Se sincroniza automáticamente desde FRED'
               }
             >
               {id === EUR_EUROSTAT_INDICATOR_ID
@@ -91,7 +100,9 @@ function IndicatorRow({ id }: { id: string }) {
                     ? 'STATCAN'
                     : AUD_AUTO_COVERED.has(id)
                       ? 'ABS'
-                      : 'FRED'}
+                      : NZD_AUTO_COVERED.has(id)
+                        ? 'STATS NZ'
+                        : 'FRED'}
             </span>
           )}
         </div>
@@ -278,7 +289,9 @@ export function Actualizar() {
           ? '/api/cad-sync'
           : currency === 'AUD'
             ? '/api/aud-sync'
-            : '/api/fred-sync';
+            : currency === 'NZD'
+              ? '/api/nzd-sync'
+              : '/api/fred-sync';
   const syncLabel =
     currency === 'EUR'
       ? 'Sincronizar con FRED + Eurostat'
@@ -288,7 +301,9 @@ export function Actualizar() {
           ? 'Sincronizar con StatCan + BoC'
           : currency === 'AUD'
             ? 'Sincronizar con ABS + RBA'
-            : 'Sincronizar con FRED';
+            : currency === 'NZD'
+              ? 'Sincronizar con Stats NZ'
+              : 'Sincronizar con FRED';
 
   async function handleFredSync() {
     setFredSyncing(true);
