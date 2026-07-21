@@ -1,7 +1,7 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 19-jul-2026 (actualizado en la misma sesión que
-agregó AUD). Pega este archivo completo (o pedile a Claude que lo lea
+Fecha de este resumen: 21-jul-2026 (actualizado en la misma sesión que
+agregó NZD). Pega este archivo completo (o pedile a Claude que lo lea
 desde el repo) al abrir el chat nuevo.
 
 ## Qué es esto
@@ -14,16 +14,25 @@ fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
 **Estado actual: USD, EUR, GBP, CAD y AUD completos y en producción**
-(las dos ramas están sincronizadas al mismo commit al escribir esto).
+(las dos ramas de producción están sincronizadas al mismo commit al
+escribir esto). **NZD está completo pero SOLO pusheado a
+`claude/handoff-review-8vej1i`** — esta sesión tiene la misma restricción
+que sesiones previas de no pushear a la rama de producción sin permiso
+explícito del usuario (ver "Dónde vive todo" más abajo); falta mergear/
+pushear a `claude/macro-usd-web-dashboard-xm5ypk` para que salga a
+producción, y recién ahí correr `/api/nzd-sync` contra Supabase real
+(quedó pendiente, no se pudo verificar en producción por el mismo motivo).
 AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
 se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
 Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
 pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
 release oficial paralelo que sigue la fuente de referencia del usuario),
 y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
-junto a su a/a, no agrupados por separado). Faltan JPY, CHF, NZD — ver
-"Pendiente explícito" más abajo, incluye los datos crudos que ya mandó el
-usuario (por captura de pantalla, no Excel) para esas 3.
+junto a su a/a, no agrupados por separado). NZD tiene 14 indicadores (solo
+6 automáticos — la divisa con menos automatización hasta ahora, ver
+lecciones NZD abajo). Faltan JPY, CHF — ver "Pendiente explícito" más
+abajo, incluye los datos crudos que ya mandó el usuario (por captura de
+pantalla, no Excel) para esas 2.
 
 ## Dónde vive todo
 
@@ -78,23 +87,24 @@ React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Recharts 3 + React Router
 
 ```
 src/
-  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'),
+  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'|'NZD'),
                               IndicatorMeta, ScoreRow, CentralBanker, BankerNote,
                               Statement, BankerVoteStatus, Stance
   data/
-    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD],
+    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD, ...NZD],
                               SECTION_LABELS (por Currency), indicatorsBySection(section, currency)
-    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts — ids con prefijo eur_/gbp_/cad_/aud_
+    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts / indicatorsNzd.ts — ids con prefijo eur_/gbp_/cad_/aud_/nzd_
     historical-series.json  — histórico sembrado, TODAS las divisas mezcladas en un solo objeto
     fredMappings.ts          — FRED_MAPPINGS (USD) + EUR_FRED_MAPPINGS + EUR_EUROSTAT_INDICATOR_ID
                               + GBP_BOE_INDICATOR_ID + CAD_AUTO_INDICATOR_IDS + AUD_AUTO_INDICATOR_IDS
-                              (listas simples, CAD/AUD no usan FRED)
+                              + NZD_AUTO_INDICATOR_IDS
+                              (listas simples, CAD/AUD/NZD no usan FRED)
                               — copia usada SOLO por el frontend para la insignia de fuente en Actualizar.tsx
     fomcMeetings.ts          — calendario oficial FOMC 2026 (hardcodeado, solo USD)
-    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts
-    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[],
+    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts / scoreSeedNzd.ts
+    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[] / RBNZ_BANKERS[],
                               bankersForCurrency(currency). Ver sección Banqueros más abajo.
-    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD'], localStorage
+    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD','NZD'], localStorage
     MacroDataContext.tsx     — contexto React: overrides, forecasts, score, fomcWatch, bankerNotes.
                               Supabase si está configurado, si no localStorage. fetchAllRows() pagina
                               indicator_overrides (ver bug de 1000 filas en decisiones técnicas).
@@ -151,7 +161,7 @@ insignia en la UI, el de `/api` es el que realmente sincroniza).
 - **Orden visual de las tarjetas dentro de cada sección: cada medida va
   su variante de corto plazo (m/m o t/t) seguida INMEDIATAMENTE de su
   a/a**, nunca todos los m/m agrupados primero y los a/a después — pedido
-  explícito del usuario, aplicado a USD/EUR/GBP/CAD/AUD en jul-2026. El
+  explícito del usuario, aplicado a USD/EUR/GBP/CAD/AUD/NZD en jul-2026. El
   orden de las tarjetas es simplemente el orden del array en
   `indicators{X}.ts` (no hay lógica de sorting en `SectionGrid`/
   `ChartCard`) — al agregar un indicador nuevo con su par m/m+a/a,
@@ -534,17 +544,106 @@ nombre del dataflow lo delate):
     de la ABS) quedó sin indicador propio — se puede agregar aparte si en
     algún momento se quiere trackear ambas en simultáneo.
 
+## Lecciones NZD (la divisa con menos automatización hasta ahora)
+
+Agregado en la sesión del 21-jul-2026, a pedido explícito del usuario
+("SIGAMOS CON EL NZD"). 14 indicadores, solo 6 automáticos (vs. 16/20 de
+AUD o 14/18 de CAD) — no por falta de esfuerzo sino por límites reales de
+las fuentes disponibles para Nueva Zelanda:
+
+1. **rbnz.govt.nz está completamente bloqueado para cualquier fetch
+   automatizado** — no es un rate-limit ni un endpoint específico: TODO el
+   dominio devuelve HTTP 403 (Cloudflare bot management), incluida la
+   portada, probado con curl con headers de navegador reales Y con la
+   herramienta WebFetch (que usa un fetcher distinto) — ambos bloqueados
+   por igual. Se descartó también data.govt.nz (el catálogo CKAN de datos
+   abiertos del gobierno) como mirror alternativo — también tiene bot
+   protection (Imperva) y de todos modos no tiene un dataset de OCR
+   proxied. Consecuencia: `nzd_ocr_rate` queda 100% manual — pero como el
+   RBNZ solo decide la tasa 7-8 veces al año, el costo de mantenerlo a
+   mano es bajo (mismo criterio que las encuestas privadas del resto de
+   las divisas).
+
+2. **Stats NZ tiene una API SDMX moderna ("Aotearoa Data Explorer",
+   `api.data.stats.govt.nz`) que SÍ exige key** (`Ocp-Apim-Subscription-
+   Key`, registro manual en portal.apis.stats.govt.nz) — se descartó, mismo
+   motivo que la "ABS Indicator API" para AUD. La vieja `NZ.Stat` /
+   `nzdotstat.stats.govt.nz` (equivalente al .Stat Suite de la OCDE, que en
+   otros países SÍ es de acceso libre) fue absorbida por la API nueva y
+   redirige ahí — no quedó ningún camino SDMX sin key.
+
+3. **PERO los CSV de cada release individual (`/information-releases/.../
+   Download-data/`) son públicos y sin key**, con URL predecible por fecha:
+   `Consumers-price-index-{Mes}-{Año}-quarter/consumers-price-index-{mes}-
+   {año}-quarter-index-numbers.csv` (mismo patrón para GDP con
+   `-visualisation.csv`, mes con mayúscula en la carpeta y minúscula en el
+   nombre de archivo). No hay un endpoint "dame el dato más reciente" — la
+   función serverless prueba el trimestre/mes actual y retrocede hasta 5-6
+   períodos si el release todavía no salió (`fetchLatestQuarterlyText` /
+   `fetchLatestMonthlyZipCsv` en nzd-sync.ts). CPI tiene historia hasta
+   1914 (!), GDP hasta 1987 — mucho más profundidad que lo sembrado (se
+   sembró desde 2000 para no infartar el bundle).
+
+4. **El desempleo/empleo (HLFS) tiene los series_reference correctos
+   verificados** (`HLFQ.S1F3S` = tasa de desempleo, `HLFQ.S1A3S` =
+   empleados, ambos confirmados contra el dato oficial: 5.3% y 2,889,000
+   para el primer trimestre de 2026) **pero el ZIP que los contiene pesa
+   ~18.5MB comprimido y expande a ~400MB de CSV sin comprimir** (todos los
+   cruces por edad/sexo/región/industria/etc. en un solo archivo, para
+   sacar 2 números). Se decidió NO automatizarlo — descomprimir 400MB
+   dentro de una función serverless para un dato trimestral es un riesgo
+   real de memoria/timeout por muy poco beneficio. Queda manual.
+
+5. **La Balanza Comercial (Overseas Merchandise Trade) solo se publica en
+   XLSX**, nunca en CSV plano — a diferencia de CPI/GDP/Ventas Minoristas.
+   Se verificó que el archivo (~267KB) SÍ tiene los datos necesarios (hoja
+   "Table 1.02", columna Balance) pero con encabezados multi-fila y celdas
+   de continuación en blanco (el año solo aparece en la fila de enero, las
+   demás filas del año quedan vacías) — un parser confiable requeriría
+   agregar una dependencia (`xlsx`/`exceljs`) y una lógica de estado
+   bastante más frágil que el resto. Se priorizó confiabilidad sobre
+   cobertura — queda manual, se puede reconsiderar más adelante.
+
+6. **"Ventas Minoristas" usa Electronic Card Transactions (ECT), no el
+   Retail Trade Survey trimestral** — ECT es mensual, desestacionalizado, y
+   es la cifra que efectivamente sigue el mercado como "NZ Retail Sales"
+   (mismo criterio que la lección AUD sobre el Monthly Household Spending
+   Indicator reemplazando a Retail Trade). El ZIP de ECT es chico (~140KB
+   comprimido, ~4MB sin comprimir) así que sí se automatizó, a diferencia
+   del HLFS — se escribió un parser de ZIP mínimo sin dependencias
+   (`extractSingleCsvFromZip` en nzd-sync.ts, vía Central Directory +
+   `node:zlib` `inflateRawSync`, ya que Node no tiene soporte nativo de ZIP)
+   reutilizable para cualquier release futuro que solo venga zippeado.
+
+7. El CPI a/a y el PIB a/a, igual que en AUD, se derivan de un índice de
+   nivel (Stats NZ no publica el a/a como serie separada) — verificado:
+   4.06% calculado vs. ~4.1% reportado por agregadores para el CPI del
+   segundo trimestre de 2026, y +0.8% t/t de PIB coincide exacto con el
+   comunicado oficial ("GDP rose 0.8 percent in the March 2026 quarter")
+   del primer trimestre.
+
+8. **Banqueros del RBNZ investigados solo por WebSearch** (no por WebFetch
+   ni curl directo a rbnz.govt.nz, ambos bloqueados — ver lección #1):
+   Monetary Policy Committee de 6 miembros (3 internos + 3 externos, todos
+   votan siempre). Sin fotos en Wikimedia Commons para ninguno de los 6
+   (nombramientos muy recientes, 2024-2025, poco documentados todavía) —
+   quedan con el placeholder de iniciales, a diferencia del resto de las
+   divisas donde casi todos los banqueros sí tienen foto real.
+
 ## Pendiente explícito
 
-**1. JPY, CHF, NZD** — el usuario mandó capturas de pantalla (no el .xlsx
+**1. JPY, CHF** — el usuario mandó capturas de pantalla (no el .xlsx
 completo, tuvo problemas para subirlo) de un Excel compartido con hojas
 `CAD | JPY | AUD | CHF | NZD | DECISIONES`, formato snapshot estilo
 Trading Economics (Reciente/Anterior/Más Alto/Más Bajo/Fecha), **datos de
-2025, desactualizados** — mismo tratamiento que CAD/AUD: se usa solo para
-identificar indicadores y pesos del score, el histórico y valor actual se
-reconstruyen desde la fuente oficial de cada país, verificando cada serie
-contra una referencia real (comunicado oficial Y agregador de mercado, ver
-lección CAD #6-7 arriba) antes de automatizar.
+2025, desactualizados** — mismo tratamiento que CAD/AUD/NZD: se usa solo
+para identificar indicadores y pesos del score, el histórico y valor actual
+se reconstruyen desde la fuente oficial de cada país, verificando cada
+serie contra una referencia real (comunicado oficial Y agregador de
+mercado, ver lección CAD #6-7 arriba) antes de automatizar. La columna NZD
+de la tabla DECISIONES de abajo ya se usó (ver Lecciones NZD arriba) — se
+deja en la tabla solo como referencia histórica de dónde salió cada
+valoracion.
 
 **Datos crudos ya capturados (para no tener que pedir las imágenes de
 nuevo)**:
@@ -565,10 +664,11 @@ usuario; pesos entre paréntesis):
 | Tipos de Interés (fila NO usable — corrupta, ver lección #12) | 22.5 | 0.5 | 3.6 | 0 | 22.5 | — |
 | **TOTAL Excel** (referencia solamente, no vamos a replicarlo exacto por el bug de rango del `<select>`) | 4.5 | 4 | 4 | 2.5 | 1.5 | — |
 
-Recordar (lección #3): al armar `scoreSeed{Jpy,Chf,Nzd}.ts`, redondear
-cualquier valoración fuera de -2..2 antes de cargarla (ej. NZD Inflación=4
-→ probablemente 2; CAD PIB=-3 se redondeó a -2; AUD ya se hizo — Confianza
-Empresarial -0.5→-1, PIB 1.5→2).
+Recordar (lección #3): al armar `scoreSeed{Jpy,Chf}.ts`, redondear
+cualquier valoración fuera de -2..2 antes de cargarla, siempre hacia
+afuera del cero (ej. CAD PIB=-3 se redondeó a -2; AUD Confianza Empresarial
+-0.5→-1, PIB 1.5→2; NZD ya se hizo — Inflación 4→2, PIB 1.5→2, ver
+scoreSeedNzd.ts).
 
 Cada hoja individual (JPY/CHF/NZD) tiene la misma estructura de columnas
 que CAD (Reciente/Anterior/Más Alto/Más Bajo/Fecha) con estas filas: Stock
@@ -577,7 +677,7 @@ Inflation Rate, Unemployment Rate, Employment Change, Retail Sales MoM,
 Manufacturing PMI, Services PMI, Business Confidence, Consumer Confidence,
 Interest Rate, Government Budget, Balance of Trade, Current Account,
 Current Account to GDP, Government Debt to GDP, Corporate Tax Rate,
-Personal Income Tax Rate. **Mismo criterio que CAD/AUD**: solo se
+Personal Income Tax Rate. **Mismo criterio que CAD/AUD/NZD**: solo se
 implementan como indicadores los que están en el score + Balanza Comercial
 + PIB (pedido explícito del usuario) + la tasa del banco central — no
 Stock Market/impuestos/deuda.
@@ -591,20 +691,23 @@ claro, o que la convención asumida estaba mal):
   RBA — la "ABS Indicator API" con key por email NO hizo falta, existe una
   alternativa sin key).
 - **CHF** → SNB Data Portal `data.snb.ch` (sin key, REST público) — no
-  investigado a fondo todavía.
+  investigado a fondo todavía. **Ojo**: antes de asumir que está libre de
+  bloqueos tipo Cloudflare/Imperva (como pasó con rbnz.govt.nz), probarlo
+  con curl real desde el entorno de la sesión, no solo confiar en que "sin
+  key" documentado signifique "fetch automatizado funciona".
 - **JPY** → BOJ Time-Series API + e-Stat Dashboard API (sin key) — no
-  investigado a fondo todavía.
-- **NZD** → RBNZ (solo archivos descargables, no API REST limpia — va a
-  ser la más manual de las 3 que faltan) — no investigado a fondo.
+  investigado a fondo todavía. Mismo ojo que CHF.
+- **NZD** → hecho en la sesión del 21-jul-2026, ver "Lecciones NZD" arriba
+  (Stats NZ CSV por release, sin key — RBNZ bloqueado por completo).
 
-**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA —
+**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA/RBNZ —
 WebSearch + página oficial antes de escribir nombres, nunca asumir vigente
-sin verificar): RBNZ (Nueva Zelanda), SNB (Suiza), BOJ (Japón).
+sin verificar): SNB (Suiza), BOJ (Japón).
 
 **Previsión de tasas estilo FedWatch** — sigue sin solución gratuita para
 ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
 descartó CME FedWatch/rateprobability.com) — se omite el panel para
-GBP/CAD/AUD y probablemente para las 3 que faltan también.
+GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
 
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
@@ -625,6 +728,20 @@ GBP/CAD/AUD y probablemente para las 3 que faltan también.
 - `aud_pmi_manuf`/`aud_pmi_serv`/`aud_business_confidence`/`aud_consumer_confidence`
   no tienen ningún dato cargado todavía (sin API pública, igual que el
   resto de las divisas — quedan a la espera de carga manual).
+- **NZD todavía no está en producción** — solo en `claude/handoff-review-8vej1i`,
+  falta mergear/pushear a la rama de producción (ver "Estado actual" y
+  "Dónde vive todo" arriba) y recién ahí correr `/api/nzd-sync` una vez
+  contra Supabase real para poblar `nzd_cpi`/`nzd_cpi_yoy`/`nzd_gdp_qoq`/
+  `nzd_gdp_yoy`/`nzd_retail_sales`/`nzd_retail_sales_yoy`.
+- `nzd_ocr_rate`, `nzd_unemployment`, `nzd_employment_change`,
+  `nzd_trade_balance`, `nzd_business_confidence`, `nzd_consumer_confidence`,
+  `nzd_pmi_manuf`, `nzd_pmi_serv` no tienen ningún dato cargado todavía —
+  son manuales por límites reales de fuente (ver "Lecciones NZD" arriba),
+  no por falta de API pública nada más.
+- Los 6 miembros del Monetary Policy Committee del RBNZ no tienen foto en
+  `centralBankers.ts` (`photoUrl` sin definir, cae al placeholder de
+  iniciales) — no se encontró nada usable en Wikimedia Commons, ver
+  "Lecciones NZD" #8.
 - No se guarda la fecha real de publicación de cada dato, solo el período
   de referencia (`YYYY-MM-01`) — el usuario preguntó por esto, se le
   explicó que es la misma convención que usan FRED/StatCan/ONS/Eurostat en
