@@ -562,6 +562,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Assistant Governor Money (miembro interno) — mandato hasta 15-may-2027',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/karen-silk.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
   },
   {
@@ -570,6 +571,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Chief Economist (miembro interno) — mandato hasta 10-sep-2027',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/paul-conway.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
   },
   {
@@ -578,6 +580,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Miembro Externa del Monetary Policy Committee — mandato hasta 30-sep-2029',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/hayley-gourley.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
   },
   {
@@ -586,6 +589,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Miembro Externo del Monetary Policy Committee — mandato hasta 30-jun-2028',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/prasanna-gai.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
   },
   {
@@ -594,6 +598,7 @@ export const RBNZ_BANKERS: CentralBanker[] = [
     title: 'Miembro Externo del Monetary Policy Committee — mandato hasta 31-mar-2027',
     vote: 'voting',
     currency: 'NZD',
+    photoUrl: '/bankers/carl-hansen.jpg',
     bioUrl: 'https://www.rbnz.govt.nz/about-us/our-people/monetary-policy-committee',
   },
 ];
