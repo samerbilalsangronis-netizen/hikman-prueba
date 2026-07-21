@@ -13,16 +13,12 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP, CAD y AUD completos y en producción**
+**Estado actual: USD, EUR, GBP, CAD, AUD y NZD completos y en producción**
 (las dos ramas de producción están sincronizadas al mismo commit al
-escribir esto). **NZD está completo pero SOLO pusheado a
-`claude/handoff-review-8vej1i`** — esta sesión tiene la misma restricción
-que sesiones previas de no pushear a la rama de producción sin permiso
-explícito del usuario (ver "Dónde vive todo" más abajo); falta mergear/
-pushear a `claude/macro-usd-web-dashboard-xm5ypk` para que salga a
-producción, y recién ahí correr `/api/nzd-sync` contra Supabase real
-(quedó pendiente, no se pudo verificar en producción por el mismo motivo).
-AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
+escribir esto — el usuario dio permiso explícito de pushear NZD a
+`claude/macro-usd-web-dashboard-xm5ypk` el 21-jul-2026, ya deployado en
+Vercel y con `/api/nzd-sync` corrido una vez contra Supabase real sin
+errores). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
 se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
 Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
 pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
@@ -728,11 +724,12 @@ GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
 - `aud_pmi_manuf`/`aud_pmi_serv`/`aud_business_confidence`/`aud_consumer_confidence`
   no tienen ningún dato cargado todavía (sin API pública, igual que el
   resto de las divisas — quedan a la espera de carga manual).
-- **NZD todavía no está en producción** — solo en `claude/handoff-review-8vej1i`,
-  falta mergear/pushear a la rama de producción (ver "Estado actual" y
-  "Dónde vive todo" arriba) y recién ahí correr `/api/nzd-sync` una vez
-  contra Supabase real para poblar `nzd_cpi`/`nzd_cpi_yoy`/`nzd_gdp_qoq`/
-  `nzd_gdp_yoy`/`nzd_retail_sales`/`nzd_retail_sales_yoy`.
+- **NZD ya está en producción** (mergeado a `claude/macro-usd-web-dashboard-xm5ypk`
+  con permiso explícito del usuario y desplegado en Vercel el 21-jul-2026;
+  `/api/nzd-sync` ya corrió una vez contra Supabase real sin errores —
+  pobló `nzd_cpi` (1.49% t/t), `nzd_cpi_yoy` (4.06%), `nzd_gdp_qoq` (0.80%),
+  `nzd_gdp_yoy` (1.47%), `nzd_retail_sales` (-1.50%) y
+  `nzd_retail_sales_yoy` (0.59%), 40 puntos de histórico cada uno).
 - `nzd_ocr_rate`, `nzd_unemployment`, `nzd_employment_change`,
   `nzd_trade_balance`, `nzd_business_confidence`, `nzd_consumer_confidence`,
   `nzd_pmi_manuf`, `nzd_pmi_serv` no tienen ningún dato cargado todavía —
