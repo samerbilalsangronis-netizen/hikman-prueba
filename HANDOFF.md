@@ -623,8 +623,17 @@ las fuentes disponibles para Nueva Zelanda:
    Monetary Policy Committee de 6 miembros (3 internos + 3 externos, todos
    votan siempre). Sin fotos en Wikimedia Commons para ninguno de los 6
    (nombramientos muy recientes, 2024-2025, poco documentados todavía) —
-   quedan con el placeholder de iniciales, a diferencia del resto de las
-   divisas donde casi todos los banqueros sí tienen foto real.
+   el usuario pasó la foto de Anna Breman (del comunicado de prensa del
+   Riksbank donde trabajaba antes, escondida en un `data-src` de imagen
+   lazy-load — no aparece con un grep simple de `src=`, hay que revisar
+   también `data-src`/`srcset`) y a partir de ese hallazgo se buscaron
+   las otras 5 en coberturas de prensa del nombramiento de cada uno (RNZ,
+   Insurance Business NZ, b2bnews.co.nz, Universidad de Auckland — vía el
+   meta tag `og:image`, que muchas veces tiene la foto aunque el HTML
+   visible no la muestre fácil). Lección: cuando Wikimedia Commons no
+   tiene nada, buscar la cobertura de prensa del nombramiento/anuncio
+   oficial — casi siempre trae una foto de perfil, y el `og:image`/`alt`
+   de esa nota suele confirmar la identidad de la persona.
 
 ## Pendiente explícito
 
@@ -735,10 +744,16 @@ GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
   `nzd_pmi_manuf`, `nzd_pmi_serv` no tienen ningún dato cargado todavía —
   son manuales por límites reales de fuente (ver "Lecciones NZD" arriba),
   no por falta de API pública nada más.
-- Los 6 miembros del Monetary Policy Committee del RBNZ no tienen foto en
-  `centralBankers.ts` (`photoUrl` sin definir, cae al placeholder de
-  iniciales) — no se encontró nada usable en Wikimedia Commons, ver
-  "Lecciones NZD" #8.
+- ~~Los 6 miembros del Monetary Policy Committee del RBNZ no tienen
+  foto~~ — resuelto: ninguno estaba en Wikimedia Commons (nombramientos
+  recientes), pero el usuario pasó la foto de Anna Breman (sacada del
+  comunicado de prensa del Riksbank, su empleador anterior — estaba
+  oculta en un `data-src` de carga diferida, no en el HTML visible a
+  primera vista) y a partir de ahí se encontraron las otras 5 en
+  coberturas de prensa de cada nombramiento (RNZ, Insurance Business NZ,
+  b2bnews.co.nz, Universidad de Auckland — esta última cruzada contra
+  INET Economics para confirmar identidad). Las de RNZ se recortaron
+  para sacar el logo superpuesto. Las 6 quedaron en `public/bankers/`.
 - No se guarda la fecha real de publicación de cada dato, solo el período
   de referencia (`YYYY-MM-01`) — el usuario preguntó por esto, se le
   explicó que es la misma convención que usan FRED/StatCan/ONS/Eurostat en
