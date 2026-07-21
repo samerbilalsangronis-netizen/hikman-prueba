@@ -603,11 +603,100 @@ export const RBNZ_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD'): CentralBanker[] {
+// Policy Board del BOJ — verificado con la página oficial (jul-2026):
+// boj.or.jp/en/about/organization/policyboard/ (boj.or.jp NO está
+// bloqueado, a diferencia de rbnz.govt.nz). 9 miembros, todos votan
+// siempre (no hay rotación, igual que RBA/RBNZ/BoE): Gobernador + 2
+// Vicegobernadores + 6 Miembros. Términos verificados en la bio oficial
+// de cada uno (página "Present Term of Office").
+//
+// OJO: un resumen de WebSearch listaba a "NAKAGAWA Junko" como miembro
+// vigente — la página oficial (fuente primaria) NO la lista, su mandato
+// terminó jun-2026 y fue reemplazada por SATO Ayano. Lección: confirmar
+// siempre contra la fuente primaria, no un resumen de búsqueda.
+export const BOJ_BANKERS: CentralBanker[] = [
+  {
+    id: 'boj_ueda',
+    name: 'Kazuo Ueda',
+    title: 'Gobernador del BOJ (Chairperson) — mandato hasta 8-abr-2028',
+    vote: 'voting',
+    currency: 'JPY',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/Kazuo_Ueda_on_October_2%2C_2024.jpg',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/gv_ueda.htm',
+  },
+  {
+    id: 'boj_uchida',
+    name: 'Shinichi Uchida',
+    title: 'Vicegobernador del BOJ — mandato hasta 19-mar-2028',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/dg_uchida.htm',
+  },
+  {
+    id: 'boj_himino',
+    name: 'Ryozo Himino',
+    title: 'Vicegobernador del BOJ — mandato hasta 19-mar-2028',
+    vote: 'voting',
+    currency: 'JPY',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/Ryozo_Himino_20230410meeting03.jpg',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/dg_himino.htm',
+  },
+  {
+    id: 'boj_takata',
+    name: 'Hajime Takata',
+    title: 'Miembro del Policy Board — mandato hasta 23-jul-2027',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_takata.htm',
+  },
+  {
+    id: 'boj_tamura',
+    name: 'Naoki Tamura',
+    title: 'Miembro del Policy Board — mandato hasta 23-jul-2027',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_tamura.htm',
+  },
+  {
+    id: 'boj_koeda',
+    name: 'Junko Koeda',
+    title: 'Miembro del Policy Board — mandato hasta 25-mar-2030',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_koeda.htm',
+  },
+  {
+    id: 'boj_masu',
+    name: 'Kazuyuki Masu',
+    title: 'Miembro del Policy Board — mandato hasta 30-jun-2030',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_masu.htm',
+  },
+  {
+    id: 'boj_asada',
+    name: 'Toichiro Asada',
+    title: 'Miembro del Policy Board — mandato hasta 31-mar-2031',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_asada.htm',
+  },
+  {
+    id: 'boj_sato',
+    name: 'Ayano Sato',
+    title: 'Miembro del Policy Board — mandato hasta 29-jun-2031',
+    vote: 'voting',
+    currency: 'JPY',
+    bioUrl: 'https://www.boj.or.jp/en/about/organization/policyboard/bm_asato.htm',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
   if (currency === 'CAD') return BOC_BANKERS;
   if (currency === 'AUD') return RBA_BANKERS;
   if (currency === 'NZD') return RBNZ_BANKERS;
+  if (currency === 'JPY') return BOJ_BANKERS;
   return FED_BANKERS;
 }
