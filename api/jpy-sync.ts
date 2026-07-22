@@ -113,19 +113,22 @@ async function fetchBojRate(): Promise<Observation[]> {
   const text = new TextDecoder('utf-8').decode(buf);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - BACKFILL_POINTS - 1);
-  const out: Observation[] = [];
+  // Varias filas diarias caen en el mismo "YYYY-MM-01" — un Map dedupea
+  // quedándose con la última del mes (se recorre en orden cronológico).
+  // Necesario: un upsert con la misma clave (indicator_id, date) repetida
+  // en el mismo batch falla en Postgres ("ON CONFLICT DO UPDATE command
+  // cannot affect row a second time"), a diferencia de llamadas separadas.
+  const byMonth = new Map<string, number>();
   for (const line of text.split('\n')) {
     const m = line.match(/^(\d{4})\/(\d{2})\/\d{2},(-?[\d.]+)\s*$/);
     if (!m) continue;
     const [, y, mo, val] = m;
     const date = new Date(Number(y), Number(mo) - 1, 1);
     if (date < cutoff) continue;
-    // Varias filas diarias caen en el mismo "YYYY-MM-01" — al upsertear todas,
-    // la última del mes (procesada en orden cronológico) es la que queda.
-    out.push({ date: `${y}-${mo}-01`, value: Number(val) / 100 });
+    byMonth.set(`${y}-${mo}-01`, Number(val) / 100);
   }
-  if (out.length === 0) throw new Error('BOJ FM01: no se encontraron filas de datos en el CSV');
-  return out;
+  if (byMonth.size === 0) throw new Error('BOJ FM01: no se encontraron filas de datos en el CSV');
+  return [...byMonth.entries()].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // --- Aduanas de Japón / Ministry of Finance (CSV público, sin key) ---------
