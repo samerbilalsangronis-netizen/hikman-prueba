@@ -13,16 +13,12 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP, CAD, AUD y NZD completos y en producción.
-JPY está completo pero SOLO pusheado a `claude/handoff-review-8vej1i`** —
-esta sesión tiene la misma restricción que sesiones previas de no pushear
-a la rama de producción sin permiso explícito del usuario (ver "Dónde vive
-todo" más abajo); falta mergear/pushear a
-`claude/macro-usd-web-dashboard-xm5ypk` para que salga a producción, y
-recién ahí correr `/api/jpy-sync` contra Supabase real (quedó pendiente,
-no se pudo verificar en producción por el mismo motivo — sí se verificó
-localmente con `npm run preview`, que lee `historical-series.json`
-directo, sin pasar por Supabase). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
+**Estado actual: USD, EUR, GBP, CAD, AUD, NZD y JPY completos y en
+producción** (las dos ramas de producción están sincronizadas al mismo
+commit al escribir esto — el usuario dio permiso explícito de pushear JPY
+a `claude/macro-usd-web-dashboard-xm5ypk` el 21/22-jul-2026, ya deployado
+en Vercel y con `/api/jpy-sync` corrido contra Supabase real, 12/12
+indicadores automáticos sin errores). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
 se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
 Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
 pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
@@ -714,7 +710,14 @@ JPY tiene la mejor cobertura de todas las no-USD).
    cabecera en japonés simplemente no matchean y se ignoran (mismo truco
    que serviría para cualquier CSV Shift-JIS cuyas filas de datos sean
    ASCII). La serie vieja `ir01_*` ("Basic Loan Rate", el antiguo tipo de
-   descuento) NO es la tasa operativa actual — no usar.
+   descuento) NO es la tasa operativa actual — no usar. **Ojo**: al ser
+   diaria (una fila por día hábil, se mueva o no la tasa), varias filas
+   caen en el mismo `YYYY-MM-01` al colapsar a mensual — hay que dedupear
+   con un `Map` antes de upsertear o Postgres rechaza el batch entero
+   (`"ON CONFLICT DO UPDATE command cannot affect row a second time"`,
+   encontrado corriendo el sync real contra producción — ver "Gaps
+   conocidos" para el detalle completo, incluye por qué CAD/AUD no tienen
+   este mismo problema).
 
 3. **El "Core CPI" de Japón es "CPI ex alimentos frescos"**
    (生鮮食品を除く総合), NO "ex alimentos y energía" (esa es la
@@ -897,13 +900,28 @@ GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
   `nzd_pmi_manuf`, `nzd_pmi_serv` no tienen ningún dato cargado todavía —
   son manuales por límites reales de fuente (ver "Lecciones NZD" arriba),
   no por falta de API pública nada más.
-- **JPY todavía NO está en producción** — solo en
-  `claude/handoff-review-8vej1i`, falta mergear/pushear a la rama de
-  producción (ver "Estado actual" y "Dónde vive todo" arriba) y recién ahí
-  correr `/api/jpy-sync` una vez contra Supabase real. Verificado
-  localmente con `npm run preview` (lee `historical-series.json` directo,
-  sin Supabase) — todos los valores coinciden con lo documentado en
-  `indicatorsJpy.ts`.
+- **JPY ya está en producción** (mergeado a
+  `claude/macro-usd-web-dashboard-xm5ypk` con permiso explícito del
+  usuario y desplegado en Vercel el 21/22-jul-2026; `/api/jpy-sync` corrió
+  contra Supabase real, 12/12 automáticos sin errores en el segundo
+  intento — poblados con 40 puntos de histórico cada uno). **Bug real
+  encontrado y arreglado en el primer intento**: `jpy_boj_rate` fallaba
+  con `"ON CONFLICT DO UPDATE command cannot affect row a second time"`
+  porque el CSV del BOJ es diario y varias filas caían en la misma fecha
+  `YYYY-MM-01` — Postgres rechaza un upsert con la misma clave
+  `(indicator_id, date)` repetida dentro del mismo batch. Se arregló
+  dedupeando con un `Map` antes de upsertear (se queda con el último valor
+  del mes). **Se revisó si CAD/AUD tienen el mismo bug latente en sus
+  series de tasa diaria** (`cad_boc_rate` vía Valet, `aud_rba_rate` vía
+  CSV del RBA) — probado en vivo contra producción, NINGUNA de las dos lo
+  tiene: esas tablas solo agregan una fila cuando la tasa efectivamente
+  cambia (no una fila por día hábil como el call rate del BOJ, que es una
+  tasa de mercado promediada y se publica todos los días aunque no se
+  mueva) — no hizo falta tocar `aud-sync.ts`/`cad-sync.ts`. Lección
+  general: cualquier serie diaria que se colapse a un punto mensual
+  (`YYYY-MM-01`) puede pisar esta misma trampa — no asumir que el patrón
+  de `aud-sync.ts` es automáticamente seguro para una fuente nueva, probar
+  el sync real contra producción antes de darlo por bueno.
 - `jpy_pmi_manuf`, `jpy_pmi_serv`, `jpy_business_confidence`,
   `jpy_consumer_confidence` no tienen ningún dato cargado todavía —
   manuales, ver "Lecciones JPY" arriba.
