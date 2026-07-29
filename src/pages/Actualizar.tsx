@@ -16,6 +16,7 @@ import {
   AUD_AUTO_INDICATOR_IDS,
   NZD_AUTO_INDICATOR_IDS,
   JPY_AUTO_INDICATOR_IDS,
+  CHF_AUTO_INDICATOR_IDS,
 } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
@@ -26,6 +27,7 @@ const CAD_AUTO_COVERED = new Set(CAD_AUTO_INDICATOR_IDS);
 const AUD_AUTO_COVERED = new Set(AUD_AUTO_INDICATOR_IDS);
 const NZD_AUTO_COVERED = new Set(NZD_AUTO_INDICATOR_IDS);
 const JPY_AUTO_COVERED = new Set(JPY_AUTO_INDICATOR_IDS);
+const CHF_AUTO_COVERED = new Set(CHF_AUTO_INDICATOR_IDS);
 
 function IndicatorRow({ id }: { id: string }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
@@ -49,7 +51,8 @@ function IndicatorRow({ id }: { id: string }) {
     CAD_AUTO_COVERED.has(id) ||
     AUD_AUTO_COVERED.has(id) ||
     NZD_AUTO_COVERED.has(id) ||
-    JPY_AUTO_COVERED.has(id);
+    JPY_AUTO_COVERED.has(id) ||
+    CHF_AUTO_COVERED.has(id);
   const currentForecast = forecasts[id];
 
   async function handleSave() {
@@ -94,7 +97,9 @@ function IndicatorRow({ id }: { id: string }) {
                           ? 'Se sincroniza automáticamente desde Stats NZ'
                           : JPY_AUTO_COVERED.has(id)
                             ? 'Se sincroniza automáticamente desde e-Stat / BOJ / Aduanas de Japón'
-                            : 'Se sincroniza automáticamente desde FRED'
+                            : CHF_AUTO_COVERED.has(id)
+                              ? 'Se sincroniza automáticamente desde el SNB Data Portal / SECO / KOF'
+                              : 'Se sincroniza automáticamente desde FRED'
               }
             >
               {id === EUR_EUROSTAT_INDICATOR_ID
@@ -109,7 +114,9 @@ function IndicatorRow({ id }: { id: string }) {
                         ? 'STATS NZ'
                         : JPY_AUTO_COVERED.has(id)
                           ? 'E-STAT'
-                          : 'FRED'}
+                          : CHF_AUTO_COVERED.has(id)
+                            ? 'SNB'
+                            : 'FRED'}
             </span>
           )}
         </div>
@@ -300,7 +307,9 @@ export function Actualizar() {
               ? '/api/nzd-sync'
               : currency === 'JPY'
                 ? '/api/jpy-sync'
-                : '/api/fred-sync';
+                : currency === 'CHF'
+                  ? '/api/chf-sync'
+                  : '/api/fred-sync';
   const syncLabel =
     currency === 'EUR'
       ? 'Sincronizar con FRED + Eurostat'
@@ -314,7 +323,9 @@ export function Actualizar() {
               ? 'Sincronizar con Stats NZ'
               : currency === 'JPY'
                 ? 'Sincronizar con e-Stat + BOJ'
-                : 'Sincronizar con FRED';
+                : currency === 'CHF'
+                  ? 'Sincronizar con SNB + SECO + KOF'
+                  : 'Sincronizar con FRED';
 
   async function handleFredSync() {
     setFredSyncing(true);

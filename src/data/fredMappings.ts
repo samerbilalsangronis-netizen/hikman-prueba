@@ -179,3 +179,22 @@ export const JPY_AUTO_INDICATOR_IDS = [
   'jpy_gdp_yoy',
   'jpy_trade_balance',
 ];
+
+// CHF — se sincroniza desde el SNB Data Portal (data.snb.ch, sin key) y
+// dos feeds CSV de SECO expuestos vía scheduler.swissdatas.ch (encontrados
+// raspando el HTML de las páginas públicas de seco.admin.ch, no
+// documentados formalmente) + la API pública v2 del KOF (ETH Zúrich) para
+// el Business Confidence. Desempleo, Cambios en el Empleo, Ventas
+// Minoristas, PMI y la Balanza Comercial mensual quedan manuales — ver
+// indicatorsChf.ts para el detalle de cada decisión.
+export const CHF_AUTO_INDICATOR_IDS = [
+  'chf_snb_rate',
+  'chf_cpi',
+  'chf_cpi_yoy',
+  'chf_core_cpi',
+  'chf_core_cpi_yoy',
+  'chf_business_confidence',
+  'chf_consumer_confidence',
+  'chf_gdp_qoq',
+  'chf_gdp_yoy',
+];

@@ -248,7 +248,9 @@ export function Banqueros() {
                     ? 'RBNZ'
                     : currency === 'JPY'
                       ? 'BOJ'
-                      : 'Fed'}
+                      : currency === 'CHF'
+                        ? 'SNB'
+                        : 'Fed'}
         </h1>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
@@ -263,7 +265,9 @@ export function Banqueros() {
                     ? 'Los 6 miembros del Monetary Policy Committee del RBNZ (3 internos + 3 externos) — todos votan siempre, no hay rotación.'
                     : currency === 'JPY'
                       ? 'Los 9 miembros del Policy Board del BOJ (Gobernador + 2 Vicegobernadores + 6 miembros) — todos votan siempre, no hay rotación.'
-                      : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
+                      : currency === 'CHF'
+                        ? 'Los 3 miembros del Governing Board del SNB deciden la política monetaria por consenso, siempre — no hay rotación. El SNB tiene además 4 suplentes ("Enlarged Governing Board") que no deciden la tasa, no se listan acá.'
+                        : 'Los 7 miembros de la Junta de Gobernadores y el presidente de la Fed de Nueva York votan siempre; los otros 4 votos rotan cada año entre los 11 bancos regionales restantes.'}
         </p>
       </div>
 

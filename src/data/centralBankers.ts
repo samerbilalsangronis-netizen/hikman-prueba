@@ -691,12 +691,58 @@ export const BOJ_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY'): CentralBanker[] {
+// SNB (3, agregado en esta sesión): Governing Board — el cuerpo que
+// efectivamente decide la política monetaria de Suiza son solo estos 3
+// miembros (Schlegel, Martin, Tschudin), verificado con
+// snb.ch/en/the-snb/mandates-goals/monetary-policy ("Monetary policy is set
+// by the SNB's three-member Governing Board"). El SNB tiene además 4
+// miembros suplentes que junto a los 3 titulares forman el "Enlarged
+// Governing Board" (Schlup, Zanetti, Kraenzlin, Moser) — pero ese cuerpo
+// ampliado define lineamientos estratégicos/operativos, no decide la tasa,
+// así que no se incluyen acá (mismo criterio que "no modelar" el
+// Governance Board separado del RBA, ver lección AUD #20). Deciden por
+// consenso, sin votación formal publicada — mismo tratamiento que BoC
+// (`vote: 'voting'`, sin categoría de "consenso" separada). Fotos: Schlegel
+// tiene foto propia en Wikimedia Commons (con permiso VRT verificado);
+// Martin y Tschudin se autohospedaron desde snb.ch/en/the-snb/organisation/
+// history/short-biographies (no están en Wikimedia Commons).
+export const SNB_BANKERS: CentralBanker[] = [
+  {
+    id: 'snb_schlegel',
+    name: 'Martin Schlegel',
+    title: 'Presidente del Directorio (Chairman) del SNB — desde 1-oct-2024',
+    vote: 'voting',
+    currency: 'CHF',
+    photoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Schlegel_Martin.jpg/500px-Schlegel_Martin.jpg',
+    bioUrl: 'https://www.snb.ch/en/the-snb/organisation/history/short-biographies',
+  },
+  {
+    id: 'snb_martin',
+    name: 'Antoine Martin',
+    title: 'Vicepresidente del Directorio (Vice Chairman) del SNB — miembro desde 1-ene-2024, Vicepresidente desde 1-oct-2024',
+    vote: 'voting',
+    currency: 'CHF',
+    photoUrl: '/bankers/snb-martin.jpg',
+    bioUrl: 'https://www.snb.ch/en/the-snb/organisation/history/short-biographies',
+  },
+  {
+    id: 'snb_tschudin',
+    name: 'Petra Tschudin',
+    title: 'Miembro del Directorio del SNB — desde 1-oct-2024',
+    vote: 'voting',
+    currency: 'CHF',
+    photoUrl: '/bankers/snb-tschudin.jpg',
+    bioUrl: 'https://www.snb.ch/en/the-snb/organisation/history/short-biographies',
+  },
+];
+
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY' | 'CHF'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
   if (currency === 'CAD') return BOC_BANKERS;
   if (currency === 'AUD') return RBA_BANKERS;
   if (currency === 'NZD') return RBNZ_BANKERS;
   if (currency === 'JPY') return BOJ_BANKERS;
+  if (currency === 'CHF') return SNB_BANKERS;
   return FED_BANKERS;
 }

@@ -23,7 +23,9 @@ export function Empleo() {
                     ? 'Tasa de desempleo y cambios en el empleo de Nueva Zelanda.'
                     : currency === 'JPY'
                       ? 'Tasa de desempleo de Japón.'
-                      : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
+                      : currency === 'CHF'
+                        ? 'Tasa de desempleo y cambios en el empleo de Suiza.'
+                        : 'Nóminas no agrícolas, desempleo, salarios, JOLTS y ADP.'}
         </p>
       </div>
       <SectionGrid section="empleo" months={36} />

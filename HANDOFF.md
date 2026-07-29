@@ -1,8 +1,8 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 21-jul-2026 (actualizado en la misma sesión que
-agregó JPY). Pega este archivo completo (o pedile a Claude que lo lea
-desde el repo) al abrir el chat nuevo.
+Fecha de este resumen: 29-jul-2026 (actualizado en la sesión que agregó
+CHF). Pega este archivo completo (o pedile a Claude que lo lea desde el
+repo) al abrir el chat nuevo.
 
 ## Qué es esto
 
@@ -27,9 +27,15 @@ y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
 junto a su a/a, no agrupados por separado). NZD tiene 14 indicadores (solo
 6 automáticos — la divisa con menos automatización hasta ahora). JPY
 tiene 16 indicadores, 12 automáticos — la divisa no-USD MÁS automatizada
-hasta ahora, ver "Lecciones JPY" más abajo. Falta CHF — ver "Pendiente
-explícito" más abajo, incluye los datos crudos que ya mandó el usuario
-(por captura de pantalla, no Excel).
+hasta ahora, ver "Lecciones JPY" más abajo. **CHF agregada el 29-jul-2026**
+(16 indicadores, 9 automáticos — la MEJOR proporción de automatización de
+todas las no-USD, ver "Lecciones CHF" más abajo) — **todavía NO está en
+producción**, solo en la rama de esta sesión
+(`claude/handoff-documentation-review-9z8wtp`); falta el permiso explícito
+del usuario para mergear/pushear a `claude/macro-usd-web-dashboard-xm5ypk`.
+Sin CHF quedan pendientes de todo el set original: solo faltaría
+verificar que el usuario apruebe el resultado antes de llevarlo a
+producción.
 
 ## Dónde vive todo
 
@@ -37,16 +43,15 @@ explícito" más abajo, incluye los datos crudos que ya mandó el usuario
 - **Rama de producción real** (la que deployea Vercel, confirmado
   comparando el bundle JS servido con el hash de cada rama): `claude/macro-usd-web-dashboard-xm5ypk`
   — es también la rama HEAD por defecto del repo (`git remote show
-  origin`). **Esta sesión trabajó en `claude/handoff-review-8vej1i`**
-  (asignada por el entorno) y **pusheó el commit de AUD solo ahí** — el
-  workflow habitual de sesiones previas era pushear siempre a dos ramas a
-  la vez, pero esta sesión tiene restricción de no pushear a una rama
-  distinta de la asignada sin permiso explícito del usuario. **Si el
-  usuario quiere AUD en producción, hay que pushear (o mergear)
-  `claude/handoff-review-8vej1i` a `claude/macro-usd-web-dashboard-xm5ypk`
-  explícitamente** — no asumir que ya está ahí. También existe
-  `claude/handoff-documentation-review-k28bsl` (rama de una sesión
-  anterior, sincronizada con producción al momento de escribir esto).
+  origin`). **Esta sesión trabajó en `claude/handoff-documentation-review-9z8wtp`**
+  (asignada por el entorno, arrancaba sincronizada al mismo commit que
+  producción) y **pusheó el commit de CHF solo ahí** — mismo patrón que
+  sesiones anteriores: no pushear a una rama distinta de la asignada sin
+  permiso explícito del usuario. **Si el usuario quiere CHF en producción,
+  hay que pushear (o mergear) `claude/handoff-documentation-review-9z8wtp`
+  a `claude/macro-usd-web-dashboard-xm5ypk` explícitamente** — no asumir
+  que ya está ahí. También pueden existir otras ramas `claude/handoff-*`
+  de sesiones previas — no asumir su estado sin verificar.
   **Cualquier sesión nueva DEBE confirmar con `git fetch origin --prune` +
   `git log origin/<rama> -1` en todas las ramas conocidas + comparar con
   el bundle JS servido en producción antes de asumir cuál está realmente
@@ -311,6 +316,33 @@ solo en XLSX).
   valoraciones ya caían en el rango ±2, no hizo falta reescalar ninguna
   (a diferencia de CAD/AUD/NZD).
 
+**CHF (16, agregada el 29-jul-2026 — todavía NO en producción, ver
+"Dónde vive todo")**, `indicatorsChf.ts`, ids `chf_`:
+- Tasas (1, auto): `chf_snb_rate` (SNB Data Portal, cubo `snboffzisa`)
+- Inflación (4, todos auto vía **SNB Data Portal**): `chf_cpi`/`chf_cpi_yoy`
+  (headline, m/m derivado del nivel en el cubo `plkopr`, a/a tasa oficial
+  del SFSO ya calculada en `plkoprinfla`) + `chf_core_cpi`/`chf_core_cpi_yoy`
+  (definición SFSO "Kernanflation 1" — la que reportan los agregadores
+  como "Swiss Core CPI", NO es "ex alimentos y energía", m/m del nivel en
+  `plkoprex`, a/a en `plkoprinfla`)
+- Empleo (2, manuales — sin fuente automatizable confiable encontrada):
+  `chf_unemployment`, `chf_employment_change`
+- Confianza (2, ambos auto — **la única divisa no-USD con Confianza
+  Empresarial Y del Consumidor automatizadas**): `chf_business_confidence`
+  (KOF Economic Barometer, API v2 pública del KOF ETH Zúrich) +
+  `chf_consumer_confidence` (índice trimestral de SECO, vía feed CSV de
+  scheduler.swissdatas.ch)
+- Crecimiento (7): `chf_pmi_manuf`, `chf_pmi_serv` (manuales, procure.ch) +
+  `chf_retail_sales`/`chf_retail_sales_yoy` (manuales, BFS sin fuente
+  automatizable encontrada) + `chf_gdp_qoq`/`chf_gdp_yoy` (auto, feed CSV
+  de SECO vía scheduler.swissdatas.ch, serie "real cssa") +
+  `chf_trade_balance` (manual — el feed de PIB de SECO trae una serie con
+  ese nombre pero es la trimestral de cuentas nacionales, no la mensual de
+  Aduanas que reportan los medios, ver "Lecciones CHF" más abajo)
+- Score (`scoreSeedChf.ts`, 9 filas de la hoja DECISIONES): Confianza
+  Empresarial (0.5→1) redondeada a la escala ±2, mismo criterio que
+  AUD/NZD; el resto ya caía dentro del rango.
+
 ## Sección de Banqueros Centrales (`/banqueros`)
 
 **Fed (19)** y **BCE (10)**: sin cambios recientes (ver handoffs previos —
@@ -351,6 +383,23 @@ de esa fecha, verificar si sigue o hay reemplazo. Ninguno de los 9 estaba
 en Wikimedia Commons — los 9 se autohospedaron directo desde las páginas
 oficiales `rba.gov.au/assets/images/people/...` (sin siquiera probar el
 hotlink primero, ver nota de abajo).
+
+**SNB (3, `SNB_BANKERS`, agregado el 29-jul-2026)**: Governing Board —
+Chairman (Schlegel), Vice Chairman (Martin), Member (Tschudin). **El
+cuerpo que decide la política monetaria son SOLO estos 3** — verificado
+con `snb.ch/en/the-snb/mandates-goals/monetary-policy` ("Monetary policy
+is set by the SNB's three-member Governing Board"). El SNB tiene además 4
+suplentes (Schlup, Zanetti, Kraenzlin, Moser) que junto a los 3 titulares
+forman el "Enlarged Governing Board" — ese cuerpo ampliado define
+lineamientos estratégicos/operativos, NO decide la tasa, así que no se
+modela (mismo criterio que el "Governance Board" separado del RBA, ver
+lección AUD #20). **Deciden por consenso, sin votación formal
+publicada** — mismo tratamiento que BoC (`vote: 'voting'`). Solo Schlegel
+tiene foto en Wikimedia Commons (con permiso VRT verificado); Martin y
+Tschudin se autohospedaron desde
+`snb.ch/en/the-snb/organisation/history/short-biographies` (tiene fotos
+oficiales de todo el historial del Direktorium, con varias resoluciones
+en el `srcset` — se usó la de 458px).
 
 ### Por qué autohospedar fotos en vez de hotlinkear (encontrado en una sesión anterior)
 
@@ -790,20 +839,163 @@ JPY tiene la mejor cobertura de todas las no-USD).
    funcionó para RBNZ (buscar la cobertura de prensa del nombramiento y
    revisar el `og:image`).
 
+## Lecciones CHF (mejor proporción de automatización de las no-USD: 9/16)
+
+Agregada el 29-jul-2026, a pedido explícito del usuario ("continuemos con
+el CHF"). **Todavía NO está en producción** — solo pusheada a
+`claude/handoff-documentation-review-9z8wtp`, falta permiso explícito del
+usuario para mergear.
+
+1. **SNB Data Portal (`data.snb.ch`) tiene una API REST sin key, NO
+   bloqueada** (a diferencia de rbnz.govt.nz) — pero no está documentada
+   públicamente en ningún lado obvio (`data.snb.ch/en/help_api` es una SPA
+   que no expone nada útil sin JS). Se encontró el patrón probando IDs de
+   cubo conocidos vía WebSearch (ej. "SNB data portal cube policy rate") y
+   confirmando el formato por prueba y error: `data.snb.ch/api/cube/{cubeId}/data/json/en`
+   devuelve `{timeseries: [{header: [{dim, dimItem}], metadata, values: [{date, value}]}]}`
+   — un mismo cubo puede traer VARIAS series bajo distintos `dimItem`
+   (ej. `plkoprex` trae 19 series distintas: índices con y sin cada
+   categoría, más las medidas núcleo) — hay que matchear por el texto
+   exacto de `dimItem`, no por posición. Fechas vienen `"YYYY-MM"` (sin
+   día). También existe un endpoint CSV
+   (`data.snb.ch/api/cube/{cubeId}/data/csv/en`) con el mismo contenido en
+   formato ancho (una columna por miembro de dimensión) — se prefirió JSON
+   por ser más fácil de parsear.
+
+2. **La tasa de política vive en el cubo `snboffzisa`**, dimItem
+   "Switzerland - SNB policy rate" (miembro `LZ` internamente). Verificado:
+   0.0% para jun-2026, coincide con el comunicado del 18-jun-2026 (el SNB
+   la mantiene en 0% desde jun-2025, según Bloomberg espera mantenerla ahí
+   hasta fines de 2027).
+
+3. **El CPI general vive en el cubo `plkopr`** (dos series: nivel de
+   índice "National index" para derivar m/m, y "Change from the
+   corresponding month..." con el a/a ya calculado) — pero se prefirió
+   usar el a/a de **`plkoprinfla`** en su lugar (dimItem "SFSO - Inflation
+   according to the national consumer price index", miembro `TLK`) porque
+   esa serie viene YA redondeada a 1 decimal por el propio SFSO (ej. 0.5,
+   0.6, 0.1) mientras que la de `plkopr` es el cálculo crudo sin redondear
+   (0.4512 en vez de 0.5) — coinciden en valor pero `plkoprinfla` matchea
+   más limpio con lo que reportan los agregadores. Verificado: 0.5% a/a
+   para jun-2026, coincide exacto.
+
+4. **"Core CPI" para Suiza = "Kernanflation 1" del SFSO** (Core inflation
+   1), NO "ex alimentos y energía" en el sentido usual — es una definición
+   propia del SFSO (excluye ciertos bienes/servicios de precio volátil,
+   metodología documentada en bfs.admin.ch) que los agregadores (Trading
+   Economics, prensa) reportan directamente como "Swiss Core CPI".
+   Verificado: 0.3% a/a para jun-2026 (dimItem "SFSO - Core inflation 1",
+   miembro `K1` en `plkoprinfla`), coincide EXACTO con "Core CPI increased
+   by 0.3% YoY in June" reportado — no hizo falta probar ninguna
+   definición alternativa, esta matcheó a la primera. El nivel de índice
+   para derivar el m/m vive en un cubo DISTINTO (`plkoprex`, dimItem "Core
+   inflation 1") — el mismo concepto tiene nombres de cubo diferentes para
+   el nivel vs. la tasa ya calculada, hay que usar los dos.
+
+5. **PIB y Balanza Comercial: SECO expone un feed CSV plano en
+   `scheduler.swissdatas.ch`**, encontrado NO por documentación sino
+   raspando el HTML de las páginas públicas de `seco.admin.ch` (ej.
+   `seco.admin.ch/en/gross-domestic-product` tiene un link directo a
+   `scheduler.swissdatas.ch/scheduled/ch-seco-gdp.csv`, con formato
+   `structure,type,seas_adj,date,value` y header). El PIB real (fila
+   `gdp,real,cssa` — calendario+estacional+eventos deportivos ajustado, la
+   convención que SECO destaca en sus comunicados, porque Suiza ajusta por
+   eventos deportivos como los Juegos Olímpicos que distorsionan trimestres
+   puntuales) se deriva del nivel para t/t y a/a. Verificado: +0.44% t/t
+   calculado para Q1-2026 (coincide con "GDP grew by 0.4%" reportado).
+   **OJO — misma trampa que la lección JPY #4**: ese mismo feed trae una
+   fila `trade_balance` pero es la de cuentas nacionales (bienes+servicios,
+   trimestral, ~CHF 15-30bn/trimestre) — NO es la balanza comercial mensual
+   de Aduanas (BAZG/Swiss-Impex) que reportan los medios (~CHF 4-6bn/mes,
+   solo bienes, ej. CHF 3.8bn en jun-2026). No se encontró un endpoint
+   público estable para la cifra mensual de BAZG en esta primera pasada
+   (el dominio `gate.bazg.admin.ch` no respondió, y el resto de rutas
+   apuntan a I14Y, una plataforma SDMX que no se investigó a fondo por
+   tiempo) — `chf_trade_balance` queda manual.
+
+6. **Confianza Empresarial = KOF Economic Barometer** (KOF Swiss Economic
+   Institute, ETH Zúrich) — el indicador líder que Trading Economics
+   reporta como "Switzerland Business Confidence". El feed viejo
+   (`datenservice.kof.ethz.ch/api/v1`, el que aparece en opendata.swiss)
+   **está discontinuado** — devuelve un mensaje explícito pidiendo migrar a
+   la v2. La v2 (`tsdb-api.kof.ethz.ch/v2/ts?keys=ch.kof.barometer&mime=csv&access_type=public`)
+   sí funciona sin key con `access_type=public` (sin ese parámetro pide
+   autenticación Keycloak). Verificado: 101.2 calculado para jun-2026,
+   coincide exacto con "KOF Barometer... level of 101.2" reportado.
+   **CHF es la única divisa no-USD con Confianza Empresarial automatizada**
+   (CAD/AUD/NZD/JPY la tienen manual, sin API pública encontrada).
+
+7. **Confianza del Consumidor = índice trimestral de SECO**
+   (Konsumentenstimmungsindex), mismo patrón de feed swissdatas.ch
+   (encontrado en `seco.admin.ch/en/consumer-sentiment`): serie
+   `ks_i62_index_q` (adjustment `csa`), del archivo `ks-q.csv`. Es un
+   índice (no una tasa), valores negativos normales (ronda -20 a -40 en
+   2024-2026). Verificado: -41.1 calculado para Q2-2026, cerca del "-40"
+   que reportó prensa especializada (diferencia normal de
+   redondeo/revisión entre vintages, mismo patrón que la lección NZD #7
+   sobre PIB). **CHF es también la única divisa no-USD con Confianza del
+   Consumidor automatizada.**
+
+8. **Sin fuente automatizable confiable para Desempleo, Cambios en el
+   Empleo, Ventas Minoristas ni la Balanza Comercial mensual** — a
+   diferencia del resto de los indicadores, donde alguna combinación de
+   FRED/API oficial terminó funcionando:
+   - **Desempleo**: SECO publica la tasa mensual (definición SECO,
+     registrado en RAV) solo vía el dashboard `amstat.ch` (SPA sin API
+     descubierta) y PDFs mensuales ("Die Lage auf dem Arbeitsmarkt"). No
+     se encontró un dataset en opendata.swiss ni un feed swissdatas.ch
+     análogo al de PIB/confianza.
+   - El de FRED (`LMUNRRTTCHM156S`, "Registered Unemployment") está
+     **discontinuado desde dic-2023** — mismo patrón de "existe pero
+     está muerto" que motivó descartar FRED para GBP/CAD.
+   - **Ventas Minoristas**: el de FRED (`CHESLRTTO02IXOBSAM`) está
+     **discontinuado desde nov-2023**. BFS publica un
+     "Detailhandelsumsatzindex" pero no se encontró un endpoint machine-
+     readable estable en esta primera pasada (px-web de BFS está vivo —
+     confirmado con `pxweb.bfs.admin.ch/api/v1/en` respondiendo 200 — pero
+     ubicar la tabla exacta del índice de ventas minoristas dentro de su
+     catálogo de cubos quedó pendiente por tiempo).
+   - **Balanza Comercial mensual**: ver lección 5 arriba.
+   - El de FRED para trade balance (`XTNTVA01CHM667S`) SÍ tiene datos
+     recientes pero con **~3 meses de rezago real**: al momento de esta
+     sesión (fin de jul-2026) su último dato era abr-2026, cuando ya
+     existía en prensa el dato real de jun-2026 (CHF 3.8bn de superávit) —
+     mismo patrón de "200 OK pero desactualizado" que la lección GBP/CAD
+     sobre no confiar en que "está en FRED" signifique "está vivo".
+   - **PMI** (procure.ch) es de una asociación privada sin API pública,
+     igual que en el resto de las divisas (ISM/S&P Global para USD,
+     S&P Global para el resto).
+   Los 6 quedan manuales — no por falta de esfuerzo, sino por límites
+   reales de las fuentes disponibles (mismo criterio que NZD).
+
+9. **Banqueros del SNB investigados con la página oficial directa**
+   (`snb.ch`, accesible sin bloqueos). El Governing Board decide por
+   consenso — no hay comunicado de "voto" individual que trackear, a
+   diferencia de la Fed. La página
+   `snb.ch/en/the-snb/organisation/history/short-biographies` tiene fotos
+   oficiales con `srcset` de múltiples resoluciones para TODO el
+   historial del Direktorium (útil para futuras divisas o si algún
+   miembro actual cambia) — se usó la variante de 458px de ancho, mismo
+   criterio de tamaño que el resto de las fotos autohospedadas del
+   proyecto.
+
 ## Pendiente explícito
 
-**1. CHF** — el usuario mandó capturas de pantalla (no el .xlsx
-completo, tuvo problemas para subirlo) de un Excel compartido con hojas
-`CAD | JPY | AUD | CHF | NZD | DECISIONES`, formato snapshot estilo
-Trading Economics (Reciente/Anterior/Más Alto/Más Bajo/Fecha), **datos de
-2025, desactualizados** — mismo tratamiento que CAD/AUD/NZD/JPY: se usa
-solo para identificar indicadores y pesos del score, el histórico y valor
-actual se reconstruyen desde la fuente oficial de cada país, verificando
-cada serie contra una referencia real (comunicado oficial Y agregador de
-mercado, ver lección CAD #6-7 arriba) antes de automatizar. Las columnas
-NZD y JPY de la tabla DECISIONES de abajo ya se usaron (ver "Lecciones
-NZD"/"Lecciones JPY" arriba) — se dejan en la tabla solo como referencia
-histórica de dónde salió cada valoracion.
+**CHF ya está implementada** (ver "Indicadores actuales por divisa" y
+"Lecciones CHF" arriba) — **pendiente es solo llevarla a producción**,
+requiere permiso explícito del usuario para mergear/pushear
+`claude/handoff-documentation-review-9z8wtp` a
+`claude/macro-usd-web-dashboard-xm5ypk` (ver "Dónde vive todo"). El
+Excel compartido con hojas `CAD | JPY | AUD | CHF | NZD | DECISIONES`
+(formato snapshot estilo Trading Economics, **datos de 2025,
+desactualizados**) se usó solo para identificar indicadores y pesos del
+score — histórico y valor actual se reconstruyeron desde la fuente
+oficial de cada país, verificando cada serie contra una referencia real
+(comunicado oficial Y agregador de mercado, ver lección CAD #6-7 arriba)
+antes de automatizar. Las columnas CAD/JPY/AUD/NZD/CHF de la tabla
+DECISIONES de abajo ya se usaron todas (ver "Lecciones CHF" arriba para
+el detalle de CHF) — se dejan en la tabla solo como referencia histórica
+de dónde salió cada valoración.
 
 **Datos crudos ya capturados (para no tener que pedir las imágenes de
 nuevo)**:
@@ -850,25 +1042,24 @@ aviso claro, o que la convención asumida estaba mal):
 - **AUD** → hecho en esta sesión, ver arriba (ABS Data API SDMX + CSV del
   RBA — la "ABS Indicator API" con key por email NO hizo falta, existe una
   alternativa sin key).
-- **CHF** → SNB Data Portal `data.snb.ch` (sin key, REST público) — no
-  investigado a fondo todavía. **Ojo**: antes de asumir que está libre de
-  bloqueos tipo Cloudflare/Imperva (como pasó con rbnz.govt.nz), probarlo
-  con curl real desde el entorno de la sesión, no solo confiar en que "sin
-  key" documentado signifique "fetch automatizado funciona".
+- **CHF** → hecho en la sesión del 29-jul-2026, ver "Lecciones CHF" arriba
+  (SNB Data Portal + feed CSV de SECO vía scheduler.swissdatas.ch + KOF
+  Barometer API v2, todo sin key — data.snb.ch NO está bloqueado, a
+  diferencia de rbnz.govt.nz).
 - **JPY** → hecho en la sesión del 21-jul-2026, ver "Lecciones JPY" arriba
   (e-Stat Dashboard API + CSV del BOJ + CSV de Aduanas de Japón, todo sin
   key — boj.or.jp NO está bloqueado, a diferencia de rbnz.govt.nz).
 - **NZD** → hecho en la sesión del 21-jul-2026, ver "Lecciones NZD" arriba
   (Stats NZ CSV por release, sin key — RBNZ bloqueado por completo).
 
-**Bancos centrales pendientes** (mismo rigor que Fed/BCE/BoE/BoC/RBA/RBNZ/BOJ —
-WebSearch + página oficial antes de escribir nombres, nunca asumir vigente
-sin verificar): SNB (Suiza).
+**Bancos centrales**: los 8 principales de este dashboard (Fed, BCE, BoE,
+BoC, RBA, RBNZ, BOJ, SNB) ya están investigados y cargados — no queda
+ninguno pendiente por ahora.
 
 **Previsión de tasas estilo FedWatch** — sigue sin solución gratuita para
 ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
 descartó CME FedWatch/rateprobability.com) — se omite el panel para
-GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
+GBP/CAD/AUD/NZD/JPY/CHF.
 
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
@@ -947,6 +1138,25 @@ GBP/CAD/AUD/NZD y probablemente para JPY/CHF también.
   el usuario lo pide — sería un cambio de arquitectura que toca las 4
   divisas (tipo `SeriesPoint`, Supabase, todos los `*-sync.ts`), no algo
   puntual de una sola.
+- **CHF todavía NO está en producción** — solo pusheada a
+  `claude/handoff-documentation-review-9z8wtp`. Falta: permiso explícito
+  del usuario para mergear a `claude/macro-usd-web-dashboard-xm5ypk`, y
+  correr `/api/chf-sync` contra Supabase real una vez desplegada (no se
+  corrió todavía porque esta sesión no tiene el proyecto conectado a un
+  Supabase de producción accesible — verificar con
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` de Vercel antes de asumir
+  que ya corrió). El histórico sembrado en `historical-series.json` (40
+  puntos por serie automática) SÍ está verificado contra fuentes reales
+  (ver "Lecciones CHF"), pero es el fallback local — Supabase queda vacío
+  hasta el primer sync real post-deploy.
+- `chf_unemployment`, `chf_employment_change`, `chf_retail_sales`,
+  `chf_retail_sales_yoy`, `chf_trade_balance`, `chf_pmi_manuf`,
+  `chf_pmi_serv` no tienen ningún dato cargado todavía — son manuales por
+  límites reales de fuente (ver "Lecciones CHF" arriba), no por falta de
+  API pública nada más.
+- Banqueros del SNB: solo Martin Schlegel tiene foto en Wikimedia
+  Commons — Antoine Martin y Petra Tschudin se autohospedaron desde
+  snb.ch (ver "Lecciones CHF" #9).
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
@@ -970,6 +1180,10 @@ curl -s "https://hikman-prueba.vercel.app/api/eur-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/gbp-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/cad-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/aud-sync" -X POST --max-time 45
+# chf-sync todavía no está en producción (ver "Gaps conocidos") — correr
+# recién después de mergear/pushear a la rama de producción y que Vercel
+# redeployee:
+# curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
 
 # ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
 curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
@@ -991,6 +1205,18 @@ curl -s -X POST "https://www150.statcan.gc.ca/t1/wds/rest/getDataFromCubePidCoor
 
 # Bank of Canada Valet
 curl -s "https://www.bankofcanada.ca/valet/observations/V39079/json?recent=5" -H "User-Agent: Mozilla/5.0"
+
+# SNB Data Portal: traer una serie de un cubo (matchear por header[0].dimItem, no por posición)
+curl -s "https://data.snb.ch/api/cube/snboffzisa/data/json/en" -A "Mozilla/5.0"
+
+# SECO GDP / trade balance, feed CSV vía scheduler.swissdatas.ch (no documentado,
+# se encontró raspando el HTML de seco.admin.ch/en/gross-domestic-product)
+curl -s "https://scheduler.swissdatas.ch/scheduled/ch-seco-gdp.csv" -A "Mozilla/5.0"
+# SECO confianza del consumidor (Konsumentenstimmungsindex), trimestral
+curl -s "https://scheduler.swissdatas.ch/scheduled/ks-q.csv" -A "Mozilla/5.0"
+
+# KOF Economic Barometer v2 (ETH Zúrich) — la v1 (datenservice.kof.ethz.ch) está discontinuada
+curl -s "https://tsdb-api.kof.ethz.ch/v2/ts?keys=ch.kof.barometer&mime=csv&access_type=public" -A "Mozilla/5.0"
 
 # Consultar/editar Supabase directo por REST (para diagnosticar sin abrir el dashboard)
 ANON="<la clave de arriba>"

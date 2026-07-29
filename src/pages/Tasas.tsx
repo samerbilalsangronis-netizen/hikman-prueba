@@ -21,7 +21,9 @@ export function Tasas() {
                     ? 'Tasas y Reserve Bank of New Zealand'
                     : currency === 'JPY'
                       ? 'Tasas y Bank of Japan'
-                      : 'Tasas y Reserva Federal'}
+                      : currency === 'CHF'
+                        ? 'Tasas y Banco Nacional Suizo'
+                        : 'Tasas y Reserva Federal'}
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'EUR'
@@ -36,7 +38,9 @@ export function Tasas() {
                     ? 'El RBNZ, como la Fed/BoE/BoC/RBA, mueve una sola tasa oficial (Official Cash Rate).'
                     : currency === 'JPY'
                       ? 'El BOJ mueve la tasa a un día sin garantía (uncollateralized overnight call rate) — salió de tasas negativas en marzo de 2024.'
-                      : 'Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.'}
+                      : currency === 'CHF'
+                        ? 'El SNB, como la Fed/BoE/BoC/RBA/RBNZ, mueve una sola tasa oficial (SNB policy rate).'
+                        : 'Tasa de referencia, bono a 10 años y balance de la Fed — los motores directos del USD.'}
         </p>
       </div>
       {currency === 'USD' && <FomcWatchPanel />}

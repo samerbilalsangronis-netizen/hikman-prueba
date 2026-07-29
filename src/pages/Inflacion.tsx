@@ -23,7 +23,9 @@ export function Inflacion() {
                     ? 'CPI de Nueva Zelanda, variación trimestral e interanual.'
                     : currency === 'JPY'
                       ? 'CPI y Core CPI (ex alimentos frescos) de Japón, variación interanual.'
-                      : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
+                      : currency === 'CHF'
+                        ? 'CPI y Core CPI (definición SFSO) de Suiza, variación mensual e interanual.'
+                        : 'CPI, Core CPI, PPI y Core PPI, variación mensual.'}
         </p>
       </div>
       <SectionGrid section="inflacion" months={36} />

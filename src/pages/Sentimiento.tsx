@@ -23,7 +23,9 @@ export function Sentimiento() {
                     ? 'Confianza empresarial (ANZ Business Outlook) y del consumidor (ANZ-Roy Morgan) de Nueva Zelanda.'
                     : currency === 'JPY'
                       ? 'Encuesta Tankan del BOJ (confianza empresarial) y confianza del consumidor del Gabinete de Japón.'
-                      : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
+                      : currency === 'CHF'
+                        ? 'KOF Economic Barometer (confianza empresarial) e índice de confianza del consumidor de SECO.'
+                        : 'Sentimiento del consumidor: Universidad de Michigan y Conference Board.'}
         </p>
       </div>
       <SectionGrid section="confianza" months={36} />
