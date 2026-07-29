@@ -27,15 +27,17 @@ y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
 junto a su a/a, no agrupados por separado). NZD tiene 14 indicadores (solo
 6 automáticos — la divisa con menos automatización hasta ahora). JPY
 tiene 16 indicadores, 12 automáticos — la divisa no-USD MÁS automatizada
-hasta ahora, ver "Lecciones JPY" más abajo. **CHF agregada el 29-jul-2026**
-(16 indicadores, 9 automáticos — la MEJOR proporción de automatización de
-todas las no-USD, ver "Lecciones CHF" más abajo) — **todavía NO está en
-producción**, solo en la rama de esta sesión
-(`claude/handoff-documentation-review-9z8wtp`); falta el permiso explícito
-del usuario para mergear/pushear a `claude/macro-usd-web-dashboard-xm5ypk`.
-Sin CHF quedan pendientes de todo el set original: solo faltaría
-verificar que el usuario apruebe el resultado antes de llevarlo a
-producción.
+hasta ahora, ver "Lecciones JPY" más abajo. **CHF agregada y confirmada en
+producción el 29-jul-2026** (16 indicadores, 9 automáticos — la MEJOR
+proporción de automatización de todas las no-USD, ver "Lecciones CHF" más
+abajo) — el usuario dio permiso explícito de pushear a
+`claude/macro-usd-web-dashboard-xm5ypk` el mismo día (fast-forward directo
+desde `claude/handoff-documentation-review-9z8wtp`, ambas ramas quedaron
+sincronizadas al mismo commit), ya deployado en Vercel y con
+`/api/chf-sync` corrido contra Supabase real, 9/9 indicadores automáticos
+sin errores (verificado también contra la tabla `indicator_overrides` vía
+REST, 40 filas por serie). **Ahora las ocho divisas (USD, EUR, GBP, CAD,
+AUD, NZD, JPY, CHF) están completas y en producción.**
 
 ## Dónde vive todo
 
@@ -45,13 +47,12 @@ producción.
   — es también la rama HEAD por defecto del repo (`git remote show
   origin`). **Esta sesión trabajó en `claude/handoff-documentation-review-9z8wtp`**
   (asignada por el entorno, arrancaba sincronizada al mismo commit que
-  producción) y **pusheó el commit de CHF solo ahí** — mismo patrón que
-  sesiones anteriores: no pushear a una rama distinta de la asignada sin
-  permiso explícito del usuario. **Si el usuario quiere CHF en producción,
-  hay que pushear (o mergear) `claude/handoff-documentation-review-9z8wtp`
-  a `claude/macro-usd-web-dashboard-xm5ypk` explícitamente** — no asumir
-  que ya está ahí. También pueden existir otras ramas `claude/handoff-*`
-  de sesiones previas — no asumir su estado sin verificar.
+  producción), pusheó el commit de CHF ahí primero, y el usuario dio
+  permiso explícito para pushearlo también a
+  `claude/macro-usd-web-dashboard-xm5ypk` — al momento de escribir esto
+  ambas ramas están sincronizadas al mismo commit. También pueden existir
+  otras ramas `claude/handoff-*` de sesiones previas, desactualizadas — no
+  asumir su estado sin verificar.
   **Cualquier sesión nueva DEBE confirmar con `git fetch origin --prune` +
   `git log origin/<rama> -1` en todas las ramas conocidas + comparar con
   el bundle JS servido en producción antes de asumir cuál está realmente
@@ -316,8 +317,8 @@ solo en XLSX).
   valoraciones ya caían en el rango ±2, no hizo falta reescalar ninguna
   (a diferencia de CAD/AUD/NZD).
 
-**CHF (16, agregada el 29-jul-2026 — todavía NO en producción, ver
-"Dónde vive todo")**, `indicatorsChf.ts`, ids `chf_`:
+**CHF (16, agregada el 29-jul-2026, en producción desde el mismo día)**,
+`indicatorsChf.ts`, ids `chf_`:
 - Tasas (1, auto): `chf_snb_rate` (SNB Data Portal, cubo `snboffzisa`)
 - Inflación (4, todos auto vía **SNB Data Portal**): `chf_cpi`/`chf_cpi_yoy`
   (headline, m/m derivado del nivel en el cubo `plkopr`, a/a tasa oficial
@@ -842,9 +843,9 @@ JPY tiene la mejor cobertura de todas las no-USD).
 ## Lecciones CHF (mejor proporción de automatización de las no-USD: 9/16)
 
 Agregada el 29-jul-2026, a pedido explícito del usuario ("continuemos con
-el CHF"). **Todavía NO está en producción** — solo pusheada a
-`claude/handoff-documentation-review-9z8wtp`, falta permiso explícito del
-usuario para mergear.
+el CHF"), y confirmada en producción el mismo día ("llevala a
+producción") — `/api/chf-sync` corrió contra Supabase real, 9/9
+automáticos sin errores.
 
 1. **SNB Data Portal (`data.snb.ch`) tiene una API REST sin key, NO
    bloqueada** (a diferencia de rbnz.govt.nz) — pero no está documentada
@@ -981,12 +982,10 @@ usuario para mergear.
 
 ## Pendiente explícito
 
-**CHF ya está implementada** (ver "Indicadores actuales por divisa" y
-"Lecciones CHF" arriba) — **pendiente es solo llevarla a producción**,
-requiere permiso explícito del usuario para mergear/pushear
-`claude/handoff-documentation-review-9z8wtp` a
-`claude/macro-usd-web-dashboard-xm5ypk` (ver "Dónde vive todo"). El
-Excel compartido con hojas `CAD | JPY | AUD | CHF | NZD | DECISIONES`
+**CHF ya está implementada y en producción** (ver "Indicadores actuales
+por divisa" y "Lecciones CHF" arriba) — no queda pendiente ninguna divisa
+del set original. El Excel compartido con hojas
+`CAD | JPY | AUD | CHF | NZD | DECISIONES`
 (formato snapshot estilo Trading Economics, **datos de 2025,
 desactualizados**) se usó solo para identificar indicadores y pesos del
 score — histórico y valor actual se reconstruyeron desde la fuente
@@ -1138,17 +1137,13 @@ GBP/CAD/AUD/NZD/JPY/CHF.
   el usuario lo pide — sería un cambio de arquitectura que toca las 4
   divisas (tipo `SeriesPoint`, Supabase, todos los `*-sync.ts`), no algo
   puntual de una sola.
-- **CHF todavía NO está en producción** — solo pusheada a
-  `claude/handoff-documentation-review-9z8wtp`. Falta: permiso explícito
-  del usuario para mergear a `claude/macro-usd-web-dashboard-xm5ypk`, y
-  correr `/api/chf-sync` contra Supabase real una vez desplegada (no se
-  corrió todavía porque esta sesión no tiene el proyecto conectado a un
-  Supabase de producción accesible — verificar con
-  `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` de Vercel antes de asumir
-  que ya corrió). El histórico sembrado en `historical-series.json` (40
-  puntos por serie automática) SÍ está verificado contra fuentes reales
-  (ver "Lecciones CHF"), pero es el fallback local — Supabase queda vacío
-  hasta el primer sync real post-deploy.
+- **CHF ya está en producción** (pusheada con permiso explícito del
+  usuario a `claude/macro-usd-web-dashboard-xm5ypk` el 29-jul-2026,
+  fast-forward directo desde `claude/handoff-documentation-review-9z8wtp`
+  — ambas ramas sincronizadas al mismo commit; desplegado en Vercel y con
+  `/api/chf-sync` corrido contra Supabase real, 9/9 automáticos sin
+  errores, verificado también contra `indicator_overrides` vía REST — 40
+  filas por serie).
 - `chf_unemployment`, `chf_employment_change`, `chf_retail_sales`,
   `chf_retail_sales_yoy`, `chf_trade_balance`, `chf_pmi_manuf`,
   `chf_pmi_serv` no tienen ningún dato cargado todavía — son manuales por
@@ -1180,10 +1175,8 @@ curl -s "https://hikman-prueba.vercel.app/api/eur-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/gbp-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/cad-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/aud-sync" -X POST --max-time 45
-# chf-sync todavía no está en producción (ver "Gaps conocidos") — correr
-# recién después de mergear/pushear a la rama de producción y que Vercel
-# redeployee:
-# curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
+curl -s "https://hikman-prueba.vercel.app/api/jpy-sync" -X POST --max-time 45
+curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
 
 # ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
 curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
