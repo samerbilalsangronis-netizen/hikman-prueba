@@ -1,8 +1,10 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 29-jul-2026 (actualizado en la misma sesión que
-agregó CHF y CNY). Pega este archivo completo (o pedile a Claude que lo
-lea desde el repo) al abrir el chat nuevo.
+Fecha de este resumen: 30-jul-2026 (actualizado en la misma sesión que
+agregó CHF y CNY, y que corrigió datos desactualizados de CNY). Pega este
+archivo completo (o pedile a Claude que lo lea desde el repo) al abrir el
+chat nuevo — está pensado para ser autocontenido, no debería hacer falta
+buscar contexto adicional en la conversación anterior.
 
 ## Qué es esto
 
@@ -13,48 +15,49 @@ de frescura en cada tarjeta y la obsesión por verificar cada serie contra la
 fuente oficial (con el número real, no solo "la API respondió 200") antes
 de automatizarla.
 
-**Estado actual: USD, EUR, GBP, CAD, AUD, NZD y JPY completos y en
-producción** (las dos ramas de producción están sincronizadas al mismo
-commit al escribir esto — el usuario dio permiso explícito de pushear JPY
-a `claude/macro-usd-web-dashboard-xm5ypk` el 21/22-jul-2026, ya deployado
-en Vercel y con `/api/jpy-sync` corrido contra Supabase real, 12/12
-indicadores automáticos sin errores). AUD tiene 20 indicadores (16 automáticos): además de lo descrito abajo,
-se agregaron Weighted Median y PPI, el bloque de inflación (CPI/Trimmed
-Mean/Weighted Median) se pasó a la base TRIMESTRAL "pre-October 2025" a
-pedido del usuario (ver lección AUD #21/#22 — no es un dato viejo, es un
-release oficial paralelo que sigue la fuente de referencia del usuario),
-y se reordenaron las tarjetas de Inflación de TODAS las divisas (m/m
-junto a su a/a, no agrupados por separado). NZD tiene 14 indicadores (solo
-6 automáticos — la divisa con menos automatización hasta ahora). JPY
-tiene 16 indicadores, 12 automáticos — la divisa no-USD MÁS automatizada
-hasta ahora, ver "Lecciones JPY" más abajo. **CHF agregada y confirmada en
-producción el 29-jul-2026** (16 indicadores, 9 automáticos — la MEJOR
-proporción de automatización de todas las no-USD, ver "Lecciones CHF" más
-abajo) — el usuario dio permiso explícito de pushear a
-`claude/macro-usd-web-dashboard-xm5ypk` el mismo día (fast-forward directo
-desde `claude/handoff-documentation-review-9z8wtp`, ambas ramas quedaron
-sincronizadas al mismo commit), ya deployado en Vercel y con
-`/api/chf-sync` corrido contra Supabase real, 9/9 indicadores automáticos
-sin errores (verificado también contra la tabla `indicator_overrides` vía
-REST, 40 filas por serie). **Ahora las nueve divisas (USD, EUR, GBP, CAD,
-AUD, NZD, JPY, CHF, CNY) están completas y en producción** — CNY con su
-alcance reducido a propósito (Inflación + Crecimiento, ver más abajo).
+**Estado actual: las NUEVE divisas (USD, EUR, GBP, CAD, AUD, NZD, JPY, CHF,
+CNY) están completas y en producción**, ambas ramas de producción
+sincronizadas al mismo commit al escribir esto. Resumen rápido por divisa
+(detalle completo de cada una en "Indicadores actuales por divisa" más
+abajo):
 
-**CNY agregada y confirmada en producción el 29/30-jul-2026** (el usuario
-pidió agregarla y, en un mensaje aparte, "PUSHEA" para llevarla a
-producción — fast-forward directo desde
-`claude/handoff-documentation-review-9z8wtp`, ambas ramas sincronizadas al
-mismo commit, ya deployado en Vercel y con `/api/cny-sync` corrido contra
-Supabase real, 13/13 indicadores automáticos sin errores, verificado
-también contra `indicator_overrides` vía REST — 40 filas por serie). Es
-una divisa **distinta a las demás**: el usuario la pidió como
-referencia/"proxi de riesgo", con el pedido explícito de **NO** incluir
-Bancos Centrales ni Confianza — tampoco tiene Tasas, Empleo, ni Score
-compuesto (13 indicadores: Inflación + Crecimiento únicamente). Es también
-la ÚNICA divisa 100% automática (13/13) y la ÚNICA cuya fuente de sync
-principal es un agregador de terceros
-(`chinadata.live`, no la NBS oficial — bloqueada por WAF para IPs no
-chinas). Ver "Lecciones CNY" más abajo para el detalle completo.
+- **USD** (~43 indicadores): la divisa original, sin cambios recientes.
+- **EUR** (21): sin cambios recientes esta sesión.
+- **GBP** (16): mayormente manual — la API de la ONS quedó congelada, ver detalle abajo.
+- **CAD** (17, 11 automáticos): StatCan WDS + Bank of Canada Valet.
+- **AUD** (20, 16 automáticos): ABS Data API + CSV del RBA. Tiene Weighted
+  Median y PPI además de lo estándar; el bloque de inflación usa la base
+  TRIMESTRAL "pre-October 2025" a pedido del usuario (lección AUD #21/#22
+  — no es un dato viejo, es un release oficial paralelo que sigue la
+  fuente de referencia del usuario).
+- **NZD** (14, 6 automáticos — la divisa con MENOS automatización):
+  Stats NZ CSV por release; RBNZ bloqueado por Cloudflare.
+- **JPY** (16, 12 automáticos): e-Stat Dashboard API + CSV del BOJ + CSV de
+  Aduanas de Japón.
+- **CHF** (16, 9 automáticos — agregada el 29-jul-2026): SNB Data Portal +
+  feed CSV de SECO + KOF Economic Barometer API v2. Deployada en Vercel
+  con permiso explícito del usuario el mismo día, `/api/chf-sync` corrido
+  contra Supabase real, 9/9 sin errores.
+- **CNY** (13, **13/13 automáticos = 100%, único caso**, agregada el
+  29-jul-2026): divisa **distinta a las demás** — el usuario la pidió
+  como referencia/"proxi de riesgo", con el pedido explícito de **NO**
+  incluir Bancos Centrales ni Confianza; tampoco tiene Tasas, Empleo, ni
+  Score compuesto (solo Inflación + Crecimiento). Fuente: `chinadata.live`
+  (agregador NO oficial de datos de la NBS/GACC — la API oficial de la
+  NBS bloquea con un WAF cualquier IP no china). Deployada el 30-jul-2026
+  con permiso explícito del usuario. **El 30-jul-2026 el usuario avisó que
+  Inflación estaba desactualizada (mayo en vez de junio)** — se investigó
+  y se encontró que 10 de los 13 indicadores (todo Crecimiento salvo PMI)
+  estaban igual de atrasados en `chinadata.live`, pese a que la NBS ya
+  había publicado junio/Q2 el 10-17-jul-2026. Se corrigió a mano pusheando
+  los valores oficiales verificados directo a Supabase producción +
+  `historical-series.json` (ver "Lecciones CNY" #9 para el detalle
+  completo y los números). **Este agregador puede volver a atrasarse —
+  si el usuario reporta un dato viejo en CNY, chequear los 13 indicadores
+  de una, no asumir que es uno solo.**
+
+Reordenado en toda la app (todas las divisas): las tarjetas de Inflación
+van m/m junto a su a/a, no agrupadas por separado.
 
 ## Dónde vive todo
 
@@ -107,24 +110,26 @@ React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Recharts 3 + React Router
 
 ```
 src/
-  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'|'NZD'|'JPY'),
+  types.ts                 — Section, Format, Currency ('USD'|'EUR'|'GBP'|'CAD'|'AUD'|'NZD'|'JPY'|'CHF'|'CNY'),
                               IndicatorMeta, ScoreRow, CentralBanker, BankerNote,
                               Statement, BankerVoteStatus, Stance
   data/
-    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD, ...NZD, ...JPY],
+    indicators.ts           — INDICATORS[] = [...USD, ...EUR, ...GBP, ...CAD, ...AUD, ...NZD, ...JPY, ...CHF, ...CNY],
                               SECTION_LABELS (por Currency), indicatorsBySection(section, currency)
-    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts / indicatorsNzd.ts / indicatorsJpy.ts — ids con prefijo eur_/gbp_/cad_/aud_/nzd_/jpy_
+    indicatorsEur.ts / indicatorsGbp.ts / indicatorsCad.ts / indicatorsAud.ts / indicatorsNzd.ts / indicatorsJpy.ts / indicatorsChf.ts / indicatorsCny.ts
+                              — ids con prefijo eur_/gbp_/cad_/aud_/nzd_/jpy_/chf_/cny_
     historical-series.json  — histórico sembrado, TODAS las divisas mezcladas en un solo objeto
     fredMappings.ts          — FRED_MAPPINGS (USD) + EUR_FRED_MAPPINGS + EUR_EUROSTAT_INDICATOR_ID
                               + GBP_BOE_INDICATOR_ID + CAD_AUTO_INDICATOR_IDS + AUD_AUTO_INDICATOR_IDS
-                              + NZD_AUTO_INDICATOR_IDS + JPY_AUTO_INDICATOR_IDS
-                              (listas simples, CAD/AUD/NZD/JPY no usan FRED)
+                              + NZD_AUTO_INDICATOR_IDS + JPY_AUTO_INDICATOR_IDS + CHF_AUTO_INDICATOR_IDS
+                              + CNY_AUTO_INDICATOR_IDS (listas simples, ninguna de CAD en adelante usa FRED)
                               — copia usada SOLO por el frontend para la insignia de fuente en Actualizar.tsx
     fomcMeetings.ts          — calendario oficial FOMC 2026 (hardcodeado, solo USD)
-    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts / scoreSeedNzd.ts / scoreSeedJpy.ts
-    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[] / RBNZ_BANKERS[] / BOJ_BANKERS[],
-                              bankersForCurrency(currency). Ver sección Banqueros más abajo.
-    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD','NZD','JPY'], localStorage
+    scoreSeed.ts / scoreSeedEur.ts / scoreSeedGbp.ts / scoreSeedCad.ts / scoreSeedAud.ts / scoreSeedNzd.ts / scoreSeedJpy.ts / scoreSeedChf.ts
+                              — NO existe scoreSeedCny.ts: CNY no tiene Score (ver más abajo)
+    centralBankers.ts        — FED_BANKERS[] / ECB_BANKERS[] / BOE_BANKERS[] / BOC_BANKERS[] / RBA_BANKERS[] / RBNZ_BANKERS[] / BOJ_BANKERS[] / SNB_BANKERS[],
+                              bankersForCurrency(currency) — devuelve [] para CNY (a propósito, sin PBOC). Ver sección Banqueros más abajo.
+    CurrencyContext.tsx      — selector de moneda global, CURRENCIES=['USD','EUR','GBP','CAD','AUD','NZD','JPY','CHF','CNY'], localStorage
     MacroDataContext.tsx     — contexto React: overrides, forecasts, score, fomcWatch, bankerNotes.
                               Supabase si está configurado, si no localStorage. fetchAllRows() pagina
                               indicator_overrides (ver bug de 1000 filas en decisiones técnicas).
@@ -133,21 +138,33 @@ src/
   components/
     ChartCard.tsx, SectionGrid.tsx, FomcWatchPanel.tsx (solo currency==='USD'),
     ScorePanel.tsx (select de valoración: SOLO 5 opciones enteras -2..2 — ver bug importante abajo),
-    FreshnessBadge.tsx, Layout.tsx (nav + selector de moneda)
+    FreshnessBadge.tsx, Layout.tsx (nav + selector de moneda — ahora oculta Tasas/Empleo/Confianza/Banqueros
+    de forma GENÉRICA cuando `indicatorsBySection(...)`/`bankersForCurrency(...)` devuelven vacío, no hardcodeado a CNY)
   pages/
-    Dashboard.tsx, Tasas.tsx, Inflacion.tsx, Empleo.tsx, Crecimiento.tsx (acordeón PMI),
+    Dashboard.tsx (genérico — ahora también oculta ScorePanel y secciones vacías por currency, ver arriba),
+    Tasas.tsx, Inflacion.tsx, Empleo.tsx, Crecimiento.tsx (acordeón PMI),
     Sentimiento.tsx (ruta /confianza), Banqueros.tsx, Actualizar.tsx
-    — TODAS (salvo Dashboard.tsx, que es genérico) tienen ternarios por currency para
-      textos/labels; al agregar una divisa nueva hay que tocar las 6 páginas + Layout.tsx +
-      Actualizar.tsx (grep "'CAD'" en src/ para encontrarlas todas)
+    — TODAS (salvo Dashboard.tsx) tienen ternarios por currency para textos/labels; al agregar
+      una divisa nueva hay que tocar las 6 páginas + Layout.tsx + Actualizar.tsx (grep "'CAD'"
+      en src/ para encontrarlas todas) — SALVO que la divisa nueva no tenga esa sección (como
+      CNY con Tasas/Empleo/Confianza/Banqueros), en cuyo caso ni hace falta tocar esa página,
+      el nav ya la oculta solo.
 api/
   fred-sync.ts   — USD, vía FRED
   eur-sync.ts    — EUR, vía FRED + Eurostat directo (desempleo)
   gbp-sync.ts    — GBP, SOLO la Bank Rate + Balanza Comercial vía FRED/BoE IADB (resto manual, ver por qué abajo)
   cad-sync.ts    — CAD, vía StatCan WDS + Bank of Canada Valet (11 de 15 indicadores automatizados)
   aud-sync.ts    — AUD, vía ABS Data API (SDMX) + CSV público del RBA (12 de 16 indicadores automatizados)
+  nzd-sync.ts    — NZD, vía CSV públicos de Stats NZ por release (6 de 14 indicadores automatizados)
+  jpy-sync.ts    — JPY, vía e-Stat Dashboard API + CSV del BOJ + CSV de Aduanas de Japón (12 de 16 automatizados)
+  chf-sync.ts    — CHF, vía SNB Data Portal + feed CSV de SECO (scheduler.swissdatas.ch) + KOF Barometer API v2 (9 de 16 automatizados)
+  cny-sync.ts    — CNY, vía chinadata.live (agregador no oficial de NBS/GACC — la API oficial de la NBS
+                    bloquea IPs no chinas con un WAF). 13 de 13 automatizados (100%, único caso) — pero
+                    OJO, ver "Lecciones CNY" #9: este agregador se atrasó ~2 meses en 10/13 series el
+                    30-jul-2026, corregido a mano esa vez, puede repetirse.
 public/
-  bankers/*.jpg  — fotos de banqueros AUTOHOSPEDADAS (no hotlink) — ver por qué abajo
+  bankers/*.jpg  — fotos de banqueros AUTOHOSPEDADAS (no hotlink) — ver por qué abajo.
+                    Incluye snb-martin.jpg / snb-tschudin.jpg (Martin Schlegel usa Wikimedia Commons en su lugar)
 supabase/
   schema.sql     — DDL completo, incluye banker_statements
 ```
@@ -181,11 +198,22 @@ insignia en la UI, el de `/api` es el que realmente sincroniza).
 - **Orden visual de las tarjetas dentro de cada sección: cada medida va
   su variante de corto plazo (m/m o t/t) seguida INMEDIATAMENTE de su
   a/a**, nunca todos los m/m agrupados primero y los a/a después — pedido
-  explícito del usuario, aplicado a USD/EUR/GBP/CAD/AUD/NZD en jul-2026. El
-  orden de las tarjetas es simplemente el orden del array en
-  `indicators{X}.ts` (no hay lógica de sorting en `SectionGrid`/
-  `ChartCard`) — al agregar un indicador nuevo con su par m/m+a/a,
-  colocarlos consecutivos en el archivo.
+  explícito del usuario, aplicado a todas las divisas (USD/EUR/GBP/CAD/
+  AUD/NZD/JPY/CHF/CNY). El orden de las tarjetas es simplemente el orden
+  del array en `indicators{X}.ts` (no hay lógica de sorting en
+  `SectionGrid`/`ChartCard`) — al agregar un indicador nuevo con su par
+  m/m+a/a, colocarlos consecutivos en el archivo. (CNY es la excepción
+  parcial: Ventas Minoristas/Producción Industrial/Inversión Fija solo
+  tienen a/a, China no publica m/m para esas — no hay par que ordenar ahí.)
+- **Una divisa nueva NO necesita tener las 6 secciones** (`tasas`,
+  `inflacion`, `empleo`, `confianza`, `crecimiento`, `score`) — CNY solo
+  tiene `inflacion` y `crecimiento`, a pedido explícito del usuario.
+  `Layout.tsx` (`navFor`) y `Dashboard.tsx` ya manejan esto de forma
+  GENÉRICA: ocultan el link de nav / la sección / el `ScorePanel` cuando
+  `indicatorsBySection(sección, currency).length === 0` (o
+  `bankersForCurrency(currency).length === 0` para Banqueros) — no hace
+  falta tocar ese código de nuevo, solo no crear los indicadores de esa
+  sección ni el `scoreSeed{X}.ts` si la divisa no lo necesita.
 - Patrón de sourcing por indicador (repetir para cada divisa nueva):
   1. Buscar si el dato está en FRED. **OJO**: FRED republica series de
      otros países pero a veces están discontinuadas o desactualizadas
@@ -207,14 +235,18 @@ insignia en la UI, el de `/api` es el que realmente sincroniza).
   (funciona sin problemas en producción, no hace falta autohospedar), y
   si no existe, **autohospedar** descargando de la página oficial del
   banco a `public/bankers/*.jpg` — ver por qué en "Decisiones técnicas".
+  **Excepción: CNY no tiene banqueros** (sin PBOC) — pedido explícito del
+  usuario, `bankersForCurrency('CNY')` devuelve `[]` a propósito.
 
 ## Modelo de datos (Supabase)
 
 5 tablas, todas con RLS `using(true) with check(true)` (lectura/escritura
-pública — aceptable para dashboard personal). Sin cambios esta sesión —
-ver handoffs previos o `supabase/schema.sql` para el DDL completo:
+pública — aceptable para dashboard personal). Sin cambios de esquema
+desde que se creó el proyecto, ni siquiera al agregar CHF/CNY (las tablas
+son compartidas entre monedas, ver "Arquitectura multi-divisa" arriba) —
+ver `supabase/schema.sql` para el DDL completo:
 `indicator_overrides`, `score_overrides`, `indicator_forecasts`,
-`fomc_watch` (solo USD), `banker_statements`.
+`fomc_watch` (solo USD), `banker_statements` (vacía para CNY, sin PBOC).
 
 ## Indicadores actuales por divisa
 
@@ -1491,3 +1523,18 @@ igual no cargan en este sandbox — no es un bug real, ver nota de USD/EUR).
   certeza, no solo el hash), correr el sync real en producción para dejar
   Supabase actualizado, y **siempre reportar con datos concretos** (valores
   reales, capturas, no solo "ya funciona").
+- **Deploy a producción es un paso separado, con permiso explícito
+  propio** (patrón confirmado con CHF y CNY): el pedido de "agregá la
+  divisa X" NO implica automáticamente pushear a
+  `claude/macro-usd-web-dashboard-xm5ypk` — el usuario lo pide aparte, a
+  veces en un mensaje de una sola palabra ("PUSHEA"). Desarrollar y
+  commitear en la rama asignada de la sesión primero; recién pushear a
+  producción cuando lo pida explícitamente, y en ese momento sí correr el
+  sync real contra Supabase y verificar contra la tabla `indicator_overrides`
+  vía REST antes de darlo por confirmado.
+- **Cuando avisa que un dato está desactualizado, no asumir que es un
+  problema puntual de ese único indicador** — con CNY, avisó que Inflación
+  estaba en mayo y el problema real afectaba a 10 de los 13 indicadores
+  (toda la fuente `chinadata.live`, no solo CPI/PPI). Revisar TODOS los
+  indicadores automáticos de esa divisa contra la fuente antes de asumir
+  que la corrección es acotada a lo que el usuario mencionó.
