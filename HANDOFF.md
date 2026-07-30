@@ -36,18 +36,23 @@ desde `claude/handoff-documentation-review-9z8wtp`, ambas ramas quedaron
 sincronizadas al mismo commit), ya deployado en Vercel y con
 `/api/chf-sync` corrido contra Supabase real, 9/9 indicadores automáticos
 sin errores (verificado también contra la tabla `indicator_overrides` vía
-REST, 40 filas por serie). **Ahora las ocho divisas (USD, EUR, GBP, CAD,
-AUD, NZD, JPY, CHF) están completas y en producción.**
+REST, 40 filas por serie). **Ahora las nueve divisas (USD, EUR, GBP, CAD,
+AUD, NZD, JPY, CHF, CNY) están completas y en producción** — CNY con su
+alcance reducido a propósito (Inflación + Crecimiento, ver más abajo).
 
-**CNY agregada el 29-jul-2026, todavía NO en producción** (solo pusheada a
-`claude/handoff-documentation-review-9z8wtp` — el usuario pidió
-explícitamente agregar la divisa pero no dio permiso de deploy en el mismo
-mensaje, a diferencia de CHF). Es una divisa **distinta a las demás**: el
-usuario la pidió como referencia/"proxi de riesgo", con el pedido
-explícito de **NO** incluir Bancos Centrales ni Confianza — tampoco tiene
-Tasas, Empleo, ni Score compuesto (13 indicadores: Inflación + Crecimiento
-únicamente). Es también la ÚNICA divisa 100% automática (13/13) y la
-ÚNICA cuya fuente de sync principal es un agregador de terceros
+**CNY agregada y confirmada en producción el 29/30-jul-2026** (el usuario
+pidió agregarla y, en un mensaje aparte, "PUSHEA" para llevarla a
+producción — fast-forward directo desde
+`claude/handoff-documentation-review-9z8wtp`, ambas ramas sincronizadas al
+mismo commit, ya deployado en Vercel y con `/api/cny-sync` corrido contra
+Supabase real, 13/13 indicadores automáticos sin errores, verificado
+también contra `indicator_overrides` vía REST — 40 filas por serie). Es
+una divisa **distinta a las demás**: el usuario la pidió como
+referencia/"proxi de riesgo", con el pedido explícito de **NO** incluir
+Bancos Centrales ni Confianza — tampoco tiene Tasas, Empleo, ni Score
+compuesto (13 indicadores: Inflación + Crecimiento únicamente). Es también
+la ÚNICA divisa 100% automática (13/13) y la ÚNICA cuya fuente de sync
+principal es un agregador de terceros
 (`chinadata.live`, no la NBS oficial — bloqueada por WAF para IPs no
 chinas). Ver "Lecciones CNY" más abajo para el detalle completo.
 
@@ -1313,16 +1318,19 @@ GBP/CAD/AUD/NZD/JPY/CHF.
 - Banqueros del SNB: solo Martin Schlegel tiene foto en Wikimedia
   Commons — Antoine Martin y Petra Tschudin se autohospedaron desde
   snb.ch (ver "Lecciones CHF" #9).
-- **CNY todavía NO está en producción** — solo pusheada a
-  `claude/handoff-documentation-review-9z8wtp`. El usuario pidió agregar
-  la divisa pero no dio permiso de deploy en el mismo mensaje (a
-  diferencia de CHF) — no asumir que ya está en Vercel/Supabase sin
-  confirmar. `cny_cpi_yoy` tiene un margen de imprecisión de ~0.1-0.2pp
-  por ser derivada (ver "Lecciones CNY" #3) — si el usuario nota que no
-  coincide exacto con su fuente de referencia, esto ya está documentado y
-  es esperado, no investigar de nuevo desde cero. `chinadata.live` (fuente
-  de CNY) es un agregador de terceros, no oficial — si en algún momento
-  cambia su API o deja de responder, revisar `api/cny-sync.ts` primero.
+- **CNY ya está en producción** (pusheada con permiso explícito del
+  usuario a `claude/macro-usd-web-dashboard-xm5ypk` el 30-jul-2026,
+  fast-forward directo desde `claude/handoff-documentation-review-9z8wtp`
+  — ambas ramas sincronizadas al mismo commit; desplegado en Vercel y con
+  `/api/cny-sync` corrido contra Supabase real, 13/13 automáticos sin
+  errores, verificado también contra `indicator_overrides` vía REST — 40
+  filas por serie). `cny_cpi_yoy` tiene un margen de imprecisión de
+  ~0.1-0.2pp por ser derivada (ver "Lecciones CNY" #3) — si el usuario
+  nota que no coincide exacto con su fuente de referencia, esto ya está
+  documentado y es esperado, no investigar de nuevo desde cero.
+  `chinadata.live` (fuente de CNY) es un agregador de terceros, no
+  oficial — si en algún momento cambia su API o deja de responder,
+  revisar `api/cny-sync.ts` primero.
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
@@ -1348,9 +1356,7 @@ curl -s "https://hikman-prueba.vercel.app/api/cad-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/aud-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/jpy-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
-# cny-sync todavía no está en producción (ver "Gaps conocidos") — correr
-# recién después de mergear/pushear a la rama de producción:
-# curl -s "https://hikman-prueba.vercel.app/api/cny-sync" -X POST --max-time 30
+curl -s "https://hikman-prueba.vercel.app/api/cny-sync" -X POST --max-time 45
 
 # ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
 curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
