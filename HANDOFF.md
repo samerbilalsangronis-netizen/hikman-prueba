@@ -1127,13 +1127,37 @@ resto de las divisas.
    2023 (a diferencia del resto de los indicadores CNY, que tienen
    décadas) — limitación real de la fuente, no del indicador.
 
-9. **`chinadata.live` no actualiza todos sus datasets al mismo ritmo**: al
-   momento de esta sesión, su serie de PMI ya tenía el dato de jun-2026,
-   pero CPI/PPI/Ventas Minoristas/Producción Industrial/PIB seguían solo
-   hasta mayo-2026 (o Q1-2026 para PIB) — un lag de ~1-2 meses según la
-   serie, no uniforme. No es un bug del sync — cada indicador simplemente
-   trae lo último que la fuente tiene en ese momento; las insignias de
-   frescura ya avisan cuando eso hace que un dato quede "desactualizado".
+9. **`chinadata.live` no actualiza todos sus datasets al mismo ritmo — y el
+   lag puede ser bastante más largo de lo esperado.** Al momento de agregar
+   CNY (29-jul-2026), su serie de PMI ya tenía el dato de jun-2026, pero
+   CPI/PPI/Ventas Minoristas/Producción Industrial/Inversión en Activos
+   Fijos/PIB/Balanza Comercial seguían solo hasta mayo-2026 (o Q1-2026
+   para PIB). **El usuario avisó el 30-jul-2026 que Inflación seguía en
+   mayo** — se volvió a chequear la fuente y **seguía exactamente igual**
+   (ningún dataset salvo PMI había avanzado), pese a que la NBS ya había
+   publicado los datos de junio/Q2 el 10 al 17-jul-2026 (confirmado
+   leyendo directo los comunicados de `stats.gov.cn/english/PressRelease/`,
+   que SÍ son accesibles aunque la API de consulta `data.stats.gov.cn` esté
+   bloqueada). **Se corrigieron los 10 indicadores afectados a mano**,
+   pusheando el punto de jun-2026/Q2-2026 directo a Supabase producción
+   (vía REST, upsert) y a `historical-series.json`, con los valores
+   verificados palabra por palabra contra los comunicados oficiales:
+   CPI m/m -0.3%, CPI a/a +1.0%, PPI m/m -0.3%, PPI a/a +4.1%, Ventas
+   Minoristas a/a +1.0%, Producción Industrial a/a +5.3%, Inversión en
+   Activos Fijos (acum. ene-jun) -5.7%, PIB t/t (Q2) +0.9%, PIB a/a (Q2)
+   +4.3%, Balanza Comercial jun-2026 USD 125.63bn de superávit (exportaciones
+   USD 412.39bn, importaciones USD 286.76bn). **Lección para el futuro**:
+   `chinadata.live` puede quedarse atrás por semanas en CASI TODOS sus
+   datasets a la vez (no es solo una serie aislada) — cuando el usuario
+   reporte un dato viejo, **no asumir que es solo ese indicador**: chequear
+   los 13 de una sola vez contra la fuente (`/api/v2/data/{slug}`) y
+   comparar contra `stats.gov.cn/english/PressRelease/` (que lista todos
+   los comunicados recientes con sus URLs) antes de corregir uno por uno.
+   Si esto se repite seguido, considerar buscar una fuente más confiable
+   para CPI/PPI/Crecimiento (dejando `chinadata.live` solo para PMI, que sí
+   se mantuvo al día) o agregar un scraper directo de los comunicados de
+   `stats.gov.cn` (accesible, a diferencia de la API de consulta) como
+   fallback.
 
 10. **Cambios estructurales en el resto de la app para soportar una
     divisa sin todas las secciones** (no específico de CNY, reutilizable):
@@ -1331,6 +1355,17 @@ GBP/CAD/AUD/NZD/JPY/CHF.
   `chinadata.live` (fuente de CNY) es un agregador de terceros, no
   oficial — si en algún momento cambia su API o deja de responder,
   revisar `api/cny-sync.ts` primero.
+- **`chinadata.live` se atrasó ~2 meses en 10 de los 13 indicadores de CNY
+  ya el 30-jul-2026** (un día después de poner CNY en producción) — el
+  usuario lo notó primero con Inflación, pero afectaba también a
+  Crecimiento completo (solo PMI seguía al día). Se corrigió a mano el
+  30-jul-2026 con los valores oficiales de jun-2026/Q2-2026 pusheados
+  directo a Supabase + `historical-series.json` (ver "Lecciones CNY" #9
+  para el detalle exacto y los números). **Si vuelve a pasar, revisar los
+  13 datasets de una — no es normal que un agregador se atrase tanto, y
+  si se repite seguido conviene reconsiderar la fuente** (dejar
+  `chinadata.live` solo para PMI, agregar un scraper de
+  `stats.gov.cn/english/PressRelease/` como fallback para el resto).
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 

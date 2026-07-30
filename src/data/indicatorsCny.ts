@@ -22,6 +22,15 @@ import type { IndicatorMeta } from '../types';
 // sync automático principal — si chinadata.live cambia su API o deja de
 // publicar, hay que revisar esto primero.
 //
+// **OJO — chinadata.live puede atrasarse ~2 meses en CASI TODOS sus
+// datasets a la vez** (no solo uno aislado): pasó el 30-jul-2026, un día
+// después de poner CNY en producción, y afectó a 10 de los 13 indicadores
+// (solo PMI seguía al día). Se corrigió a mano esa vez con los valores
+// oficiales de stats.gov.cn/english/PressRelease/ (accesible, a diferencia
+// de la API de consulta data.stats.gov.cn). Si el usuario avisa que un
+// dato está viejo, chequear los 13 de una contra la fuente antes de
+// asumir que es solo ese indicador — ver "Lecciones CNY" #9 en HANDOFF.md.
+//
 // Lecciones clave:
 // 1. China NO publica un índice de nivel de CPI/PPI como el resto de los
 //    países — solo publica series de "% de cambio" ya calculadas (m/m y
