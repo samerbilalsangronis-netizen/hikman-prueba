@@ -27,27 +27,31 @@ export function Dashboard() {
         </p>
       </div>
 
-      <ScorePanel
-        rows={currencyScoreRows}
-        title={`Score Compuesto ${currency}`}
-        onChangeValoracion={(id, valoracion) => updateScoreValoracion(id, valoracion)}
-      />
+      {currencyScoreRows.length > 0 && (
+        <ScorePanel
+          rows={currencyScoreRows}
+          title={`Score Compuesto ${currency}`}
+          onChangeValoracion={(id, valoracion) => updateScoreValoracion(id, valoracion)}
+        />
+      )}
 
-      {(['crecimiento', 'empleo', 'inflacion', 'confianza', 'tasas'] as const).map((section) => (
-        <div key={section}>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            {SECTION_LABELS[currency][section]}
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {indicatorsBySection(section, currency)
-              .filter((meta) => !meta.parentId)
-              .slice(0, 3)
-              .map((meta) => (
-                <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />
-              ))}
+      {(['crecimiento', 'empleo', 'inflacion', 'confianza', 'tasas'] as const)
+        .filter((section) => indicatorsBySection(section, currency).length > 0)
+        .map((section) => (
+          <div key={section}>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              {SECTION_LABELS[currency][section]}
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {indicatorsBySection(section, currency)
+                .filter((meta) => !meta.parentId)
+                .slice(0, 3)
+                .map((meta) => (
+                  <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />
+                ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 29-jul-2026 (actualizado en la sesión que agregó
-CHF). Pega este archivo completo (o pedile a Claude que lo lea desde el
-repo) al abrir el chat nuevo.
+Fecha de este resumen: 29-jul-2026 (actualizado en la misma sesión que
+agregó CHF y CNY). Pega este archivo completo (o pedile a Claude que lo
+lea desde el repo) al abrir el chat nuevo.
 
 ## Qué es esto
 
@@ -38,6 +38,18 @@ sincronizadas al mismo commit), ya deployado en Vercel y con
 sin errores (verificado también contra la tabla `indicator_overrides` vía
 REST, 40 filas por serie). **Ahora las ocho divisas (USD, EUR, GBP, CAD,
 AUD, NZD, JPY, CHF) están completas y en producción.**
+
+**CNY agregada el 29-jul-2026, todavía NO en producción** (solo pusheada a
+`claude/handoff-documentation-review-9z8wtp` — el usuario pidió
+explícitamente agregar la divisa pero no dio permiso de deploy en el mismo
+mensaje, a diferencia de CHF). Es una divisa **distinta a las demás**: el
+usuario la pidió como referencia/"proxi de riesgo", con el pedido
+explícito de **NO** incluir Bancos Centrales ni Confianza — tampoco tiene
+Tasas, Empleo, ni Score compuesto (13 indicadores: Inflación + Crecimiento
+únicamente). Es también la ÚNICA divisa 100% automática (13/13) y la
+ÚNICA cuya fuente de sync principal es un agregador de terceros
+(`chinadata.live`, no la NBS oficial — bloqueada por WAF para IPs no
+chinas). Ver "Lecciones CNY" más abajo para el detalle completo.
 
 ## Dónde vive todo
 
@@ -343,6 +355,33 @@ solo en XLSX).
 - Score (`scoreSeedChf.ts`, 9 filas de la hoja DECISIONES): Confianza
   Empresarial (0.5→1) redondeada a la escala ±2, mismo criterio que
   AUD/NZD; el resto ya caía dentro del rango.
+
+**CNY (13, agregada el 29-jul-2026)**, `indicatorsCny.ts`, ids `cny_`:
+divisa **de referencia** ("proxi de riesgo", a pedido explícito del
+usuario) — **SOLO tiene Inflación y Crecimiento, sin Tasas/PBOC, sin
+Empleo, sin Confianza, sin Banqueros Centrales y sin Score compuesto** (no
+hay `scoreSeedCny.ts`, no hay hoja DECISIONES para esta divisa). Es la
+divisa con **mejor automatización de todo el dashboard: 13/13 (100%)** —
+ninguna carga manual.
+- Inflación (4, todos auto): `cny_cpi`/`cny_cpi_yoy` (m/m directo de la
+  NBS, a/a **derivado** encadenando 12 meses de m/m — China no publica un
+  a/a mensual directo de CPI headline, ver "Lecciones CNY" más abajo) +
+  `cny_ppi`/`cny_ppi_yoy` (ambos directos de la NBS)
+- Crecimiento (9, todos auto): `cny_retail_sales_yoy`, `cny_industrial_output_yoy`
+  (solo a/a, con hueco real cada enero-febrero — ver lección 2) +
+  `cny_fixed_asset_investment` (acumulado año-a-la-fecha, "el otro
+  indicador que veo conveniente" sugerido en vez de agregar una sección de
+  Empleo) + `cny_pmi_manuf`/`cny_pmi_non_manuf`/`cny_pmi_composite` (los 3
+  oficiales de la NBS, NO el privado de Caixin/S&P Global — sin API
+  gratuita encontrada) + `cny_gdp_qoq`/`cny_gdp_yoy` + `cny_trade_balance`
+  (base aduanera GACC, solo bienes)
+- **Sin Score, sin Banqueros, sin Tasas/Empleo/Confianza** — la nav
+  (`Layout.tsx`) y el Dashboard (`Dashboard.tsx`) ahora ocultan
+  automáticamente cualquier sección/Score/link de Banqueros sin datos para
+  la divisa activa (chequeando `indicatorsBySection(...).length` y
+  `bankersForCurrency(...).length`) — es un cambio genérico, no
+  hardcodeado a CNY, así que cualquier divisa futura con secciones
+  incompletas se comporta igual sin tocar código de nuevo.
 
 ## Sección de Banqueros Centrales (`/banqueros`)
 
@@ -980,6 +1019,128 @@ automáticos sin errores.
    criterio de tamaño que el resto de las fotos autohospedadas del
    proyecto.
 
+## Lecciones CNY (única divisa 100% automática: 13/13, y única sin Tasas/Empleo/Confianza/Banqueros/Score)
+
+Agregada el 29-jul-2026, a pedido explícito del usuario, que la definió
+como una divisa **de referencia** ("me sirve de proxi de riesgo") y pidió
+específicamente **NO** agregar Bancos Centrales ni Confianza — a
+diferencia de toda otra divisa del dashboard. Tampoco se agregó Empleo ni
+Score compuesto (no hay hoja DECISIONES para CNY): se interpretó que el
+pedido era deliberadamente acotado a Inflación + Crecimiento + "algún otro
+que veas conveniente", y no una limitación de tiempo/recursos como en el
+resto de las divisas.
+
+1. **La API oficial de la NBS (`data.stats.gov.cn/easyquery.htm`) bloquea
+   con un WAF cualquier IP no china** — probado con curl real desde el
+   entorno de la sesión: 403 con el body `reason:UrlACL`, con y sin
+   headers de navegador. Mismo patrón que rbnz.govt.nz para NZD, pero acá
+   es la fuente oficial ENTERA la que está bloqueada, no un endpoint
+   puntual. FRED tampoco sirve: prácticamente todas sus series de China
+   (CPI, PPI, ventas minoristas, producción industrial, desempleo) están
+   **discontinuadas hace años** (ej. CPI mensual corta en abr-2025, PPI en
+   dic-2022, ventas minoristas en oct-2023) — mismo patrón de "está pero
+   está muerto" que motivó descartar FRED para GBP/CAD/CHF.
+
+2. **Se usó `chinadata.live`, un agregador de terceros (NO oficial) que
+   republica datos de la NBS/GACC vía una API JSON simple, sin key,
+   estable desde fuera de China** — encontrado por WebSearch, con
+   endpoints reverse-engineered documentados parcialmente en
+   `chinadata.live/api/docs/` (`/api/v2/datasets` lista los ~337 datasets
+   disponibles con su `slug`, frecuencia y rango de fechas; `/api/v2/data/{slug}`
+   trae la serie completa). **Es la única divisa del dashboard cuya fuente
+   de sync automático principal es un tercero no oficial** — si
+   chinadata.live cambia su API o dejara de publicar, hay que revisar esto
+   primero (a diferencia del resto de las divisas, no hay un "plan B"
+   oficial ya identificado). Se verificaron **las 13 series contra el
+   comunicado oficial de la NBS/GACC** (vía WebSearch) para al menos un mes
+   reciente antes de confiar en la fuente — las 13 coincidieron exacto o
+   con el margen de imprecisión esperado (ver punto 3).
+
+3. **China NO publica un índice de nivel para CPI/PPI como el resto de los
+   países — solo series de "% de cambio" ya calculadas.** El PPI trae
+   ambas (m/m y a/a) como series directas. El CPI headline **solo trae el
+   m/m** (`china-cpi-mom`) — no hay una serie a/a mensual directa en esta
+   fuente (solo una anual, un punto por año, inútil para un gráfico
+   mensual). `cny_cpi_yoy` se deriva encadenando los 12 valores de m/m más
+   recientes en un índice sintético (nivel base arbitrario 100, se
+   multiplica mes a mes por `1 + m/m%`) y comparando contra 12 meses
+   atrás — la razón (ratio) no depende de la base elegida, solo de los 12
+   pasos intermedios. Esto introduce un margen de imprecisión real de
+   ~0.1-0.2pp frente a la cifra oficial ya redondeada por la NBS
+   (verificado: 1.4% calculado vs. 1.2% oficial para mayo-2026, 1.3% vs.
+   1.2% para abril-2026) — viene de encadenar 12 tasas que la NBS YA
+   redondeó a 1 decimal antes de publicarlas, no es un error de signo ni
+   de definición. Documentado explícitamente en la descripción del
+   indicador para que quede visible en la UI, no solo acá.
+
+4. **Ventas Minoristas y Producción Industrial tienen un hueco real cada
+   enero-febrero, TODOS los años** — China solo publica un dato combinado
+   "enero-febrero" (para no distorsionar por el Año Nuevo Chino, que se
+   mueve de fecha en el calendario gregoriano) y `chinadata.live`
+   directamente OMITE ese combinado de la serie mensual estándar: el
+   primer punto de cada año es MARZO, y es el dato de **marzo standalone**
+   (verificado: el valor de "2026-03" en `china-retail-sales-yoy` es 1.7%,
+   que coincide con "retail sales rose 1.7% in March" reportado — NO con
+   el 2.8% que Xinhua reportó para "Jan-Feb 2026" por separado, un dato
+   que no está en absoluto en esta serie). Es un hueco real en el
+   gráfico, no un error de mi parte ni algo para rellenar con
+   interpolación falsa (mismo principio que la lección AUD #16 de no
+   fabricar continuidad falsa).
+
+5. **Inversión en Activos Fijos (FAI) es distinta: SÍ aparece en
+   febrero**, porque China la reporta como acumulado año-a-la-fecha
+   (YTD), nunca como variación de un solo mes — el valor de febrero YA ES
+   el acumulado enero-febrero (verificado: 1.8% para 2026, coincide exacto
+   con el comunicado oficial de la NBS), el de marzo es el acumulado
+   enero-marzo, etc. Se eligió este indicador como "el otro que veas
+   conveniente" porque es la tercera pata del mismo paquete mensual de
+   datos que la NBS publica junto con Ventas Minoristas y Producción
+   Industrial (los tres siempre salen el mismo día) — no una elección
+   arbitraria.
+
+6. **PMI**: se usaron los 3 índices OFICIALES de la NBS (Manufacturero, No
+   Manufacturero —cubre servicios y construcción—, Compuesto), todos
+   verificados exactos contra el comunicado de jun-2026 (50.3/50.2/50.6).
+   El PMI de Caixin/S&P Global (la encuesta privada, seguida en paralelo
+   por mercados FX porque a veces diverge de la oficial) no tiene API
+   gratuita en `chinadata.live` ni se buscó en otro lado por tiempo —
+   queda completamente fuera (ni siquiera como indicador manual, a
+   diferencia del resto de las divisas, porque el usuario pidió no agregar
+   de más).
+
+7. **PIB**: `china-gdp-growth-qoq` da el t/t YA desestacionalizado directo
+   — China SÍ publica esta serie (contra la creencia común de que solo
+   reporta a/a), verificado +1.3% para Q1-2026. El a/a sale de
+   `china-gdp-index` (base 100 = mismo trimestre del año anterior, ya
+   calculado por la NBS, no hay que derivar de un nivel real como en
+   AUD/JPY/NZD) — verificado +5.0% para Q1-2026.
+
+8. **Balanza Comercial**: `china-trade-monthly` da el balance ya en USD
+   millones (exportaciones menos importaciones, base aduanera GACC),
+   coincide exacto con lo reportado (superávit de USD 105.43bn en
+   mayo-2026). Esta serie de `chinadata.live` solo tiene historia desde
+   2023 (a diferencia del resto de los indicadores CNY, que tienen
+   décadas) — limitación real de la fuente, no del indicador.
+
+9. **`chinadata.live` no actualiza todos sus datasets al mismo ritmo**: al
+   momento de esta sesión, su serie de PMI ya tenía el dato de jun-2026,
+   pero CPI/PPI/Ventas Minoristas/Producción Industrial/PIB seguían solo
+   hasta mayo-2026 (o Q1-2026 para PIB) — un lag de ~1-2 meses según la
+   serie, no uniforme. No es un bug del sync — cada indicador simplemente
+   trae lo último que la fuente tiene en ese momento; las insignias de
+   frescura ya avisan cuando eso hace que un dato quede "desactualizado".
+
+10. **Cambios estructurales en el resto de la app para soportar una
+    divisa sin todas las secciones** (no específico de CNY, reutilizable):
+    `Layout.tsx` (`navFor`) ahora oculta el link de Tasas/Empleo/Confianza
+    si `indicatorsBySection(sección, currency).length === 0`, y el de
+    Banqueros si `bankersForCurrency(currency).length === 0`.
+    `Dashboard.tsx` ahora filtra las secciones vacías antes de
+    renderizarlas y NO muestra `ScorePanel` si no hay `scoreRows` para la
+    divisa (antes mostraba un panel roto con "rango −0 a +0"). Estos
+    cambios son genéricos — cualquier divisa futura con secciones
+    incompletas se beneficia automáticamente, sin tocar código de nuevo.
+
 ## Pendiente explícito
 
 **CHF ya está implementada y en producción** (ver "Indicadores actuales
@@ -1152,6 +1313,16 @@ GBP/CAD/AUD/NZD/JPY/CHF.
 - Banqueros del SNB: solo Martin Schlegel tiene foto en Wikimedia
   Commons — Antoine Martin y Petra Tschudin se autohospedaron desde
   snb.ch (ver "Lecciones CHF" #9).
+- **CNY todavía NO está en producción** — solo pusheada a
+  `claude/handoff-documentation-review-9z8wtp`. El usuario pidió agregar
+  la divisa pero no dio permiso de deploy en el mismo mensaje (a
+  diferencia de CHF) — no asumir que ya está en Vercel/Supabase sin
+  confirmar. `cny_cpi_yoy` tiene un margen de imprecisión de ~0.1-0.2pp
+  por ser derivada (ver "Lecciones CNY" #3) — si el usuario nota que no
+  coincide exacto con su fuente de referencia, esto ya está documentado y
+  es esperado, no investigar de nuevo desde cero. `chinadata.live` (fuente
+  de CNY) es un agregador de terceros, no oficial — si en algún momento
+  cambia su API o deja de responder, revisar `api/cny-sync.ts` primero.
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
@@ -1177,6 +1348,9 @@ curl -s "https://hikman-prueba.vercel.app/api/cad-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/aud-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/jpy-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
+# cny-sync todavía no está en producción (ver "Gaps conocidos") — correr
+# recién después de mergear/pushear a la rama de producción:
+# curl -s "https://hikman-prueba.vercel.app/api/cny-sync" -X POST --max-time 30
 
 # ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
 curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
@@ -1210,6 +1384,13 @@ curl -s "https://scheduler.swissdatas.ch/scheduled/ks-q.csv" -A "Mozilla/5.0"
 
 # KOF Economic Barometer v2 (ETH Zúrich) — la v1 (datenservice.kof.ethz.ch) está discontinuada
 curl -s "https://tsdb-api.kof.ethz.ch/v2/ts?keys=ch.kof.barometer&mime=csv&access_type=public" -A "Mozilla/5.0"
+
+# chinadata.live (CNY) — listar todos los datasets disponibles (slug, frecuencia, rango de fechas)
+curl -s "https://chinadata.live/api/v2/datasets" -A "Mozilla/5.0"
+# Traer una serie puntual
+curl -s "https://chinadata.live/api/v2/data/china-pmi" -A "Mozilla/5.0"
+# La API oficial de la NBS está bloqueada por WAF para IPs no chinas (403 "UrlACL") — no usar:
+# curl -s "https://data.stats.gov.cn/easyquery.htm?m=QueryData&dbcode=hgyd&rowcode=sj&colcode=zb&wds=[]&dfwds=[...]"
 
 # Consultar/editar Supabase directo por REST (para diagnosticar sin abrir el dashboard)
 ANON="<la clave de arriba>"

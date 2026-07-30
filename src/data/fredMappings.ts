@@ -187,6 +187,28 @@ export const JPY_AUTO_INDICATOR_IDS = [
 // el Business Confidence. Desempleo, Cambios en el Empleo, Ventas
 // Minoristas, PMI y la Balanza Comercial mensual quedan manuales — ver
 // indicatorsChf.ts para el detalle de cada decisión.
+// CNY — se sincroniza desde chinadata.live, un agregador de terceros que
+// republica datos de la NBS/GACC vía JSON sin key. La API oficial de la
+// NBS (data.stats.gov.cn) bloquea con un WAF cualquier IP no china (403
+// "UrlACL", verificado con curl real) — no se pudo usar directamente. Las
+// 13 series están automatizadas (no hay ninguna manual para esta divisa) —
+// ver indicatorsCny.ts para el detalle de cada una.
+export const CNY_AUTO_INDICATOR_IDS = [
+  'cny_cpi',
+  'cny_cpi_yoy',
+  'cny_ppi',
+  'cny_ppi_yoy',
+  'cny_retail_sales_yoy',
+  'cny_industrial_output_yoy',
+  'cny_fixed_asset_investment',
+  'cny_pmi_manuf',
+  'cny_pmi_non_manuf',
+  'cny_pmi_composite',
+  'cny_gdp_qoq',
+  'cny_gdp_yoy',
+  'cny_trade_balance',
+];
+
 export const CHF_AUTO_INDICATOR_IDS = [
   'chf_snb_rate',
   'chf_cpi',

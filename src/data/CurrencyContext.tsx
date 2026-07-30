@@ -3,7 +3,7 @@ import type { Currency } from '../types';
 
 const CURRENCY_KEY = 'macro-dashboard:currency:v1';
 
-export const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'CHF'];
+export const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'CHF', 'CNY'];
 
 interface CurrencyContextValue {
   currency: Currency;
@@ -21,7 +21,8 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       stored === 'AUD' ||
       stored === 'NZD' ||
       stored === 'JPY' ||
-      stored === 'CHF'
+      stored === 'CHF' ||
+      stored === 'CNY'
       ? stored
       : 'USD';
   });

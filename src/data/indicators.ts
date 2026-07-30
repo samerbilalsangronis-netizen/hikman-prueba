@@ -6,6 +6,7 @@ import { AUD_INDICATORS } from './indicatorsAud';
 import { NZD_INDICATORS } from './indicatorsNzd';
 import { JPY_INDICATORS } from './indicatorsJpy';
 import { CHF_INDICATORS } from './indicatorsChf';
+import { CNY_INDICATORS } from './indicatorsCny';
 
 const USD_INDICATORS: IndicatorMeta[] = [
   // PMI (section: crecimiento — son indicadores de actividad/crecimiento, no de confianza)
@@ -617,6 +618,7 @@ export const INDICATORS: IndicatorMeta[] = [
   ...NZD_INDICATORS,
   ...JPY_INDICATORS,
   ...CHF_INDICATORS,
+  ...CNY_INDICATORS,
 ];
 
 export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
@@ -679,6 +681,18 @@ export const SECTION_LABELS: Record<Currency, Record<string, string>> = {
   CHF: {
     score: 'Score CHF',
     tasas: 'Tasas y SNB',
+    inflacion: 'Inflación',
+    empleo: 'Empleo',
+    confianza: 'Confianza / Sentimiento',
+    crecimiento: 'Crecimiento',
+  },
+  CNY: {
+    // Sin score/tasas/empleo/confianza — CNY es solo Inflación + Crecimiento
+    // (pedido explícito del usuario, ver indicatorsCny.ts). Estas claves
+    // quedan solo por consistencia de tipo, no se muestran (Layout.tsx
+    // oculta la nav y Dashboard.tsx no renderiza secciones vacías).
+    score: 'Score CNY',
+    tasas: 'Tasas',
     inflacion: 'Inflación',
     empleo: 'Empleo',
     confianza: 'Confianza / Sentimiento',

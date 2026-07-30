@@ -736,7 +736,7 @@ export const SNB_BANKERS: CentralBanker[] = [
   },
 ];
 
-export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY' | 'CHF'): CentralBanker[] {
+export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY' | 'CHF' | 'CNY'): CentralBanker[] {
   if (currency === 'EUR') return ECB_BANKERS;
   if (currency === 'GBP') return BOE_BANKERS;
   if (currency === 'CAD') return BOC_BANKERS;
@@ -744,5 +744,8 @@ export function bankersForCurrency(currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AU
   if (currency === 'NZD') return RBNZ_BANKERS;
   if (currency === 'JPY') return BOJ_BANKERS;
   if (currency === 'CHF') return SNB_BANKERS;
+  // CNY: pedido explícito del usuario de NO agregar banqueros centrales
+  // (PBOC) para esta divisa — queda vacío a propósito.
+  if (currency === 'CNY') return [];
   return FED_BANKERS;
 }

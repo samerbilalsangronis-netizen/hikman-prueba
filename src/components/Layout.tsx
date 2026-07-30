@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
+import { indicatorsBySection } from '../data/indicators';
+import { bankersForCurrency } from '../data/centralBankers';
 import type { Currency } from '../types';
 
+// Data-driven: una divisa sin indicadores en una sección (ej. CNY, que
+// solo tiene Inflación/Crecimiento) no muestra esa pestaña — evita hardcodear
+// una lista de divisas "incompletas" y funciona automáticamente para
+// cualquier divisa futura con el mismo patrón.
 function navFor(currency: Currency) {
-  return [
-    { to: '/', label: 'Resumen', end: true },
-    {
+  const items: { to: string; label: string; end?: boolean }[] = [{ to: '/', label: 'Resumen', end: true }];
+
+  if (indicatorsBySection('tasas', currency).length > 0) {
+    items.push({
       to: '/tasas',
       label:
         currency === 'EUR'
@@ -25,14 +32,16 @@ function navFor(currency: Currency) {
                     : currency === 'CHF'
                       ? 'Tasas y SNB'
                       : 'Tasas y Fed',
-    },
-    { to: '/inflacion', label: 'Inflación' },
-    { to: '/empleo', label: 'Empleo' },
-    { to: '/crecimiento', label: 'Crecimiento' },
-    { to: '/confianza', label: 'Confianza / Sentimiento' },
-    { to: '/banqueros', label: 'Banqueros' },
-    { to: '/actualizar', label: 'Actualizar Datos' },
-  ];
+    });
+  }
+  items.push({ to: '/inflacion', label: 'Inflación' });
+  if (indicatorsBySection('empleo', currency).length > 0) items.push({ to: '/empleo', label: 'Empleo' });
+  items.push({ to: '/crecimiento', label: 'Crecimiento' });
+  if (indicatorsBySection('confianza', currency).length > 0) items.push({ to: '/confianza', label: 'Confianza / Sentimiento' });
+  if (bankersForCurrency(currency).length > 0) items.push({ to: '/banqueros', label: 'Banqueros' });
+  items.push({ to: '/actualizar', label: 'Actualizar Datos' });
+
+  return items;
 }
 
 function useTheme() {
