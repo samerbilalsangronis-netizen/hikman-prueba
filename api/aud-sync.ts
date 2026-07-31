@@ -185,12 +185,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const updated: { indicatorId: string; date: string; value: number; points: number }[] = [];
   const errors: { indicatorId: string; error: string }[] = [];
 
+  // Indicadores trimestrales de esta divisa (ver indicatorsAud.ts, frequency:
+  // 'quarterly') — sus fechas siempre caen en enero/abril/julio/octubre. Si
+  // alguna vez quedaron filas de un intento con otra granularidad (pasó con
+  // aud_cpi/aud_core_cpi/aud_weighted_median: una fuente mensual descartada
+  // dejó filas huérfanas en meses "fuera de ciclo" que el frontend tomaba
+  // como el dato más reciente por tener fecha más nueva que el trimestre
+  // real, mostrando un número viejo/equivocado como si fuera el actual — ver
+  // HANDOFF.md), se borran acá para que no puedan volver a colarse como "el
+  // último punto" de la serie.
+  const QUARTERLY_IDS = new Set([
+    'aud_cpi', 'aud_cpi_yoy', 'aud_core_cpi', 'aud_core_cpi_yoy',
+    'aud_weighted_median', 'aud_weighted_median_yoy',
+    'aud_ppi_qoq', 'aud_ppi_yoy', 'aud_gdp_qoq', 'aud_gdp_yoy',
+  ]);
+
+  async function cleanupOffCycleRows(indicatorId: string) {
+    const { data, error } = await supabase
+      .from('indicator_overrides')
+      .select('date')
+      .eq('indicator_id', indicatorId);
+    if (error || !data) return;
+    const offCycle = data
+      .map((r) => r.date as string)
+      .filter((d) => ![1, 4, 7, 10].includes(Number(d.slice(5, 7))));
+    if (offCycle.length === 0) return;
+    await supabase.from('indicator_overrides').delete().eq('indicator_id', indicatorId).in('date', offCycle);
+  }
+
   async function syncSeries(indicatorId: string, series: Observation[]) {
     const trimmed = series.slice(-BACKFILL_MONTHS);
     if (trimmed.length === 0) return;
     const rows = trimmed.map((p) => ({ indicator_id: indicatorId, date: p.date, value: p.value }));
     const { error } = await supabase.from('indicator_overrides').upsert(rows);
     if (error) throw new Error(error.message);
+    if (QUARTERLY_IDS.has(indicatorId)) await cleanupOffCycleRows(indicatorId);
     const latest = trimmed[trimmed.length - 1];
     updated.push({ indicatorId, date: latest.date, value: latest.value, points: trimmed.length });
   }
