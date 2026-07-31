@@ -25,6 +25,11 @@ export interface IndicatorMeta {
   parentId?: string;
   /** Ausente = 'USD' (los 41 indicadores originales no lo tienen seteado). */
   currency?: Currency;
+  /** Si está definido, es un dato de una economía interna (ej. Alemania/
+   * Francia dentro de la Eurozona) — se muestra en su propia pestaña de país
+   * en vez de en las secciones agregadas (Inflación/Crecimiento/etc. de esa
+   * divisa quedan solo con datos a nivel Eurozona). */
+  country?: 'DE' | 'FR';
 }
 
 export interface ScoreRow {
@@ -82,4 +87,76 @@ export interface Statement {
 export interface BankerNote {
   current?: Statement;
   previous?: Statement;
+}
+
+/** 'alto' = rojo, 'medio' = naranja, 'bajo' = gris (insignias de Titulares). */
+export type ImpactLevel = 'alto' | 'medio' | 'bajo';
+
+export interface Headline {
+  id: string;
+  title: string;
+  source: string;
+  url?: string;
+  /** ISO datetime (con hora si se conoce, si no medianoche UTC del día). */
+  publishedAt: string;
+  impact: ImpactLevel;
+  /** Divisas/activos que afecta, ej. ['USD', 'Bonos'] — usado para el filtro de relevancia. */
+  tags: string[];
+  /** true = cargado a mano desde la UI, false = vino de una API. */
+  isManual: boolean;
+  pinned: boolean;
+  /** Si está fijado como motivo del sesgo de una divisa (Panel de Control). Fijar a una
+   * divisa siempre implica pinned=true (aparece en la cinta también). */
+  biasCurrency?: Currency;
+  /** Traducción al español — solo para titulares que vienen en inglés (Finnhub);
+   * las cargas manuales ya están en español, esto queda sin definir. */
+  titleEs?: string;
+}
+
+/** Sesgo grande de una divisa. Va de dovish a hawkish; los dos "neutro
+ * alcista/bajista" son matices intermedios que pidió el usuario. */
+export type BiasLevel = 'hawkish' | 'neutral_alcista' | 'neutral' | 'neutral_bajista' | 'dovish';
+
+export interface BiasReason {
+  id: string;
+  label: string;
+  /** Tono del motivo (no anterior/previsión/actual como en Actualizar Datos —
+   * acá es directamente hacia dónde apunta ese dato para la divisa). Misma
+   * escala de 5 niveles que el sesgo grande. */
+  color: BiasLevel;
+  /** Si este motivo viene de un titular fijado desde Titulares. */
+  headlineId?: string;
+}
+
+export interface BiasSnapshot {
+  /** Solo en entradas de historial (current no necesita id propio). */
+  id?: string;
+  level: BiasLevel | null;
+  summary: string;
+  reasons: BiasReason[];
+  /** Cuándo arrancó esta semana (se resetea al presionar "Actualizar sesgo"). */
+  startedAt: string;
+}
+
+export interface CurrencyBias {
+  currency: Currency;
+  current: BiasSnapshot;
+  /** Semanas archivadas, más reciente primero. Se agrega una al presionar
+   * "Actualizar sesgo" — no hay límite de cuántas se guardan. */
+  history: BiasSnapshot[];
+  centralBank: string;
+  policyRate: string;
+  nextMeeting?: string;
+}
+
+/** Informe económico o resumen del mentor (Nufal Bakali) — mismo shape para
+ * ambos, se guardan en tablas separadas. Archivo y texto son opcionales pero
+ * al menos uno debe estar presente. */
+export interface DocumentEntry {
+  id: string;
+  title: string;
+  text?: string;
+  fileUrl?: string;
+  fileName?: string;
+  createdAt: string;
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
-import { indicatorsBySection } from '../data/indicators';
+import { indicatorsByCountry, indicatorsBySection } from '../data/indicators';
 import { bankersForCurrency } from '../data/centralBankers';
 import type { Currency } from '../types';
 
@@ -11,7 +11,11 @@ import type { Currency } from '../types';
 // una lista de divisas "incompletas" y funciona automáticamente para
 // cualquier divisa futura con el mismo patrón.
 function navFor(currency: Currency) {
-  const items: { to: string; label: string; end?: boolean }[] = [{ to: '/', label: 'Resumen', end: true }];
+  const items: { to: string; label: string; end?: boolean }[] = [
+    { to: '/panel-control', label: '📊 Panel de Control' },
+    { to: '/', label: 'Resumen', end: true },
+    { to: '/titulares', label: 'Titulares' },
+  ];
 
   if (indicatorsBySection('tasas', currency).length > 0) {
     items.push({
@@ -38,6 +42,8 @@ function navFor(currency: Currency) {
   if (indicatorsBySection('empleo', currency).length > 0) items.push({ to: '/empleo', label: 'Empleo' });
   items.push({ to: '/crecimiento', label: 'Crecimiento' });
   if (indicatorsBySection('confianza', currency).length > 0) items.push({ to: '/confianza', label: 'Confianza / Sentimiento' });
+  if (indicatorsByCountry('DE', currency).length > 0) items.push({ to: '/alemania', label: '🇩🇪 Alemania' });
+  if (indicatorsByCountry('FR', currency).length > 0) items.push({ to: '/francia', label: '🇫🇷 Francia' });
   if (bankersForCurrency(currency).length > 0) items.push({ to: '/banqueros', label: 'Banqueros' });
   items.push({ to: '/actualizar', label: 'Actualizar Datos' });
 
@@ -65,17 +71,24 @@ export function Layout() {
   const { currency, setCurrency } = useCurrency();
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--page)' }}>
+    <div className="relative isolate min-h-screen" style={{ background: 'var(--page)' }}>
+      <img
+        src="/logo-icon.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none fixed bottom-0 right-0 -z-10 w-[38vw] max-w-2xl opacity-[0.05] select-none"
+      />
       <header
         className="sticky top-0 z-10 backdrop-blur"
         style={{ background: 'color-mix(in srgb, var(--page) 85%, transparent)', borderBottom: '1px solid var(--border)' }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto" />
             <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
               {currency}
             </span>
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
               Seguimiento Macro Fundamental
             </span>
           </div>
@@ -139,7 +152,7 @@ export function Layout() {
         </nav>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <Outlet />
+        <Outlet context={{ theme }} />
       </main>
       <footer className="mx-auto max-w-7xl px-4 py-8 text-xs sm:px-6" style={{ color: 'var(--text-muted)' }}>
         Datos actualizados manualmente. Revisa las insignias de frescura en cada tarjeta antes de operar con ellos.

@@ -20,18 +20,52 @@ const SCORE_SEED = [
   ...CHF_SCORE_SEED,
 ];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint, Statement } from '../types';
+import { CENTRAL_BANK_BY_CURRENCY } from '../lib/bias';
+import { CURRENCIES } from './CurrencyContext';
+import type {
+  BankerNote,
+  BiasLevel,
+  BiasReason,
+  Currency,
+  CurrencyBias,
+  DocumentEntry,
+  FomcProbabilities,
+  Headline,
+  ImpactLevel,
+  ScoreRow,
+  SeriesPoint,
+  Statement,
+} from '../types';
 
 type SeriesMap = Record<string, SeriesPoint[]>;
 type ForecastMap = Record<string, number>;
 type FomcWatchMap = Record<string, FomcProbabilities>;
 type BankerNotesMap = Record<string, BankerNote>;
+type BiasMap = Record<Currency, CurrencyBias>;
 
 const OVERRIDES_KEY = 'macro-dashboard:overrides:v1';
 const SCORE_KEY = 'macro-dashboard:score:v1';
 const FORECASTS_KEY = 'macro-dashboard:forecasts:v1';
 const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
 const BANKER_NOTES_KEY = 'macro-dashboard:banker-notes:v1';
+const HEADLINES_KEY = 'macro-dashboard:headlines:v1';
+const BIAS_KEY = 'macro-dashboard:bias:v1';
+const REPORTS_KEY = 'macro-dashboard:reports:v1';
+const MENTOR_NOTES_KEY = 'macro-dashboard:mentor-notes:v1';
+
+function defaultBiasMap(): BiasMap {
+  const map = {} as BiasMap;
+  for (const currency of CURRENCIES) {
+    map[currency] = {
+      currency,
+      centralBank: CENTRAL_BANK_BY_CURRENCY[currency],
+      policyRate: '',
+      current: { level: null, summary: '', reasons: [], startedAt: new Date().toISOString() },
+      history: [],
+    };
+  }
+  return map;
+}
 
 function loadLocalOverrides(): SeriesMap {
   try {
@@ -78,6 +112,42 @@ function loadLocalBankerNotes(): BankerNotesMap {
   }
 }
 
+function loadLocalHeadlines(): Headline[] {
+  try {
+    const raw = localStorage.getItem(HEADLINES_KEY);
+    return raw ? (JSON.parse(raw) as Headline[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadLocalBias(): BiasMap {
+  try {
+    const raw = localStorage.getItem(BIAS_KEY);
+    return raw ? { ...defaultBiasMap(), ...(JSON.parse(raw) as BiasMap) } : defaultBiasMap();
+  } catch {
+    return defaultBiasMap();
+  }
+}
+
+function loadLocalReports(): DocumentEntry[] {
+  try {
+    const raw = localStorage.getItem(REPORTS_KEY);
+    return raw ? (JSON.parse(raw) as DocumentEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadLocalMentorNotes(): DocumentEntry[] {
+  try {
+    const raw = localStorage.getItem(MENTOR_NOTES_KEY);
+    return raw ? (JSON.parse(raw) as DocumentEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 function mergeSeries(base: SeriesPoint[], overrides: SeriesPoint[]): SeriesPoint[] {
   const map = new Map<string, number>();
   for (const [date, value] of base) map.set(date, value);
@@ -121,6 +191,26 @@ interface MacroDataContextValue {
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
   bankerNotes: BankerNotesMap;
   addBankerStatement: (bankerId: string, statement: Statement) => Promise<void>;
+  headlines: Headline[];
+  addManualHeadline: (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => Promise<void>;
+  toggleHeadlinePin: (id: string, pinned: boolean) => Promise<void>;
+  updateHeadlineImpact: (id: string, impact: ImpactLevel) => Promise<void>;
+  deleteHeadline: (id: string) => Promise<void>;
+  setHeadlineBiasCurrency: (id: string, currency: Currency | undefined) => Promise<void>;
+  biases: BiasMap;
+  updateBiasLevel: (currency: Currency, level: CurrencyBias['current']['level']) => Promise<void>;
+  updateBiasSummary: (currency: Currency, summary: string) => Promise<void>;
+  updateBiasBase: (currency: Currency, base: { centralBank: string; policyRate: string; nextMeeting?: string }) => Promise<void>;
+  addBiasReason: (currency: Currency, reason: { label: string; color: BiasLevel; headlineId?: string }) => Promise<void>;
+  removeBiasReason: (currency: Currency, reasonId: string) => Promise<void>;
+  rolloverBias: (currency: Currency) => Promise<void>;
+  reports: DocumentEntry[];
+  addReport: (entry: Omit<DocumentEntry, 'id' | 'createdAt'>) => Promise<void>;
+  deleteReport: (id: string) => Promise<void>;
+  mentorNotes: DocumentEntry[];
+  addMentorNote: (entry: Omit<DocumentEntry, 'id' | 'createdAt'>) => Promise<void>;
+  deleteMentorNote: (id: string) => Promise<void>;
+  uploadDocumentFile: (file: File) => Promise<{ url: string; name: string }>;
   resetOverrides: () => Promise<void>;
   exportJson: () => string;
   loading: boolean;
@@ -136,6 +226,10 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
   const [bankerNotes, setBankerNotes] = useState<BankerNotesMap>({});
+  const [headlines, setHeadlines] = useState<Headline[]>([]);
+  const [biases, setBiases] = useState<BiasMap>(defaultBiasMap());
+  const [reports, setReports] = useState<DocumentEntry[]>([]);
+  const [mentorNotes, setMentorNotes] = useState<DocumentEntry[]>([]);
   const [loading, setLoading] = useState(supabaseEnabled);
 
   const base = historicalSeries as unknown as SeriesMap;
@@ -147,26 +241,48 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
       setBankerNotes(loadLocalBankerNotes());
+      setHeadlines(loadLocalHeadlines());
+      setBiases(loadLocalBias());
+      setReports(loadLocalReports());
+      setMentorNotes(loadLocalMentorNotes());
       setLoading(false);
       return;
     }
 
     const client = supabase;
-    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes] = await Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
       supabase.from('fomc_watch').select('meeting_date, prob_cut, prob_hold, prob_hike, note'),
-      // banker_statements es una tabla nueva — si todavía no corriste el SQL
-      // en Supabase (ver supabase/schema.sql), esto simplemente da error y se
-      // ignora, sin romper el resto de la carga.
+      // banker_statements y headlines son tablas nuevas — si todavía no
+      // corriste el SQL en Supabase (ver supabase/schema.sql), esto
+      // simplemente da error y se ignora, sin romper el resto de la carga.
       supabase
         .from('banker_statements')
         .select(
           'banker_id, current_statement_date, current_stance, current_summary, current_source_url, previous_statement_date, previous_stance, previous_summary, previous_source_url',
         ),
+      supabase
+        .from('headlines')
+        .select('id, title, source, url, published_at, impact, tags, is_manual, pinned, bias_currency, title_es')
+        .order('published_at', { ascending: false })
+        .limit(300),
+      supabase
+        .from('currency_bias')
+        .select('currency, central_bank, policy_rate, next_meeting, current_level, current_summary, current_started_at'),
+      supabase.from('currency_bias_reasons').select('id, currency, label, color, headline_id').order('created_at', { ascending: true }),
+      supabase
+        .from('currency_bias_history')
+        .select('id, currency, level, summary, reasons, started_at')
+        .order('started_at', { ascending: false }),
+      supabase.from('reports').select('id, title, text_content, file_url, file_name, created_at').order('created_at', { ascending: false }),
+      supabase
+        .from('mentor_notes')
+        .select('id, title, text_content, file_url, file_name, created_at')
+        .order('created_at', { ascending: false }),
     ]);
 
     {
@@ -240,6 +356,109 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         };
       }
       setBankerNotes(map);
+    }
+
+    if (!headlinesRes.error && headlinesRes.data) {
+      const rows = headlinesRes.data as {
+        id: string;
+        title: string;
+        source: string;
+        url: string | null;
+        published_at: string;
+        impact: ImpactLevel;
+        tags: string[];
+        is_manual: boolean;
+        pinned: boolean;
+        bias_currency: Currency | null;
+        title_es: string | null;
+      }[];
+      setHeadlines(
+        rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          source: r.source,
+          url: r.url ?? undefined,
+          publishedAt: r.published_at,
+          impact: r.impact,
+          tags: r.tags ?? [],
+          isManual: r.is_manual,
+          pinned: r.pinned,
+          biasCurrency: r.bias_currency ?? undefined,
+          titleEs: r.title_es ?? undefined,
+        })),
+      );
+    }
+
+    // currency_bias/currency_bias_reasons/reports/mentor_notes son tablas
+    // nuevas (Panel de Control) — igual que banker_statements/headlines, si
+    // todavía no corriste el SQL esto da error y se ignora sin romper el
+    // resto de la carga.
+    if (!biasRes.error && !biasReasonsRes.error) {
+      const baseRows = (biasRes.data ?? []) as {
+        currency: Currency;
+        central_bank: string;
+        policy_rate: string;
+        next_meeting: string | null;
+        current_level: CurrencyBias['current']['level'];
+        current_summary: string | null;
+        current_started_at: string;
+      }[];
+      const reasonRows = (biasReasonsRes.data ?? []) as {
+        id: string;
+        currency: Currency;
+        label: string;
+        color: BiasLevel;
+        headline_id: string | null;
+      }[];
+      const historyRows = (!biasHistoryRes.error ? (biasHistoryRes.data ?? []) : []) as {
+        id: string;
+        currency: Currency;
+        level: CurrencyBias['current']['level'];
+        summary: string | null;
+        reasons: BiasReason[] | null;
+        started_at: string;
+      }[];
+      const map = defaultBiasMap();
+      for (const row of baseRows) {
+        map[row.currency] = {
+          currency: row.currency,
+          centralBank: row.central_bank || CENTRAL_BANK_BY_CURRENCY[row.currency],
+          policyRate: row.policy_rate,
+          nextMeeting: row.next_meeting ?? undefined,
+          current: {
+            level: row.current_level,
+            summary: row.current_summary ?? '',
+            startedAt: row.current_started_at,
+            reasons: [],
+          },
+          history: [],
+        };
+      }
+      for (const r of reasonRows) {
+        const entry = map[r.currency];
+        if (!entry) continue;
+        entry.current.reasons.push({ id: r.id, label: r.label, color: r.color, headlineId: r.headline_id ?? undefined });
+      }
+      for (const h of historyRows) {
+        const entry = map[h.currency];
+        if (!entry) continue;
+        entry.history.push({ id: h.id, level: h.level, summary: h.summary ?? '', startedAt: h.started_at, reasons: h.reasons ?? [] });
+      }
+      setBiases(map);
+    }
+
+    if (!reportsRes.error && reportsRes.data) {
+      const rows = reportsRes.data as { id: string; title: string; text_content: string | null; file_url: string | null; file_name: string | null; created_at: string }[];
+      setReports(
+        rows.map((r) => ({ id: r.id, title: r.title, text: r.text_content ?? undefined, fileUrl: r.file_url ?? undefined, fileName: r.file_name ?? undefined, createdAt: r.created_at })),
+      );
+    }
+
+    if (!mentorNotesRes.error && mentorNotesRes.data) {
+      const rows = mentorNotesRes.data as { id: string; title: string; text_content: string | null; file_url: string | null; file_name: string | null; created_at: string }[];
+      setMentorNotes(
+        rows.map((r) => ({ id: r.id, title: r.title, text: r.text_content ?? undefined, fileUrl: r.file_url ?? undefined, fileName: r.file_name ?? undefined, createdAt: r.created_at })),
+      );
     }
 
     setLoading(false);
@@ -354,6 +573,330 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     [bankerNotes],
   );
 
+  const addManualHeadline = useCallback(async (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => {
+    const next: Headline = { ...headline, id: crypto.randomUUID(), isManual: true, pinned: false };
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').insert({
+        id: next.id,
+        title: next.title,
+        source: next.source,
+        url: next.url || null,
+        published_at: next.publishedAt,
+        impact: next.impact,
+        tags: next.tags,
+        is_manual: true,
+        pinned: false,
+      });
+    }
+    setHeadlines((prev) => {
+      const updated = [next, ...prev];
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const toggleHeadlinePin = useCallback(async (id: string, pinned: boolean) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').update({ pinned }).eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.map((h) => (h.id === id ? { ...h, pinned } : h));
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const updateHeadlineImpact = useCallback(async (id: string, impact: ImpactLevel) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').update({ impact }).eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.map((h) => (h.id === id ? { ...h, impact } : h));
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const deleteHeadline = useCallback(async (id: string) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').delete().eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // Fijar un titular a la divisa de una tarjeta de Sesgo: siempre implica
+  // pinned=true (aparece también en la cinta) y crea/borra el motivo de la
+  // semana en curso vinculado a ese titular (headlineId). Desfijar de la
+  // divisa no desfija de la cinta — son dos cosas independientes una vez
+  // fijado.
+  // Nota general de estas funciones (y las de sesgo/informes/mentor de abajo):
+  // el estado local se actualiza PRIMERO, de forma síncrona, y recién después
+  // se dispara el guardado en Supabase (sin esperarlo, con try/catch). Si se
+  // hace al revés (esperar el viaje a Supabase antes de tocar el estado), un
+  // <input>/<textarea> controlado que dependa de ese estado deja de aceptar
+  // texto en la práctica: cada tecla se revierte visualmente hasta que la red
+  // responde, o directamente nunca si la llamada falla (RLS, tabla sin migrar,
+  // etc.) — eso es lo que reportó el usuario ("no me deja escribir").
+  const setHeadlineBiasCurrency = useCallback(
+    async (id: string, currency: Currency | undefined) => {
+      const headline = headlines.find((h) => h.id === id);
+      if (!headline) return;
+      const prevCurrency = headline.biasCurrency;
+      const reasonId = crypto.randomUUID();
+
+      setHeadlines((prev) => {
+        const updated = prev.map((h) => (h.id === id ? { ...h, biasCurrency: currency, pinned: currency ? true : h.pinned } : h));
+        if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+        return updated;
+      });
+
+      setBiases((prev) => {
+        let next = prev;
+        if (prevCurrency && prevCurrency !== currency) {
+          next = {
+            ...next,
+            [prevCurrency]: {
+              ...next[prevCurrency],
+              current: { ...next[prevCurrency].current, reasons: next[prevCurrency].current.reasons.filter((r) => r.headlineId !== id) },
+            },
+          };
+        }
+        if (currency) {
+          const reason: BiasReason = { id: reasonId, label: headline.title, color: 'neutral', headlineId: id };
+          next = {
+            ...next,
+            [currency]: { ...next[currency], current: { ...next[currency].current, reasons: [...next[currency].current.reasons, reason] } },
+          };
+        }
+        if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(next));
+        return next;
+      });
+
+      if (!supabaseEnabled || !supabase) return;
+      try {
+        await supabase.from('headlines').update({ bias_currency: currency ?? null, pinned: currency ? true : headline.pinned }).eq('id', id);
+        if (prevCurrency && prevCurrency !== currency) {
+          await supabase.from('currency_bias_reasons').delete().eq('headline_id', id).eq('currency', prevCurrency);
+        }
+        if (currency) {
+          await supabase.from('currency_bias_reasons').insert({ id: reasonId, currency, label: headline.title, color: 'neutral', headline_id: id });
+        }
+      } catch (err) {
+        console.error('No se pudo guardar el fijado a divisa en Supabase', err);
+      }
+    },
+    [headlines],
+  );
+
+  const updateBiasLevel = useCallback(async (currency: Currency, level: CurrencyBias['current']['level']) => {
+    setBiases((prev) => {
+      const next = { ...prev, [currency]: { ...prev[currency], current: { ...prev[currency].current, level } } };
+      if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(next));
+      return next;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('currency_bias').upsert({ currency, current_level: level }, { onConflict: 'currency' });
+    } catch (err) {
+      console.error('No se pudo guardar el sesgo en Supabase', err);
+    }
+  }, []);
+
+  const updateBiasSummary = useCallback(async (currency: Currency, summary: string) => {
+    setBiases((prev) => {
+      const next = { ...prev, [currency]: { ...prev[currency], current: { ...prev[currency].current, summary } } };
+      if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(next));
+      return next;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('currency_bias').upsert({ currency, current_summary: summary }, { onConflict: 'currency' });
+    } catch (err) {
+      console.error('No se pudo guardar el resumen del sesgo en Supabase', err);
+    }
+  }, []);
+
+  const updateBiasBase = useCallback(
+    async (currency: Currency, base: { centralBank: string; policyRate: string; nextMeeting?: string }) => {
+      setBiases((prev) => {
+        const next = { ...prev, [currency]: { ...prev[currency], ...base } };
+        if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(next));
+        return next;
+      });
+      if (!supabaseEnabled || !supabase) return;
+      try {
+        await supabase
+          .from('currency_bias')
+          .upsert(
+            { currency, central_bank: base.centralBank, policy_rate: base.policyRate, next_meeting: base.nextMeeting || null },
+            { onConflict: 'currency' },
+          );
+      } catch (err) {
+        console.error('No se pudieron guardar los datos base del sesgo en Supabase', err);
+      }
+    },
+    [],
+  );
+
+  const addBiasReason = useCallback(
+    async (currency: Currency, reason: { label: string; color: BiasLevel; headlineId?: string }) => {
+      const id = crypto.randomUUID();
+      const next: BiasReason = { id, ...reason };
+      setBiases((prev) => {
+        const updated = {
+          ...prev,
+          [currency]: { ...prev[currency], current: { ...prev[currency].current, reasons: [...prev[currency].current.reasons, next] } },
+        };
+        if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      if (!supabaseEnabled || !supabase) return;
+      try {
+        await supabase.from('currency_bias_reasons').insert({ id, currency, label: next.label, color: next.color, headline_id: next.headlineId ?? null });
+      } catch (err) {
+        console.error('No se pudo guardar el motivo del sesgo en Supabase', err);
+      }
+    },
+    [],
+  );
+
+  const removeBiasReason = useCallback(async (currency: Currency, reasonId: string) => {
+    setBiases((prev) => {
+      const updated = {
+        ...prev,
+        [currency]: { ...prev[currency], current: { ...prev[currency].current, reasons: prev[currency].current.reasons.filter((r) => r.id !== reasonId) } },
+      };
+      if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('currency_bias_reasons').delete().eq('id', reasonId);
+    } catch (err) {
+      console.error('No se pudo borrar el motivo del sesgo en Supabase', err);
+    }
+  }, []);
+
+  // Botón "Actualizar sesgo": rollover semanal. Archiva la semana actual como
+  // una fila nueva en el historial (con sus motivos congelados) y arranca
+  // una semana en blanco — el badge grande no se toca acá, se elige aparte
+  // (se puede cambiar en cualquier momento, no solo los fines de semana).
+  const rolloverBias = useCallback(
+    async (currency: Currency) => {
+      const bias = biases[currency];
+      if (!bias) return;
+      const archivedCurrent = bias.current;
+      const archivedId = crypto.randomUUID();
+      const newStartedAt = new Date().toISOString();
+
+      setBiases((prev) => {
+        const next = {
+          ...prev,
+          [currency]: {
+            ...prev[currency],
+            history: [{ ...archivedCurrent, id: archivedId }, ...prev[currency].history],
+            current: { level: archivedCurrent.level, summary: '', reasons: [], startedAt: newStartedAt },
+          },
+        };
+        if (!supabaseEnabled) localStorage.setItem(BIAS_KEY, JSON.stringify(next));
+        return next;
+      });
+
+      if (!supabaseEnabled || !supabase) return;
+      try {
+        await supabase.from('currency_bias_history').insert({
+          id: archivedId,
+          currency,
+          level: archivedCurrent.level,
+          summary: archivedCurrent.summary,
+          reasons: archivedCurrent.reasons,
+          started_at: archivedCurrent.startedAt,
+        });
+        await supabase.from('currency_bias').upsert(
+          { currency, current_level: archivedCurrent.level, current_summary: '', current_started_at: newStartedAt },
+          { onConflict: 'currency' },
+        );
+        await supabase.from('currency_bias_reasons').delete().eq('currency', currency);
+      } catch (err) {
+        console.error('No se pudo actualizar el sesgo en Supabase', err);
+      }
+    },
+    [biases],
+  );
+
+  const uploadDocumentFile = useCallback(async (file: File) => {
+    if (!supabaseEnabled || !supabase) {
+      throw new Error('La carga de archivos necesita Supabase configurado — sin eso, cargá el resumen como texto.');
+    }
+    const path = `${crypto.randomUUID()}-${file.name}`;
+    const { error } = await supabase.storage.from('documents').upload(path, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from('documents').getPublicUrl(path);
+    return { url: data.publicUrl, name: file.name };
+  }, []);
+
+  const addReport = useCallback(async (entry: Omit<DocumentEntry, 'id' | 'createdAt'>) => {
+    const next: DocumentEntry = { ...entry, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    setReports((prev) => {
+      const updated = [next, ...prev];
+      if (!supabaseEnabled) localStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('reports').insert({ id: next.id, title: next.title, text_content: next.text || null, file_url: next.fileUrl || null, file_name: next.fileName || null });
+    } catch (err) {
+      console.error('No se pudo guardar el informe en Supabase', err);
+    }
+  }, []);
+
+  const deleteReport = useCallback(async (id: string) => {
+    setReports((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      if (!supabaseEnabled) localStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('reports').delete().eq('id', id);
+    } catch (err) {
+      console.error('No se pudo borrar el informe en Supabase', err);
+    }
+  }, []);
+
+  const addMentorNote = useCallback(async (entry: Omit<DocumentEntry, 'id' | 'createdAt'>) => {
+    const next: DocumentEntry = { ...entry, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    setMentorNotes((prev) => {
+      const updated = [next, ...prev];
+      if (!supabaseEnabled) localStorage.setItem(MENTOR_NOTES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('mentor_notes').insert({ id: next.id, title: next.title, text_content: next.text || null, file_url: next.fileUrl || null, file_name: next.fileName || null });
+    } catch (err) {
+      console.error('No se pudo guardar el resumen del mentor en Supabase', err);
+    }
+  }, []);
+
+  const deleteMentorNote = useCallback(async (id: string) => {
+    setMentorNotes((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      if (!supabaseEnabled) localStorage.setItem(MENTOR_NOTES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('mentor_notes').delete().eq('id', id);
+    } catch (err) {
+      console.error('No se pudo borrar el resumen del mentor en Supabase', err);
+    }
+  }, []);
+
   const resetOverrides = useCallback(async () => {
     if (supabaseEnabled && supabase) {
       await supabase.from('indicator_overrides').delete().neq('indicator_id', '');
@@ -395,6 +938,26 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      headlines,
+      addManualHeadline,
+      toggleHeadlinePin,
+      updateHeadlineImpact,
+      deleteHeadline,
+      setHeadlineBiasCurrency,
+      biases,
+      updateBiasLevel,
+      updateBiasSummary,
+      updateBiasBase,
+      addBiasReason,
+      removeBiasReason,
+      rolloverBias,
+      reports,
+      addReport,
+      deleteReport,
+      mentorNotes,
+      addMentorNote,
+      deleteMentorNote,
+      uploadDocumentFile,
       resetOverrides,
       exportJson,
       loading,
@@ -413,6 +976,26 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      headlines,
+      addManualHeadline,
+      toggleHeadlinePin,
+      updateHeadlineImpact,
+      deleteHeadline,
+      setHeadlineBiasCurrency,
+      biases,
+      updateBiasLevel,
+      updateBiasSummary,
+      updateBiasBase,
+      addBiasReason,
+      removeBiasReason,
+      rolloverBias,
+      reports,
+      addReport,
+      deleteReport,
+      mentorNotes,
+      addMentorNote,
+      deleteMentorNote,
+      uploadDocumentFile,
       resetOverrides,
       exportJson,
       loading,

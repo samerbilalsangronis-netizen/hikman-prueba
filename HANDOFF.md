@@ -1,10 +1,49 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 30-jul-2026 (actualizado en la misma sesión que
-agregó CHF y CNY, y que corrigió datos desactualizados de CNY). Pega este
-archivo completo (o pedile a Claude que lo lea desde el repo) al abrir el
-chat nuevo — está pensado para ser autocontenido, no debería hacer falta
-buscar contexto adicional en la conversación anterior.
+Fecha de este resumen: 31-jul-2026, actualizado al final de una sesión
+muy larga (Panel de Control desde cero + migración completa del sistema
+anterior en Excel + varios bugs reales en producción). Pega este archivo
+completo (o pedile a Claude que lo lea desde el repo) al abrir el chat
+nuevo — está pensado para ser autocontenido, no debería hacer falta
+buscar contexto adicional en la conversación anterior. El documento es
+largo y crece cronológicamente (sesión por sesión, sin borrar nada
+viejo) — si solo hace falta agarrar viaje rápido, leer esta sección y la
+de "## Panel de Control" / "## Migración del sistema anterior" más abajo
+alcanza; el resto queda como referencia histórica por divisa.
+
+## ⚠️ Arrancar por acá: estado al cierre de la sesión 31-jul-2026
+
+Todo lo de esta sesión (Panel de Control + migración del Excel) está
+**pusheado a `claude/hikman-handoff-repo-aspkts`**, el PR #1 tiene cada
+commit desplegado en preview de Vercel sin errores de build, y el usuario
+**confirmó explícitamente** que corrió `supabase/import_excel_fixup_2026-07-31.sql`
+y que probó el botón "🌐 Traducir pendientes" con éxito. O sea: los tres
+SQL de esta sesión (`schema.sql`, `import_excel_2026-07-31.sql`,
+`import_excel_fixup_2026-07-31.sql`) están corridos, más
+`cleanup_forex_factory_headlines.sql` y el `alter table headlines add
+column title_es` sueltos. `FINNHUB_API_KEY` cargada en Vercel y
+funcionando.
+
+**Lo único que sigue sin una confirmación explícita tipo "lo vi"**: que
+las pestañas 🇩🇪 Alemania / 🇫🇷 Francia se vean con datos reales en el
+sitio (se verificó en este sandbox con Playwright en modo local, sin
+datos — la UI arma bien las tarjetas, pero nadie confirmó verlas ya
+pobladas después de correr el fixup). Baja probabilidad de problema dado
+que el resto del fixup se confirmó, pero si el usuario pregunta por algo
+raro en esas dos pestañas, empezar por ahí.
+
+Fuera de Supabase, dos decisiones de esta sesión que valen doble-check con
+el usuario si pregunta por qué un dato no está o parece raro:
+- `eur_business_confidence` (Confianza Empresarial agregada de la
+  Eurozona) quedó **sin dato** a propósito — el único dato disponible en
+  el Excel era el IFO alemán, que se movió a los indicadores nuevos de
+  Alemania (`eur_de_ifo_business_climate`/`eur_de_ifo_expectations`). No
+  hay fuente real de confianza empresarial agregada de toda la Eurozona
+  en el Excel del usuario.
+- `eur_fr_cpi_yoy`/`eur_fr_hicp_yoy` (Francia) se cargaron interpretando
+  el valor `"0.03"` del Excel (sin signo `%`, a diferencia del resto de la
+  planilla) como 3% directo. Si el usuario dice que el dato real era
+  otro, corregir a mano desde "Actualizar Datos".
 
 ## Qué es esto
 
@@ -1281,6 +1320,475 @@ ninguno pendiente por ahora.
 ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
 descartó CME FedWatch/rateprobability.com) — se omite el panel para
 GBP/CAD/AUD/NZD/JPY/CHF.
+
+## Sección Titulares + identidad de marca (sesión 31-jul-2026)
+
+**Titulares** (`/titulares`, global — no depende de la divisa seleccionada,
+por eso está en `navFor` antes del `if` de secciones): tarjetas con badge
+rojo/naranja/gris (alto/medio/bajo, ver `src/lib/impact.ts`), carga manual
+con tags obligatorios (qué divisa/activo afecta — es el filtro de
+relevancia), botón "Fijar" (`pinned`, pensado para una futura cinta
+corrediza del Panel de Control, **todavía no construido**). Tabla nueva
+`headlines` en Supabase (`supabase/schema.sql`), RLS igual al resto.
+`api/headlines-sync.ts` trae el calendario económico de Forex Factory (JSON
+público, sin key) + noticias de Finnhub categoría `forex` (necesita
+`FINNHUB_API_KEY` en Vercel — **el usuario todavía no la cargó**; sin ella
+el sync solo trae el calendario, no rompe nada). Ambas fuentes se filtran a
+G10 (USD/EUR/GBP/JPY/CHF/CAD/AUD/NZD/SEK/NOK) + CNY + bonos/renta variable
+antes de guardarse — Finnhub se clasifica por palabras clave (ver
+`HIGH_IMPACT_KEYWORDS`/`CURRENCY_KEYWORDS` en el sync), no viene
+preclasificado como Forex Factory.
+
+**Logo/marca de marca (Hikman Capital)**: el usuario subió un PNG generado
+por IA (mockup de papel, 6.6MB, con sombra/textura) directo por la UI web
+de GitHub a `public/`. Se procesó en esta sesión y el archivo crudo **se
+borró** (no vale la pena mantenerlo — ver git history si hace falta
+reprocesar desde cero). Quedan 3 assets finales en `public/`:
+- `logo-icon.png` — el monograma "HC" solo, fondo transparente, usado en
+  el header (`Layout.tsx`, ~28px alto) y como base de la marca de agua.
+- `logo-full.png` — el monograma + "HIKMAN CAPITAL" en texto, fondo
+  transparente, sin uso todavía (candidato para una portada/login si se
+  agrega en el futuro).
+- `favicon.png` — el ícono centrado en un canvas cuadrado 512×512, reemplazó
+  a `favicon.svg` (genérico, ya borrado) en `index.html`.
+
+El PNG original no tenía transparencia real (era un mockup con fondo
+"papel" casi blanco). La transparencia se logró con un umbral de
+saturación HSV en Python/Pillow (fondo = baja saturación + alto brillo →
+alpha 0), **no** con una herramienta de remoción de fondo — anotarlo por
+si hace falta repetir el proceso con un logo nuevo: `s = (max-min)/max` en
+HSV, `alpha = clip((s - 0.06) / (0.18 - 0.06), 0, 1)`. Funcionó limpio en
+este logo (colores saturados navy/dorado/rojo/amarillo contra fondo casi
+blanco) — no asumir que funciona igual de bien con un logo de paleta más
+apagada.
+
+**Gotcha de CSS encontrado al integrar la marca de agua** (`Layout.tsx`):
+el `<div>` raíz tiene `background: var(--page)` inline y `position:
+relative` pero sin `z-index` propio — eso NO crea un contexto de
+apilamiento nuevo. Sin contexto propio, un hijo `fixed` con z-index
+negativo (la marca de agua) se compara en el contexto RAÍZ del documento,
+donde el propio `<div>` (positioned, z-index:auto) pinta **después** que
+sus hijos con z-index negativo — el fondo del `<div>` tapaba la marca de
+agua por completo. Se arregló agregando la clase `isolate` al `<div>` raíz
+(fuerza un contexto de apilamiento propio sin tocar z-index). Si se agrega
+otro elemento `fixed`/`absolute` con z-index en el futuro, tenerlo en
+cuenta.
+
+**Pendiente**: `FINNHUB_API_KEY` sin configurar en Vercel (ver sección de
+Titulares arriba). El Panel de Control en sí ya se construyó, ver sección
+siguiente.
+
+## Panel de Control (sesión 31-jul-2026)
+
+Nueva página global `/panel-control` (no depende de la divisa seleccionada,
+por eso está primera en `navFor` en `Layout.tsx`). Cuatro piezas:
+
+**Cinta corrediza** (`MarqueeTicker.tsx`): arranca con "HIKMAN CAPITAL" y
+sigue con los titulares que tengan `pinned=true` (fijados desde Titulares).
+Loop infinito con `@keyframes marquee-scroll` en `index.css` (duplica el
+contenido una vez y anima `translateX(-50%)` para que no se note el reinicio;
+respeta `prefers-reduced-motion`). La duración se escala con la cantidad de
+titulares (`Math.max(24, items.length * 7)` segundos) para que la velocidad
+no varíe mucho con pocos o muchos titulares.
+
+**Panel de indicadores de mercado: se intentó y se sacó (misma sesión,
+31-jul-2026)**. Historial completo por si algún día se retoma — **no
+volver a probarlo con widgets de TradingView, ya se descartó**:
+
+1. Widget "Single Ticker" de TradingView: el usuario vio "This symbol is
+   only available on TradingView" para rendimientos de bonos y futuros.
+2. Widget "Market Overview" con pestañas: mejoró (símbolos confirmados
+   reales por afuera con `WebFetch`) pero ocultaba la columna de precio en
+   anchos angostos (celular).
+3. Widget "Symbol Overview" (uno por símbolo): el usuario seguía sin ver
+   el precio, sin poder confirmar la causa exacta desde este sandbox.
+4. Se abandonó TradingView del todo. Se armó `api/market-quotes.ts`
+   (función serverless propia) combinando FRED (rendimientos 10Y — 7
+   series de la OCDE, confirmadas reales una por una), Frankfurter.app
+   (divisas spot, gratis sin key) y Finnhub `/quote` (acciones/ETF) — con
+   `MarketIndicatorsPanel.tsx` renderizando tarjetas propias en vez de
+   iframes. Recién desplegado, sin feedback todavía del usuario sobre si
+   los números aparecían bien.
+5. **El usuario decidió abortar la sección entera** ("no me gusta como
+   está quedando") antes de llegar a validar el punto 4 — se borraron
+   `MarketIndicatorsPanel.tsx`, `marketIndicators.ts` y
+   `api/market-quotes.ts`, y se sacó la columna del layout de
+   `PanelControl.tsx` (quedó en dos columnas: menú de informes a la
+   izquierda + sesgo por divisa/mentor al centro, sin la columna derecha).
+
+Si en el futuro se pide retomar esto: la parte de FRED (rendimientos 10Y)
+y Frankfurter (divisas) quedó verificada y probablemente sea la más sólida
+para arrancar de nuevo; evitar iframes de TradingView directamente, mejor
+construir la UI propia desde el principio.
+
+**Sesgo por Divisa** (`CurrencyBiasCard.tsx`, tipos `CurrencyBias`/
+`BiasSnapshot`/`BiasReason` en `types.ts`, tabla `currency_bias` +
+`currency_bias_reasons`): badge grande (Hawkish/Neutro Alcista/Neutro/Neutro
+Bajista/Dovish) editable manualmente en cualquier momento vía
+`updateBiasLevel` — **no** está atado al botón de actualizar semanal, el
+usuario pidió explícitamente poder cambiarlo entre semana si un dato mueve
+el sentimiento. El botón "⟳ Actualizar sesgo" (`rolloverBias`) es el
+rollover semanal: congela los motivos de la semana en curso en
+`currency_bias.previous_reasons` (jsonb, copia estática) junto con
+nivel/resumen/fecha de inicio como "Anterior", y arranca
+`current_started_at` de nuevo con motivos vacíos — el nivel del badge se
+mantiene igual al momento del rollover (no se resetea a null), solo el
+usuario lo cambia después si corresponde. Confirmación con `window.confirm`
+antes de ejecutar (borra `currency_bias_reasons` de esa divisa en Supabase,
+ya están congelados en `previous_reasons` así que no se pierde nada, pero es
+irreversible desde la UI).
+
+Motivos de la semana ("nombre del dato + color bueno/malo/neutral", no
+anterior/previsión/actual): se cargan a mano desde la tarjeta
+(`addBiasReason`/`removeBiasReason`) o se fijan desde un titular en Titulares
+con el nuevo selector "Fijar a divisa…" en `HeadlineCard.tsx`
+(`setHeadlineBiasCurrency` en `MacroDataContext.tsx`). Fijar un titular a una
+divisa **siempre** fuerza `pinned=true` (aparece también en la cinta, pedido
+explícito del usuario) y crea un motivo con `headlineId` vinculado
+(color `neutral` por defecto — el titular no trae un color de resultado
+propio, el usuario lo puede editar borrando y recargando, no hay edición
+inline de color todavía). Desfijar de la divisa (volver el select a vacío)
+borra ese motivo vinculado pero **no** desfija de la cinta — son dos cosas
+independientes una vez fijado, tal como pidió el usuario. `Headline` ganó el
+campo `biasCurrency?: Currency` (columna `bias_currency` en `headlines`,
+migración `alter table ... add column if not exists` para proyectos que ya
+tenían la tabla).
+
+Datos base (banco central, tasa, próxima reunión): editable inline
+(`updateBiasBase`) — no hay fuente automática de "próxima reunión" para
+divisas no-USD (solo existe `fomcMeetings.ts` para la Fed), así que es 100%
+manual para las 9 divisas. `CENTRAL_BANK_BY_CURRENCY` en `lib/bias.ts` da el
+nombre del banco central por defecto al crear el registro.
+
+**Informes económicos y resúmenes del mentor** (`DocumentUploadList.tsx`,
+reutilizado dos veces en `PanelControl.tsx` con tablas separadas `reports` y
+`mentor_notes` — mismo shape `DocumentEntry`): texto y/o archivo (PDF/imagen)
+por entrada, el usuario pidió ambos. El archivo sube al bucket de Storage
+`documents` (`uploadDocumentFile` en `MacroDataContext.tsx`, `public: true`
+— mismo criterio de seguridad que el resto del proyecto). La carga de
+archivo se deshabilita en modo local (`syncMode !== 'cloud'`) porque no hay
+backend donde guardarlo — el texto sigue funcionando sin Supabase.
+
+**Pendiente de correr en Supabase**: el `supabase/schema.sql` completo
+(tablas nuevas `currency_bias`, `currency_bias_reasons`, `reports`,
+`mentor_notes`, columna `bias_currency` en `headlines`, bucket `documents`)
+todavía no se corrió contra la base real — avisar al usuario que tiene que
+pegarlo en el SQL Editor de Supabase antes de que el Panel de Control
+sincronice en la nube (mientras tanto cae a `localStorage`, que ya se probó
+funciona end-to-end: fijar titular a divisa → aparece en la cinta y como
+motivo con 📌).
+
+**Lección real (post-merge, 31-jul-2026)**: el usuario corrió el schema
+completo y le dio `ERROR: 42710: policy "public read/write
+indicator_overrides" for table "indicator_overrides" already exists`.
+`create policy` (a diferencia de `create table`) **no soporta** `if not
+exists` en Postgres, así que un archivo que crece con cada sesión y se
+vuelve a pegar entero rompe apenas tiene una sola política repetida. Se
+arregló agregando `drop policy if exists "..." on tabla;` antes de cada
+`create policy` (las 10 de tablas + las 3 de `storage.objects`) — dejarlo
+así de acá en adelante para cualquier política nueva que se agregue.
+
+No pude probar visualmente los widgets de TradingView ni el flujo de subida
+de archivos a Storage en esta sesión (sandbox sin Supabase configurado y con
+`s3.tradingview.com` bloqueado) — sí se probó con Playwright en modo local
+que la cinta, las tarjetas de sesgo, el fijado de titulares y el resto de
+las páginas existentes (Resumen, Titulares) no tienen regresiones.
+
+### Bugs reales encontrados por el usuario tras el deploy (mismo día)
+
+**"No me deja escribir ni agregar motivos en Sesgo"** — bug real, no de
+percepción. Todas las funciones nuevas de `MacroDataContext.tsx`
+(`updateBiasSummary`, `addBiasReason`, etc., y las de `reports`/
+`mentor_notes`) hacían `await supabase...` **antes** de llamar a
+`setBiases`/`setReports`/etc. Con un `<textarea>`/`<input>` controlado
+atado directo a ese estado, cada tecla dispara un viaje de red completo
+antes de que el valor se actualice — si Supabase tarda, se siente
+"trabado"; si la llamada falla (política RLS, tabla sin migrar, lo que
+sea), el estado local nunca se actualiza y **no se puede escribir nada,
+nunca**, sin importar cuánto se reintente. Se arregló invirtiendo el orden
+en las 11 funciones nuevas: primero `setState` (síncrono), después el
+`await` a Supabase envuelto en `try/catch` (no bloquea ni rompe la UI si
+falla, solo lo deja en consola). **Lección para el futuro**: cualquier
+función nueva que alimente un campo de texto controlado (no un botón de
+un solo click) tiene que actualizar el estado local primero — el patrón
+viejo de "esperar a Supabase antes de tocar el estado" que ya existía en
+`addPoint`/`toggleHeadlinePin`/etc. funciona para clicks pero es una
+trampa para inputs de texto.
+
+**Widgets de TradingView, y por qué la sección terminó borrada**: ver el
+historial completo (4 vueltas: Single Ticker → Market Overview → Symbol
+Overview → API propia con FRED/Frankfurter/Finnhub → el usuario pidió
+abortar la sección entera) en "Panel de indicadores de mercado: se intentó
+y se sacó" más arriba, en la sección `## Panel de Control`. Series de FRED
+verificadas ahí por si se retoma: `IRLTLT01{NZ,DE,AU,GB,CA,JP}M156N` +
+`WGS10YR` (US) para rendimientos 10Y; `api.frankfurter.dev/v1/latest` para
+divisas spot, sin key.
+
+**Nota sobre por qué `s3.tradingview.com` y
+`symbol-search.tradingview.com` están bloqueados en este sandbox pero
+`tradingview.com` (la página normal) no**: el proxy del entorno da
+`ERR_CONNECTION_RESET` en el primero (probablemente bloqueo por dominio/CDN)
+y `403 Forbidden` de nginx en el segundo (probablemente bloqueo por
+user-agent o por ser una API, no una página). `WebFetch` sí llega porque
+corre por la infraestructura de Anthropic, no por el proxy local de este
+contenedor — usarlo como alternativa la próxima vez que haga falta
+verificar algo de una fuente externa bloqueada acá.
+
+**Pedido de UI**: los 5 botones de sesgo (Hawkish/Neutro Alcista/.../Dovish)
+ocupaban mucho lugar mostrados todos juntos — se colapsaron a un solo badge
+con el nivel actual que despliega la lista al tocarlo (`CurrencyBiasCard.tsx`,
+`levelPickerOpen` + click-outside con `useRef`/`useEffect`).
+
+## Migración del sistema anterior (Excel, sesión 31-jul-2026)
+
+El usuario subió `HIKMAN CAPITAL SISTEMA 2.0.xlsx` — la planilla donde
+llevaba manualmente todo esto antes del dashboard (hojas `SESGOS`,
+`MOTIVOS`, `TITULARES`, `DATOS_ECO`, más `CUENTAS`/`NOTAS`/`REPORTES`/
+`TRADES`/`BANCOS`/`ORADORES` que no se usaron acá). Pidió cargar el sesgo,
+los titulares y los indicadores económicos manuales ya registrados.
+
+**Antes de migrar, dos cambios de modelo** (la planilla real resultó más
+rica de lo que se había construido, ver arriba "Ampliar modelo de Sesgo"):
+1. `CurrencyBias.previous` (una sola semana atrás) → `history: BiasSnapshot[]`
+   (lista completa, sin límite) — la hoja `SESGOS` tenía 5-6 semanas
+   archivadas por divisa, no solo una. Tabla nueva `currency_bias_history`
+   en `schema.sql` (con migración `alter table currency_bias drop column
+   previous_*` para el proyecto que ya estaba en producción).
+2. `BiasReason.color` pasó de `'good'|'bad'|'neutral'` a `BiasLevel` (los
+   mismos 5 niveles que el sesgo grande) — la hoja `MOTIVOS` usa esa
+   escala real (`TONO`: HAWKISH/DOVISH/NEUTRO/NEUTRO ALCISTA/NEUTRO
+   BAJISTA), no bueno/malo/neutral. Migración de datos en `schema.sql`
+   (`update currency_bias_reasons set color = case ... end`) por si ya
+   había motivos cargados en producción con la escala vieja.
+
+**El SQL de importación quedó en `supabase/import_excel_2026-07-31.sql`**
+(180 inserts: 8 `currency_bias` + 32 `currency_bias_history` + 26
+`currency_bias_reasons` + 55 `headlines` + 59 `indicator_overrides`) — se
+generó con scripts de Python ad-hoc (ya borrados, no quedaron en el repo,
+esto es la única documentación de las decisiones de mapeo). **Correr
+DESPUÉS de `schema.sql`** (necesita `currency_bias_history` y el
+constraint nuevo de `currency_bias_reasons.color`).
+
+Decisiones de mapeo importantes (para no tener que re-derivarlas si hace
+falta ajustar algo):
+
+- **SESGOS**: se filtró `ACTIVO=True` (40 de 41 filas). Por divisa, la
+  fila con `SEMANA` más reciente pasó a ser la semana actual
+  (`currency_bias`); el resto quedó en `currency_bias_history`. Dos
+  niveles de sesgo ambiguos en el texto original se interpretaron a mano:
+  `'NEUTRAL DOVISH'` (EUR) → `dovish`, `'NEUTRAL (HAWKISH)'` (JPY) →
+  `hawkish` — revisar si el usuario quiso decir otra cosa.
+- **MOTIVOS**: se filtró `ACTIVO=True` (32 de 59 filas — el resto eran
+  correcciones/duplicados que el usuario mismo desactivó). Se
+  emparejaron con la semana de `SESGOS` de la misma divisa más cercana en
+  fecha (tolerancia 3 días — `MOTIVOS.SEMANA` usa lunes y `SESGOS.SEMANA`
+  a veces domingo para la misma semana real, no calzan exacto). Cuando una
+  semana de `SESGOS` no tenía motivos estructurados en `MOTIVOS`, se
+  usó como respaldo el texto libre de `SESGOS.MOTIVOS` partido por guiones,
+  con el color = el nivel de sesgo de esa semana (no hay tono por ítem en
+  el texto libre, es la mejor aproximación disponible).
+- **TITULARES**: se filtró `ACTIVO=True` (55 de 154). La hoja no tiene
+  columna de fuente/`source` — se usó el texto genérico "Hikman Capital
+  (importado del sistema anterior)". 12 de las 55 no tenían `IMPACTO`
+  cargado — se les puso `bajo` por defecto. `DIVISAS` (texto libre, ej.
+  "MEDIO ORIENTE", "SP500") se cargó tal cual en `tags`, sin validarlo
+  contra ninguna lista fija.
+- **DATOS_ECO**: de 265 filas activas, solo se importaron **59** — las que
+  matchean contra un indicador de carga manual real del catálogo
+  (`src/data/indicators*.ts`, cruzado contra los ids que sí sincronizan
+  por API en `api/*-sync.ts`). El resto (**206 filas**) se descartó a
+  propósito, la mayoría porque:
+  - Ya sincronizan solas por API (CPI/PPI/GDP/empleo/ventas minoristas de
+    casi todas las divisas) — importarlas hubiera pisado datos correctos
+    de FRED/ABS/StatCan/etc. con una transcripción manual.
+  - No tienen ningún indicador equivalente en el dashboard (ej. componentes
+    del PCE, balance fiscal, datos por país dentro de la Eurozona como
+    Alemania/Francia/Italia — el catálogo de EUR es solo a nivel Eurozona).
+  - Ambigüedad de unidades que no se quiso arriesgar a importar mal: el
+    "Confianza del Consumidor Westpac" de AUD traía un % de variación en
+    vez del nivel del índice; "Cambios en el Empleo" de NZD traía un % en
+    vez de miles de personas — se dejaron sin cargar en vez de adivinar.
+  - Series con nombre parecido pero que son otra cosa: BSI del BOJ ≠
+    Tankan (`jpy_business_confidence` es específicamente Tankan grandes
+    manufactureras); "EXPECTATIVAS DE NEGOCIO" de NAB (AUD) ≠ "Confianza
+    Empresarial" NAB; dos filas de "BALANZA COMERCIAL" bajo NZD con
+    magnitudes absurdamente distintas (800M vs 723.98B) — la segunda es
+    casi seguro de China, mal etiquetada como NZD, se descartó.
+  - `eur_business_confidence` se completó con el IFO alemán (`CONFIANZA
+    EMPRESARIAL IFO`) a falta de algo mejor — el catálogo dice
+    "confianza industrial de la Eurozona" (podría ser el ESI de la
+    Comisión Europea, un dato distinto) — **revisar si esto es lo que el
+    usuario quería** o si prefiere dejarlo vacío.
+  - Parseo de valores: porcentajes con coma decimal (`"2,8%"` → `0.028`),
+    sufijos K/M/B (`"98K"` → `98000`, `"3,098B"` → `3098` en millones para
+    formato `trade`) — todos los 59 valores parsearon sin error, se
+    imprimió cada `raw → stored` para revisar a ojo antes de generar el
+    SQL final.
+
+**Todavía no se corrió `import_excel_2026-07-31.sql` contra Supabase real**
+— avisarle al usuario que lo pegue en el SQL Editor después de `schema.sql`,
+y que revise sobre todo los dos niveles de sesgo ambiguos y el matcheo de
+`eur_business_confidence` con IFO.
+
+**Actualización — el usuario ya corrió el SQL y confirmó que todo quedó
+bien, pero pidió 3 correcciones** (mismo día):
+
+1. **Los dos niveles ambiguos estaban mal**: "NEUTRAL DOVISH" y "NEUTRAL
+   (HAWKISH)" no son sinónimos de "DOVISH"/"HAWKISH" — son justo los
+   matices intermedios que ya existen en la escala (`neutral_bajista` /
+   `neutral_alcista`). Los había mapeado mal a los extremos.
+2. **"Confianza Empresarial" del EUR SÍ importa** (confirmado por el
+   usuario) — pero el dato que tenía cargado (IFO alemán) es
+   específicamente de Alemania, no de la Eurozona agregada.
+3. **Pidió las economías internas de Alemania y Francia** como
+   indicadores propios, no solo el agregado de Eurozona.
+
+Se agregaron **18 indicadores nuevos** a `indicatorsEur.ts` (todos
+`currency: 'EUR'`, prefijo `eur_de_`/`eur_fr_`): CPI/HICP m/m y a/a,
+ventas minoristas, producción industrial, pedidos de fábrica, PMI
+manufactura, ZEW, IFO (clima empresarial + expectativas, como dos
+indicadores separados) y GfK para Alemania; CPI/HICP m/m y a/a + PMI
+manufactura para Francia.
+
+`supabase/import_excel_fixup_2026-07-31.sql` (correr DESPUÉS del import
+original) hace 4 cosas: corrige los 2 niveles de sesgo en
+`currency_bias_history`; carga 2 indicadores eurozone-wide que se habían
+pasado por alto en la primera pasada (`eur_wage_yoy`, `eur_labor_cost_yoy`
+— estaban archivados bajo la categoría "ALEMANIA" del sheet pero el texto
+decía "ZONA EUR", error mío no haberlos visto la primera vez); saca el
+dato de IFO de `eur_business_confidence` (queda sin dato hasta que
+aparezca una fuente eurozone-wide real — no forzar el IFO alemán ahí de
+nuevo); carga los 15 puntos de dato de Alemania/Francia disponibles en el
+sheet en los indicadores nuevos.
+
+**Nota de parseo**: `FRENCH CPI Y/Y JUN` y `FRENCH HICP Y/Y` en el sheet
+tenían el valor `"0.03"` sin signo `%` (a diferencia del resto de la
+planilla, que siempre usa `%`) — se interpretó como 3% directo (0.03 ya
+es la fracción a guardar), no como 0.03%. Si el usuario confirma que el
+dato real era otro, corregirlo a mano desde "Actualizar Datos".
+
+No pude probar el fixup contra Supabase real (mismo motivo de siempre,
+sandbox sin las keys) — sí verifiqué que las tarjetas nuevas renderizan
+bien en `/inflacion` de EUR en modo local (título, fuente, estado "sin
+datos" antes de cargar el SQL).
+
+**Actualización — pestañas propias por país**: el usuario pidió que
+Alemania/Francia queden separados en sus propias secciones de nav, "así
+como Empleo/Crecimiento/Inflación", en vez de mezclados dentro de esas
+páginas agregadas. Se agregó `IndicatorMeta.country?: 'DE' | 'FR'`
+(`types.ts`), marcado en los 18 indicadores nuevos de `indicatorsEur.ts`.
+`indicatorsBySection()` (`indicators.ts`) ahora excluye todo lo que tenga
+`country` seteado — así `/inflacion`, `/crecimiento`, `/confianza` de EUR
+quedan de nuevo puramente a nivel Eurozona. Función nueva
+`indicatorsByCountry(country, currency)` + página genérica
+`CountryPage.tsx` (agrupa por sección igual que `Dashboard.tsx`, reusa
+`ChartCard`) con dos wrappers finitos `Alemania.tsx`/`Francia.tsx` — mismo
+patrón que agregar una divisa nueva, pero a nivel país dentro de EUR. Nav
+condicional en `Layout.tsx` (`🇩🇪 Alemania` / `🇫🇷 Francia`, con banderas
+emoji) solo aparece si `indicatorsByCountry(...).length > 0` — mismo
+patrón data-driven que el resto de las pestañas opcionales. Si en el
+futuro se agrega otro país (Italia, España), el patrón es: marcar
+`country` en sus indicadores, agregar el código al union type, una página
+wrapper de una línea y una ruta en `App.tsx` — no hace falta tocar
+`CountryPage.tsx` ni `Layout.tsx` más que la condición del nav.
+
+Probado en local con Playwright: la pestaña aparece, agrupa por
+Crecimiento/Inflación/Confianza correctamente, y `/inflacion` de EUR
+volvió a mostrar solo las 4 tarjetas agregadas (sin Alemania/Francia
+mezcladas).
+
+## Bug real en producción: Forex Factory rompió el feed (31-jul-2026)
+
+El usuario cargó `FINNHUB_API_KEY` en Vercel (con guía paso a paso — es
+poco técnico, hubo que explicarle desde "cómo entrar a Environment
+Variables" hasta "qué es Redeploy") y al sincronizar Titulares apareció
+`Forex Factory: fetch failed`. Confirmado por afuera con `WebFetch`
+(`getaddrinfo ENOTFOUND cdn-nfs.faireconomy.media` — DNS no resuelve más,
+no es un problema de Vercel ni de red) que Forex Factory sacó el prefijo
+`cdn-` de su CDN: la URL nueva es `https://nfs.faireconomy.media/ff_calendar_thisweek.json`
+(mismo JSON, mismos campos `title/country/date/impact/forecast/previous`,
+no hizo falta tocar el resto de `api/headlines-sync.ts`). Corregido en
+`FF_CALENDAR_URL`. **Lección**: exactamente lo que ya advertía este
+HANDOFF sobre GBP/CAD/AUD/RBNZ — las APIs/CDNs de terceros cambian de URL
+sin aviso, hay que volver a verificar en vez de asumir que sigue vigente
+si algo empieza a fallar en producción.
+
+**Seguido inmediato — el usuario probó el fix y pidió sacar Forex Factory
+del todo**: "no quiero que me cargue datos económicos, solo titulares". El
+calendario económico de Forex Factory arma titulares tipo "CPI Y/Y (prev.
+X, previsión Y)" a partir de releases programados — eso es un dato
+económico, no una noticia, y el usuario no lo quiere mezclado en
+Titulares (los datos económicos van aparte, en Actualizar Datos/
+`indicator_overrides`). Se sacó `fetchForexFactoryHeadlines` y todo lo que
+solo usaba esa función (`FF_CALENDAR_URL`, `FfEvent`, `ffImpactToLevel`,
+`G10_CNY_CURRENCIES`) de `api/headlines-sync.ts` — Titulares ahora
+sincroniza **solo Finnhub**. Botón de la UI actualizado a "⟳ Sincronizar
+(Finnhub)". El código de Forex Factory queda en el historial de git de
+este archivo por si algún día se quiere retomar (con la URL ya corregida).
+
+`supabase/cleanup_forex_factory_headlines.sql` — por si el usuario llegó a
+correr el sync viejo antes de este cambio y quedaron titulares con
+`source = 'Forex Factory (calendario económico)'` en la tabla, para
+borrarlos a mano.
+
+**Traducción automática de titulares (mismo día)**: el usuario pidió que
+los titulares de Finnhub (vienen en inglés) se vean traducidos, o con la
+traducción debajo. Se eligió lo segundo — mantener el original + traducción
+abajo en cursiva — para no perder matices en un contexto de trading.
+Columna nueva `headlines.title_es` (`schema.sql`, con migración `alter
+table ... add column if not exists` para lo que ya estaba en producción).
+Traducción vía **MyMemory** (`api.mymemory.translated.net`, gratis, sin
+API key) — confirmado con una prueba manual con `WebFetch` antes de
+integrarlo (mismo criterio que con Frankfurter/Forex Factory: no asumir
+que una API de terceros gratuita funciona sin probarla primero). Se
+traduce en `fetchFinnhubHeadlines` (`api/headlines-sync.ts`), una llamada
+por titular relevante — si falla una traducción puntual, esa fila queda
+con `title_es: null` sin romper el resto del sync (`translateToSpanish`
+atrapa cualquier error y devuelve `null`). Las cargas manuales (ya en
+español) no se tocan, `title_es` queda `null` para esas.
+
+Frontend: `Headline.titleEs` nuevo (`types.ts`), seleccionado y mapeado en
+`MacroDataContext.tsx`. `HeadlineCard.tsx` muestra la traducción en
+cursiva debajo del título original cuando existe. `MarqueeTicker.tsx`
+usa `titleEs || title` (prioriza la traducción en la cinta, ya que ahí no
+hay espacio para mostrar las dos versiones). Probado en local con
+Playwright inyectando un titular de prueba en localStorage (no hay forma
+de generar una traducción real sin pegarle a la API desde un sync
+verdadero) — se ve título en inglés + traducción en cursiva debajo, tal
+como se pidió.
+
+Nota para cuando se corra en Supabase real: como el `upsert` de
+`headlines-sync.ts` usa `ignoreDuplicates: true`, un titular que ya existía
+**nunca se actualiza** en syncs siguientes (ni `title_es` ni nada más) —
+si una traducción falló la primera vez (quedó `null`), no se va a
+reintentar sola; habría que borrar esa fila para que se vuelva a traer y
+traducir en el próximo sync.
+
+**Seguido inmediato — backfill para lo ya cargado**: exactamente el caso
+de arriba, pero a escala — el usuario ya tenía titulares cargados de antes
+de esta funcionalidad (los 55 migrados del Excel más los que ya había
+sincronizado de Finnhub) y no tenía forma de traducirlos sin perderlos.
+Se agregó **`api/translate-headlines.ts`**, función aparte de
+`headlines-sync.ts`: busca `headlines` con `is_manual = false and
+title_es is null` (tope de 200 por corrida, para no pasarse del timeout
+de una función serverless), traduce cada uno con la misma
+`translateToSpanish` (duplicada acá — mismo motivo de siempre, cada
+función de `/api` es autocontenida) y hace `update` fila por fila (no
+upsert, así que sí pisa lo que haga falta). Excluye `is_manual = true`
+a propósito — esos son las cargas manuales/importadas del Excel, ya están
+en español, traducirlas de nuevo no tiene sentido y podría arruinar el
+texto original si MyMemory malinterpreta español como si fuera inglés.
+
+Botón nuevo en `Titulares.tsx`, "🌐 Traducir pendientes", al lado de
+"Sincronizar" — dispara `/api/translate-headlines` y refresca. Si hay más
+de 200 pendientes, el mensaje avisa que hay que volver a tocar el botón
+(no pagina automático, para mantenerlo simple). Bug real encontrado y
+arreglado en esta misma sesión antes de subir: al principio el mensaje
+"No había titulares pendientes de traducir" aparecía **junto con** el
+error de "no se pudo contactar la función" en vez de en su lugar — la
+condición original solo miraba `found === 0`, sin considerar que
+`found` también es `0` cuando el fetch falló antes de llegar a contar
+nada. Se corrigió agregando `&& errors.length === 0` a esa condición.
 
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 

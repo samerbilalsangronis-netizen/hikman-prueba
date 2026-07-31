@@ -706,6 +706,14 @@ export const FREQUENCY_STALE_DAYS: Record<string, { warn: number; stale: number 
   quarterly: { warn: 110, stale: 200 },
 };
 
+// Los indicadores con `country` (economías internas, ej. Alemania/Francia
+// dentro de EUR) quedan afuera de las secciones agregadas — tienen su
+// propia pestaña de país (ver indicatorsByCountry), para no mezclar datos
+// de un país con el agregado de la divisa en la misma sección.
 export function indicatorsBySection(section: string, currency: Currency = 'USD'): IndicatorMeta[] {
-  return INDICATORS.filter((i) => i.section === section && (i.currency ?? 'USD') === currency);
+  return INDICATORS.filter((i) => i.section === section && (i.currency ?? 'USD') === currency && !i.country);
+}
+
+export function indicatorsByCountry(country: NonNullable<IndicatorMeta['country']>, currency: Currency = 'USD'): IndicatorMeta[] {
+  return INDICATORS.filter((i) => i.country === country && (i.currency ?? 'USD') === currency);
 }
