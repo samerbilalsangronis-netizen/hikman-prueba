@@ -68,17 +68,24 @@ export function Layout() {
   const { currency, setCurrency } = useCurrency();
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--page)' }}>
+    <div className="relative isolate min-h-screen" style={{ background: 'var(--page)' }}>
+      <img
+        src="/logo-icon.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none fixed bottom-0 right-0 -z-10 w-[38vw] max-w-2xl opacity-[0.05] select-none"
+      />
       <header
         className="sticky top-0 z-10 backdrop-blur"
         style={{ background: 'color-mix(in srgb, var(--page) 85%, transparent)', borderBottom: '1px solid var(--border)' }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto" />
             <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
               {currency}
             </span>
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
               Seguimiento Macro Fundamental
             </span>
           </div>

@@ -1282,6 +1282,65 @@ ninguna divisa no-USD (ver handoffs previos para el detalle de por qué se
 descartó CME FedWatch/rateprobability.com) — se omite el panel para
 GBP/CAD/AUD/NZD/JPY/CHF.
 
+## Sección Titulares + identidad de marca (sesión 31-jul-2026)
+
+**Titulares** (`/titulares`, global — no depende de la divisa seleccionada,
+por eso está en `navFor` antes del `if` de secciones): tarjetas con badge
+rojo/naranja/gris (alto/medio/bajo, ver `src/lib/impact.ts`), carga manual
+con tags obligatorios (qué divisa/activo afecta — es el filtro de
+relevancia), botón "Fijar" (`pinned`, pensado para una futura cinta
+corrediza del Panel de Control, **todavía no construido**). Tabla nueva
+`headlines` en Supabase (`supabase/schema.sql`), RLS igual al resto.
+`api/headlines-sync.ts` trae el calendario económico de Forex Factory (JSON
+público, sin key) + noticias de Finnhub categoría `forex` (necesita
+`FINNHUB_API_KEY` en Vercel — **el usuario todavía no la cargó**; sin ella
+el sync solo trae el calendario, no rompe nada). Ambas fuentes se filtran a
+G10 (USD/EUR/GBP/JPY/CHF/CAD/AUD/NZD/SEK/NOK) + CNY + bonos/renta variable
+antes de guardarse — Finnhub se clasifica por palabras clave (ver
+`HIGH_IMPACT_KEYWORDS`/`CURRENCY_KEYWORDS` en el sync), no viene
+preclasificado como Forex Factory.
+
+**Logo/marca de marca (Hikman Capital)**: el usuario subió un PNG generado
+por IA (mockup de papel, 6.6MB, con sombra/textura) directo por la UI web
+de GitHub a `public/`. Se procesó en esta sesión y el archivo crudo **se
+borró** (no vale la pena mantenerlo — ver git history si hace falta
+reprocesar desde cero). Quedan 3 assets finales en `public/`:
+- `logo-icon.png` — el monograma "HC" solo, fondo transparente, usado en
+  el header (`Layout.tsx`, ~28px alto) y como base de la marca de agua.
+- `logo-full.png` — el monograma + "HIKMAN CAPITAL" en texto, fondo
+  transparente, sin uso todavía (candidato para una portada/login si se
+  agrega en el futuro).
+- `favicon.png` — el ícono centrado en un canvas cuadrado 512×512, reemplazó
+  a `favicon.svg` (genérico, ya borrado) en `index.html`.
+
+El PNG original no tenía transparencia real (era un mockup con fondo
+"papel" casi blanco). La transparencia se logró con un umbral de
+saturación HSV en Python/Pillow (fondo = baja saturación + alto brillo →
+alpha 0), **no** con una herramienta de remoción de fondo — anotarlo por
+si hace falta repetir el proceso con un logo nuevo: `s = (max-min)/max` en
+HSV, `alpha = clip((s - 0.06) / (0.18 - 0.06), 0, 1)`. Funcionó limpio en
+este logo (colores saturados navy/dorado/rojo/amarillo contra fondo casi
+blanco) — no asumir que funciona igual de bien con un logo de paleta más
+apagada.
+
+**Gotcha de CSS encontrado al integrar la marca de agua** (`Layout.tsx`):
+el `<div>` raíz tiene `background: var(--page)` inline y `position:
+relative` pero sin `z-index` propio — eso NO crea un contexto de
+apilamiento nuevo. Sin contexto propio, un hijo `fixed` con z-index
+negativo (la marca de agua) se compara en el contexto RAÍZ del documento,
+donde el propio `<div>` (positioned, z-index:auto) pinta **después** que
+sus hijos con z-index negativo — el fondo del `<div>` tapaba la marca de
+agua por completo. Se arregló agregando la clase `isolate` al `<div>` raíz
+(fuerza un contexto de apilamiento propio sin tocar z-index). Si se agrega
+otro elemento `fixed`/`absolute` con z-index en el futuro, tenerlo en
+cuenta.
+
+**Pendiente**: Panel de Control (cinta corrediza de titulares fijados +
+panel de indicadores de mercado tipo Bloomberg — SP500, DXY, VIX, oro,
+petróleo, rendimientos, etc., ver captura que compartió el usuario) — el
+usuario todavía no aprobó la lista final de indicadores. `FINNHUB_API_KEY`
+sin configurar en Vercel.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
