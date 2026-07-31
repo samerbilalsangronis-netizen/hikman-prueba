@@ -57,11 +57,11 @@ create table if not exists banker_statements (
 );
 
 -- Titulares de alto impacto (sección Titulares): mezcla de lo que trae
--- /api/headlines-sync.ts (calendario económico de Forex Factory + noticias
--- de Finnhub, filtrados a G10 + CNY + bonos/renta variable) y lo que se
--- carga a mano desde la UI cuando el usuario ve algo relevante que las APIs
--- no captaron. "pinned" = aparece en la cinta corrediza del Panel de
--- Control (sección todavía no construida).
+-- /api/headlines-sync.ts (noticias de Finnhub, filtradas a G10 + CNY +
+-- bonos/renta variable — solo noticias, no calendario económico programado,
+-- eso va aparte en indicator_overrides/Actualizar Datos) y lo que se carga
+-- a mano desde la UI cuando el usuario ve algo relevante que la API no
+-- captó. "pinned" = aparece en la cinta corrediza del Panel de Control.
 create table if not exists headlines (
   -- id como texto (no uuid autogenerado): /api/headlines-sync.ts arma un id
   -- determinístico (fuente + hash del título/fecha) para poder upsertear sin

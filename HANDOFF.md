@@ -1674,6 +1674,24 @@ HANDOFF sobre GBP/CAD/AUD/RBNZ — las APIs/CDNs de terceros cambian de URL
 sin aviso, hay que volver a verificar en vez de asumir que sigue vigente
 si algo empieza a fallar en producción.
 
+**Seguido inmediato — el usuario probó el fix y pidió sacar Forex Factory
+del todo**: "no quiero que me cargue datos económicos, solo titulares". El
+calendario económico de Forex Factory arma titulares tipo "CPI Y/Y (prev.
+X, previsión Y)" a partir de releases programados — eso es un dato
+económico, no una noticia, y el usuario no lo quiere mezclado en
+Titulares (los datos económicos van aparte, en Actualizar Datos/
+`indicator_overrides`). Se sacó `fetchForexFactoryHeadlines` y todo lo que
+solo usaba esa función (`FF_CALENDAR_URL`, `FfEvent`, `ffImpactToLevel`,
+`G10_CNY_CURRENCIES`) de `api/headlines-sync.ts` — Titulares ahora
+sincroniza **solo Finnhub**. Botón de la UI actualizado a "⟳ Sincronizar
+(Finnhub)". El código de Forex Factory queda en el historial de git de
+este archivo por si algún día se quiere retomar (con la URL ya corregida).
+
+`supabase/cleanup_forex_factory_headlines.sql` — por si el usuario llegó a
+correr el sync viejo antes de este cambio y quedaron titulares con
+`source = 'Forex Factory (calendario económico)'` en la tabla, para
+borrarlos a mano.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.

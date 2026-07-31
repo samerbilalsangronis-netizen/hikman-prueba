@@ -200,7 +200,7 @@ export function Titulares() {
             className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--series-1)' }}
           >
-            {syncing ? 'Sincronizando…' : '⟳ Sincronizar (Forex Factory + Finnhub)'}
+            {syncing ? 'Sincronizando…' : '⟳ Sincronizar (Finnhub)'}
           </button>
           <ManualHeadlineForm />
         </div>

@@ -5,41 +5,21 @@ import { createClient } from '@supabase/supabase-js';
 // Vercel empaqueta cada función de /api por separado y no rastrea imports
 // que cruzan a /src).
 //
-// Trae titulares de alto impacto de dos fuentes:
-// - Calendario económico de Forex Factory (feed JSON sin key, cubre los
-//   releases programados de las 8 divisas mayores — CPI, NFP, decisiones de
-//   tasas, PMI, GDP, etc. — con el impacto YA clasificado por el proveedor).
-// - Noticias de Finnhub (categoría "forex", requiere FINNHUB_API_KEY, free
-//   tier en finnhub.io) para lo no programado (declaraciones sorpresa,
-//   geopolítica) — el impacto se clasifica acá con reglas de palabras clave
-//   porque Finnhub no lo provee.
-// Ambas se filtran para quedarse solo con lo que afecta G10 (USD/EUR/GBP/
-// JPY/CHF/CAD/AUD/NZD/SEK/NOK) + CNY + rendimientos de bonos + renta
-// variable mayor — todo lo demás se descarta antes de llegar a Supabase.
-
-const G10_CNY_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'SEK', 'NOK', 'CNY'];
-
-// Forex Factory sacó el prefijo "cdn-" de su CDN en algún momento entre
-// jul-2026 (cuando se armó esta función) y ahora — cdn-nfs.faireconomy.media
-// dejó de resolver por DNS (ENOTFOUND), confirmado por afuera con WebFetch.
-// Mismo patrón que ya advertía el HANDOFF: "las APIs cambian sin aviso".
-const FF_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
-
-interface FfEvent {
-  title: string;
-  country: string; // código de divisa, ej. "USD"
-  date: string; // ISO con offset
-  impact: 'High' | 'Medium' | 'Low' | 'Holiday' | string;
-  forecast?: string;
-  previous?: string;
-}
-
-function ffImpactToLevel(impact: string): 'alto' | 'medio' | 'bajo' | null {
-  if (impact === 'High') return 'alto';
-  if (impact === 'Medium') return 'medio';
-  if (impact === 'Low') return 'bajo';
-  return null; // "Holiday" u otros: no es un dato de mercado, se descarta
-}
+// Trae titulares de alto impacto de Finnhub (categoría "forex", requiere
+// FINNHUB_API_KEY, free tier en finnhub.io) — noticias reales, no
+// releases programados de calendario económico (eso va en "Actualizar
+// Datos"/DATOS_ECO, no en Titulares — pedido explícito del usuario:
+// Titulares es para noticias, no para datos económicos). Se filtra para
+// quedarse solo con lo que afecta G10 + CNY + rendimientos de bonos +
+// renta variable mayor — todo lo demás se descarta antes de llegar a
+// Supabase.
+//
+// Antes también traía el calendario económico de Forex Factory (sin key) —
+// se sacó a pedido del usuario (31-jul-2026): esos releases programados
+// (CPI, NFP, PMI, etc.) no son "titulares", son datos económicos, y
+// generaban ruido en la sección. Si se quiere retomar, ver el historial de
+// git de este archivo (`fetchForexFactoryHeadlines`, con el bug de la URL
+// `cdn-nfs.faireconomy.media` ya corregido a `nfs.faireconomy.media`).
 
 // Hash corto y determinístico (no criptográfico, no hace falta) para armar
 // un id estable a partir de fuente+título+fecha — permite upsertear sin
@@ -63,36 +43,6 @@ interface HeadlineRow {
   tags: string[];
   is_manual: boolean;
   pinned: boolean;
-}
-
-async function fetchForexFactoryHeadlines(): Promise<HeadlineRow[]> {
-  const res = await fetch(FF_CALENDAR_URL, { headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' } });
-  if (!res.ok) throw new Error(`Forex Factory: HTTP ${res.status}`);
-  const events = (await res.json()) as FfEvent[];
-
-  const out: HeadlineRow[] = [];
-  for (const ev of events) {
-    const level = ffImpactToLevel(ev.impact);
-    if (!level) continue;
-    if (level === 'bajo') continue; // demasiado ruido para "titulares de alto impacto"
-    const country = (ev.country || '').toUpperCase();
-    if (!G10_CNY_CURRENCIES.includes(country)) continue;
-    const publishedAt = new Date(ev.date);
-    if (Number.isNaN(publishedAt.getTime())) continue;
-
-    out.push({
-      id: stableId('ff', [country, ev.title, ev.date]),
-      title: ev.forecast || ev.previous ? `${ev.title} (prev. ${ev.previous ?? '—'}, previsión ${ev.forecast ?? '—'})` : ev.title,
-      source: 'Forex Factory (calendario económico)',
-      url: null,
-      published_at: publishedAt.toISOString(),
-      impact: level,
-      tags: [country],
-      is_manual: false,
-      pinned: false,
-    });
-  }
-  return out;
 }
 
 interface FinnhubNewsItem {
@@ -212,12 +162,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const errors: { fuente: string; error: string }[] = [];
   let rows: HeadlineRow[] = [];
-
-  try {
-    rows = rows.concat(await fetchForexFactoryHeadlines());
-  } catch (err) {
-    errors.push({ fuente: 'Forex Factory', error: (err as Error).message });
-  }
 
   if (!finnhubKey) {
     errors.push({ fuente: 'Finnhub', error: 'Falta la variable de entorno FINNHUB_API_KEY en Vercel (key gratis en finnhub.io).' });
