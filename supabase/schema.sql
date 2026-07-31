@@ -164,51 +164,66 @@ alter table mentor_notes enable row level security;
 -- quieres que solo tú puedas editar, la forma simple es activar Supabase Auth
 -- y cambiar "using (true)" por "using (auth.uid() is not null)" en las
 -- políticas de escritura.
+--
+-- "create policy" no soporta "if not exists" en Postgres — por eso cada una
+-- va precedida de "drop policy if exists", para que este archivo se pueda
+-- volver a pegar entero sin error aunque las políticas ya existan de una
+-- corrida anterior.
+drop policy if exists "public read/write indicator_overrides" on indicator_overrides;
 create policy "public read/write indicator_overrides"
   on indicator_overrides for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write score_overrides" on score_overrides;
 create policy "public read/write score_overrides"
   on score_overrides for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write indicator_forecasts" on indicator_forecasts;
 create policy "public read/write indicator_forecasts"
   on indicator_forecasts for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write fomc_watch" on fomc_watch;
 create policy "public read/write fomc_watch"
   on fomc_watch for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write banker_statements" on banker_statements;
 create policy "public read/write banker_statements"
   on banker_statements for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write headlines" on headlines;
 create policy "public read/write headlines"
   on headlines for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write currency_bias" on currency_bias;
 create policy "public read/write currency_bias"
   on currency_bias for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write currency_bias_reasons" on currency_bias_reasons;
 create policy "public read/write currency_bias_reasons"
   on currency_bias_reasons for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write reports" on reports;
 create policy "public read/write reports"
   on reports for all
   using (true)
   with check (true);
 
+drop policy if exists "public read/write mentor_notes" on mentor_notes;
 create policy "public read/write mentor_notes"
   on mentor_notes for all
   using (true)
@@ -223,14 +238,17 @@ insert into storage.buckets (id, name, public)
 values ('documents', 'documents', true)
 on conflict (id) do nothing;
 
+drop policy if exists "public read documents" on storage.objects;
 create policy "public read documents"
   on storage.objects for select
   using (bucket_id = 'documents');
 
+drop policy if exists "public write documents" on storage.objects;
 create policy "public write documents"
   on storage.objects for insert
   with check (bucket_id = 'documents');
 
+drop policy if exists "public delete documents" on storage.objects;
 create policy "public delete documents"
   on storage.objects for delete
   using (bucket_id = 'documents');

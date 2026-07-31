@@ -1430,6 +1430,16 @@ sincronice en la nube (mientras tanto cae a `localStorage`, que ya se probó
 funciona end-to-end: fijar titular a divisa → aparece en la cinta y como
 motivo con 📌).
 
+**Lección real (post-merge, 31-jul-2026)**: el usuario corrió el schema
+completo y le dio `ERROR: 42710: policy "public read/write
+indicator_overrides" for table "indicator_overrides" already exists`.
+`create policy` (a diferencia de `create table`) **no soporta** `if not
+exists` en Postgres, así que un archivo que crece con cada sesión y se
+vuelve a pegar entero rompe apenas tiene una sola política repetida. Se
+arregló agregando `drop policy if exists "..." on tabla;` antes de cada
+`create policy` (las 10 de tablas + las 3 de `storage.objects`) — dejarlo
+así de acá en adelante para cualquier política nueva que se agregue.
+
 No pude probar visualmente los widgets de TradingView ni el flujo de subida
 de archivos a Storage en esta sesión (sandbox sin Supabase configurado y con
 `s3.tradingview.com` bloqueado) — sí se probó con Playwright en modo local
