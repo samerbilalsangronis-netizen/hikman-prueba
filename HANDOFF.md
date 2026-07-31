@@ -1467,21 +1467,39 @@ viejo de "esperar a Supabase antes de tocar el estado" que ya existía en
 `addPoint`/`toggleHeadlinePin`/etc. funciona para clicks pero es una
 trampa para inputs de texto.
 
-**Widgets de TradingView mostrando "This symbol is only available on
-TradingView"** — el widget que usé primero (`embed-widget-single-quote.js`,
-"Single Ticker") solo soporta acciones/forex simples, no rindes de bonos
-(`TVC:*`) ni futuros continuos (`CME:6E1!` etc.) — exactamente los símbolos
-que pidió el usuario. Se reemplazó por un solo widget **"Market Overview"**
-(`embed-widget-market-overview.js`, `MarketOverviewWidget.tsx`) con pestañas
-por categoría (soporta bonos/futuros/índices/acciones juntos, es el widget
-que TradingView recomienda para dashboards mixtos como este) — un solo
-iframe en vez de ~25. Costo: TradingView no deja poner un tooltip custom
-por fila dentro de su iframe, así que el tooltip por símbolo pasó a vivir
-en un `<details>` colapsable aparte, debajo del widget
-(`MarketIndicatorsPanel.tsx`), con el mismo texto de `marketIndicators.ts`.
-Sigue sin poder verificarse en este sandbox (misma razón: `s3.tradingview.com`
-bloqueado) — pedirle al usuario que confirme en el deploy real que ahora
-sí aparecen precios.
+**Widgets de TradingView, dos vueltas para llegar a algo que funciona**:
+
+1. Primer intento, `embed-widget-single-quote.js` ("Single Ticker"): el
+   usuario reportó "This symbol is only available on TradingView" — ese
+   widget solo soporta acciones/forex simples, no rendimientos de bonos
+   (`TVC:*`) ni futuros continuos (`CME:6E1!` etc.).
+2. Segundo intento, `embed-widget-market-overview.js` ("Market Overview")
+   con pestañas por categoría en un solo iframe: mejoró (ya no tira ese
+   error, y confirmé por afuera — ver abajo — que los símbolos SÍ son
+   válidos y tienen datos reales) pero el usuario mandó captura desde el
+   celular mostrando la tabla sin la columna de precio — el widget la
+   oculta solo cuando el contenedor es angosto (nuestro sidebar de
+   mercado tiene 300px en desktop, y en mobile el layout es una sola
+   columna angosta también).
+3. Se verificó independientemente (vía `WebFetch` a
+   `tradingview.com/symbols/TVC-NZ10Y/`, no depende del `s3.tradingview.com`
+   bloqueado en este sandbox) que `TVC:NZ10Y` es un símbolo real con datos
+   reales ("New Zealand Government Bonds 10 YR Yield", 4.703% al momento
+   de verificar) — así que el problema nunca fue el símbolo, fue el
+   widget de tabla angosta. Se cambió a `embed-widget-symbol-overview.js`
+   ("Symbol Overview") **un widget por símbolo** (`SymbolOverviewWidget.tsx`),
+   que muestra el precio como número grande siempre, sin lógica de ocultar
+   columnas por ancho — es el mismo widget que TradingView ofrece embeber
+   desde la página de cada símbolo. Volvió el wrapper `<div title="...">`
+   por símbolo para el tooltip propio (se había sacado en el paso 2 porque
+   Market Overview no dejaba tooltips por fila).
+   Costo: ~25 iframes más altos (110px c/u) en vez de 1 solo — la columna
+   de mercado queda bastante larga, aceptable dado que priorizamos que
+   funcione sobre que sea compacto.
+
+Tampoco pude probar visualmente esta tercera versión en el sandbox (mismo
+bloqueo a `s3.tradingview.com`) — pedirle al usuario que confirme que ahora
+sí aparece el precio en cada tarjeta.
 
 **Pedido de UI**: los 5 botones de sesgo (Hawkish/Neutro Alcista/.../Dovish)
 ocupaban mucho lugar mostrados todos juntos — se colapsaron a un solo badge
