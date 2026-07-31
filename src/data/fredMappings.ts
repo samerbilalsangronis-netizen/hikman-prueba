@@ -46,6 +46,8 @@ export const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
+  { indicatorId: 'initial_claims', seriesId: 'ICSA', transform: 'level' },
+  { indicatorId: 'continuing_claims', seriesId: 'CCSA', transform: 'level' },
   // Confianza / Sentimiento
   { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento
@@ -90,6 +92,10 @@ export const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
   { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
+  // Mismo patrón que eur_cpi: solo m/m automático, a/a queda manual (ver
+  // comentario arriba sobre el sesgo de ~0.1pp al derivar la tasa a/a).
+  { indicatorId: 'eur_de_hicp_mom', seriesId: 'CP0000DEM086NEST', transform: 'pct_change' },
+  { indicatorId: 'eur_fr_hicp_mom', seriesId: 'CP0000FRM086NEST', transform: 'pct_change' },
   // PIB trimestral (nivel, millones de euros encadenados 2010). Eurostat
   // reporta la variación trimestral SIN anualizar (a diferencia de BEA/EE.UU.)
   // — se computa como pct_change de 3 meses en vez de 1.
@@ -171,6 +177,8 @@ export const JPY_AUTO_INDICATOR_IDS = [
   'jpy_cpi_yoy',
   'jpy_core_cpi',
   'jpy_core_cpi_yoy',
+  'jpy_tokyo_cpi_yoy',
+  'jpy_tokyo_core_cpi_yoy',
   'jpy_unemployment',
   'jpy_employment_change',
   'jpy_retail_sales',

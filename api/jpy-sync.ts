@@ -53,8 +53,13 @@ function parseEstatTime(time: string): string {
 
 // --- e-Stat Dashboard API (sin key, distinta de la API principal de e-Stat) -
 
-async function fetchDashboardSeries(indicatorCode: string, timeFrom: string, isSeasonal: '1' | '2'): Promise<Map<string, number>> {
-  const url = `https://dashboard.e-stat.go.jp/api/1.0/Json/getData?IndicatorCode=${indicatorCode}&RegionCode=00000&TimeFrom=${timeFrom}&IsSeasonalAdjustment=${isSeasonal}`;
+async function fetchDashboardSeries(
+  indicatorCode: string,
+  timeFrom: string,
+  isSeasonal: '1' | '2',
+  regionCode = '00000',
+): Promise<Map<string, number>> {
+  const url = `https://dashboard.e-stat.go.jp/api/1.0/Json/getData?IndicatorCode=${indicatorCode}&RegionCode=${regionCode}&TimeFrom=${timeFrom}&IsSeasonalAdjustment=${isSeasonal}`;
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
   if (!res.ok) throw new Error(`e-Stat Dashboard ${indicatorCode}: HTTP ${res.status}`);
   const json = (await res.json()) as {
@@ -159,6 +164,12 @@ async function fetchTradeBalance(): Promise<Observation[]> {
 
 const CPI_LEVEL = '0703010501010090000'; // CPI general, índice de nivel
 const CORE_CPI_LEVEL = '0703010501010090010'; // CPI ex alimentos frescos, índice de nivel
+// Mismos códigos de indicador que el CPI nacional, pero con el desglose
+// municipal (RegionCode 13100 = 東京都区部, los 23 barrios especiales de
+// Tokio) — el Dashboard de e-Stat solo tiene valores crudos para esta
+// granularidad (sin IsSeasonalAdjustment='2'), lo cual coincide con la
+// convención real del mercado (el a/a de Tokio siempre se mira crudo).
+const TOKYO_REGION = '13100';
 const UNEMPLOYMENT = '0301010000020020010'; // 完全失業率（男女計）
 const EMPLOYED_LEVEL = '0301010000010010010'; // 就業者（男女計）, en 万人
 const GDP_LEVEL = '0705020501000010000'; // PIB real, nivel
@@ -229,6 +240,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () => {
         coreCpiLevel ??= await fetchDashboardSeries(CORE_CPI_LEVEL, MONTHLY_FROM, '2');
         return pctChangeSeries(coreCpiLevel, 12);
+      },
+    },
+    {
+      id: 'jpy_tokyo_cpi_yoy',
+      run: async () => {
+        const level = await fetchDashboardSeries(CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
+        return pctChangeSeries(level, 12);
+      },
+    },
+    {
+      id: 'jpy_tokyo_core_cpi_yoy',
+      run: async () => {
+        const level = await fetchDashboardSeries(CORE_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
+        return pctChangeSeries(level, 12);
       },
     },
     {

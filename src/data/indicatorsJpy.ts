@@ -173,6 +173,46 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Core CPI respecto al mismo mes del año anterior. Verificado: 1.44% calculado (redondea a 1.4%) para mayo-2026, coincide exacto con lo reportado.',
   },
+  // CPI de Tokio (23 barrios especiales) — el mismo Dashboard de e-Stat
+  // publica el desglose municipal del CPI nacional con el código RegionCode
+  // 13100, pero SOLO en valores crudos (sin desestacionalizar, a diferencia
+  // del nacional) — coincide con la convención real, el mercado siempre mira
+  // el a/a crudo de Tokio, nunca uno desestacionalizado. Se sigue mirando de
+  // cerca porque el CPI de Tokio se publica ~3-4 semanas antes que el
+  // nacional del mismo mes (es un adelanto, no un dato retrasado) — sirve
+  // como el mejor indicador líder disponible de hacia dónde va el CPI
+  // nacional del mes siguiente. Solo a/a (no hay m/m que el mercado siga
+  // para esta serie, a diferencia del CPI nacional).
+  {
+    id: 'jpy_tokyo_cpi_yoy',
+    label: 'CPI de Tokio Interanual (a/a, adelanto)',
+    shortLabel: 'CPI Tokio a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'e-Stat Dashboard (CPI, desglose municipal Tokio-23-barrios, RegionCode 13100)',
+    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    goodDirection: 'neutral',
+    description:
+      'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes).',
+  },
+  {
+    id: 'jpy_tokyo_core_cpi_yoy',
+    label: 'Core CPI de Tokio — ex Alim. Frescos (a/a, adelanto)',
+    shortLabel: 'Core CPI Tokio a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'e-Stat Dashboard (CPI ex alimentos frescos, desglose municipal Tokio-23-barrios, RegionCode 13100)',
+    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    goodDirection: 'neutral',
+    description:
+      'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía").',
+  },
   // Empleo
   {
     id: 'jpy_unemployment',

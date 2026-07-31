@@ -25,6 +25,12 @@ const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
   { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
+  // Alemania/Francia (agregados 31-jul-2026): mismo patrón que eur_cpi,
+  // solo m/m — verificado el a/a derivado contra el dato oficial de
+  // junio-2026 (Destatis/INSEE) y descartado por el mismo sesgo de ~0.1pp
+  // que ya excluye a eur_cpi_yoy/eur_core_cpi_yoy de este mapeo.
+  { indicatorId: 'eur_de_hicp_mom', seriesId: 'CP0000DEM086NEST', transform: 'pct_change' },
+  { indicatorId: 'eur_fr_hicp_mom', seriesId: 'CP0000FRM086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_gdp_qoq', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_quarter' },
   { indicatorId: 'eur_gdp_yoy', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_yoy' },
 ];

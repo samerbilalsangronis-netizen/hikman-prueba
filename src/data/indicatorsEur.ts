@@ -371,7 +371,8 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
     goodDirection: 'neutral',
     country: 'DE',
-    description: 'HICP alemán (metodología armonizada UE) interanual — comparable directo con el HICP de otros países de la Eurozona. Sin API gratis — carga manual.',
+    description:
+      'HICP alemán (metodología armonizada UE) interanual — comparable directo con el HICP de otros países de la Eurozona. El m/m ya se automatizó (ver eur_de_hicp_mom) pero el a/a queda manual: derivarlo del índice de FRED dio 2.35% vs el 2.4% oficial de junio-2026 (Destatis) — el mismo ~0.1pp de sesgo por el que eur_cpi_yoy tampoco se automatiza a nivel Eurozona, ver fredMappings.ts.',
   },
   {
     id: 'eur_de_hicp_mom',
@@ -382,11 +383,12 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'EUR',
-    source: 'Destatis (Oficina Federal de Estadística de Alemania)',
-    sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
+    source: 'FRED (CP0000DEM086NEST, HICP Alemania republicado de Eurostat)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/CP0000DEM086NEST',
     goodDirection: 'neutral',
     country: 'DE',
-    description: 'HICP alemán mensual. Sin API gratis — carga manual.',
+    description:
+      'HICP alemán mensual, derivado del índice de nivel — mismo patrón que eur_cpi (m/m automático, a/a queda manual por el sesgo de ~0.1pp al derivar la tasa interanual, ver eur_de_hicp_yoy).',
   },
   {
     id: 'eur_de_retail_sales',
@@ -569,7 +571,8 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759971',
     goodDirection: 'neutral',
     country: 'FR',
-    description: 'HICP francés (metodología armonizada UE) interanual. Sin API gratis — carga manual.',
+    description:
+      'HICP francés (metodología armonizada UE) interanual. El m/m ya se automatizó (ver eur_fr_hicp_mom) pero el a/a queda manual: derivarlo del índice de FRED dio 2.02% vs el 2.0% oficial de junio-2026 (INSEE) — muy ajustado, pero mismo criterio de precaución que eur_cpi_yoy/eur_de_hicp_yoy, ver fredMappings.ts.',
   },
   {
     id: 'eur_fr_hicp_mom',
@@ -580,11 +583,11 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'EUR',
-    source: 'INSEE (Institut national de la statistique)',
-    sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759971',
+    source: 'FRED (CP0000FRM086NEST, HICP Francia republicado de Eurostat)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/CP0000FRM086NEST',
     goodDirection: 'neutral',
     country: 'FR',
-    description: 'HICP francés mensual. Sin API gratis — carga manual.',
+    description: 'HICP francés mensual, derivado del índice de nivel — mismo patrón que eur_cpi (m/m automático, a/a manual).',
   },
   {
     id: 'eur_fr_pmi_manuf',
