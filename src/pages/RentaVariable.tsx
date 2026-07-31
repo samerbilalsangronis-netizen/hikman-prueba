@@ -75,7 +75,7 @@ export function RentaVariable() {
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const all = [group.index, ...group.stocks];
+    const all = [...group.indices, ...group.stocks];
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -141,10 +141,12 @@ export function RentaVariable() {
 
       <div>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-          Índice
+          {group.indices.length > 1 ? 'Índices' : 'Índice'}
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <QuoteCard meta={group.index} quote={quotes[group.index.symbol]} error={errors[group.index.symbol]} big />
+          {group.indices.map((idx) => (
+            <QuoteCard key={idx.symbol} meta={idx} quote={quotes[idx.symbol]} error={errors[idx.symbol]} big />
+          ))}
         </div>
       </div>
 
