@@ -1725,6 +1725,32 @@ si una traducción falló la primera vez (quedó `null`), no se va a
 reintentar sola; habría que borrar esa fila para que se vuelva a traer y
 traducir en el próximo sync.
 
+**Seguido inmediato — backfill para lo ya cargado**: exactamente el caso
+de arriba, pero a escala — el usuario ya tenía titulares cargados de antes
+de esta funcionalidad (los 55 migrados del Excel más los que ya había
+sincronizado de Finnhub) y no tenía forma de traducirlos sin perderlos.
+Se agregó **`api/translate-headlines.ts`**, función aparte de
+`headlines-sync.ts`: busca `headlines` con `is_manual = false and
+title_es is null` (tope de 200 por corrida, para no pasarse del timeout
+de una función serverless), traduce cada uno con la misma
+`translateToSpanish` (duplicada acá — mismo motivo de siempre, cada
+función de `/api` es autocontenida) y hace `update` fila por fila (no
+upsert, así que sí pisa lo que haga falta). Excluye `is_manual = true`
+a propósito — esos son las cargas manuales/importadas del Excel, ya están
+en español, traducirlas de nuevo no tiene sentido y podría arruinar el
+texto original si MyMemory malinterpreta español como si fuera inglés.
+
+Botón nuevo en `Titulares.tsx`, "🌐 Traducir pendientes", al lado de
+"Sincronizar" — dispara `/api/translate-headlines` y refresca. Si hay más
+de 200 pendientes, el mensaje avisa que hay que volver a tocar el botón
+(no pagina automático, para mantenerlo simple). Bug real encontrado y
+arreglado en esta misma sesión antes de subir: al principio el mensaje
+"No había titulares pendientes de traducir" aparecía **junto con** el
+error de "no se pudo contactar la función" en vez de en su lugar — la
+condición original solo miraba `found === 0`, sin considerar que
+`found` también es `0` cuando el fetch falló antes de llegar a contar
+nada. Se corrigió agregando `&& errors.length === 0` a esa condición.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
