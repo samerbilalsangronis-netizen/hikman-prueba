@@ -44,10 +44,13 @@ interface ChartCardProps {
   points: SeriesPoint[];
   months?: number;
   forecast?: number;
-  expandControl?: { expanded: boolean; onToggle: () => void; childCount: number };
+  // Si el indicador tiene subcomponentes, tocar la tarjeta abre un modal con
+  // el detalle (SubcomponentModal) en vez de expandir algo inline — ver
+  // Crecimiento.tsx. childCount solo se usa para el badge "N subcomponentes".
+  subcomponentsControl?: { onOpen: () => void; childCount: number };
 }
 
-function ChartCardInner({ meta, points, months = 36, forecast, expandControl }: ChartCardProps) {
+function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsControl }: ChartCardProps) {
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
   // Clave de contenido (no de referencia): points siempre es un arreglo nuevo
@@ -75,10 +78,9 @@ function ChartCardInner({ meta, points, months = 36, forecast, expandControl }: 
       className="flex flex-col rounded-xl p-4"
       style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
     >
-      {expandControl ? (
+      {subcomponentsControl ? (
         <button
-          onClick={expandControl.onToggle}
-          aria-expanded={expandControl.expanded}
+          onClick={subcomponentsControl.onOpen}
           className="-m-1 flex w-full items-start justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-[var(--surface-2)]"
         >
           <div>
@@ -95,13 +97,7 @@ function ChartCardInner({ meta, points, months = 36, forecast, expandControl }: 
               className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
               style={{ border: '1px solid var(--border)', color: 'var(--series-1)', background: 'var(--surface-1)' }}
             >
-              <span
-                className="inline-block transition-transform"
-                style={{ transform: expandControl.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              >
-                ▸
-              </span>
-              {expandControl.childCount} subcomponentes
+              {subcomponentsControl.childCount} subcomponentes ⤢
             </span>
           </div>
         </button>
@@ -270,8 +266,7 @@ function areEqual(prev: ChartCardProps, next: ChartCardProps): boolean {
     prev.points.length === next.points.length &&
     samePoint(prev.points[prev.points.length - 1], next.points[next.points.length - 1]) &&
     samePoint(prev.points[prev.points.length - 2], next.points[next.points.length - 2]) &&
-    prev.expandControl?.expanded === next.expandControl?.expanded &&
-    prev.expandControl?.childCount === next.expandControl?.childCount
+    prev.subcomponentsControl?.childCount === next.subcomponentsControl?.childCount
   );
 }
 
