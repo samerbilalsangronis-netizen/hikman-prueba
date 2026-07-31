@@ -12,6 +12,8 @@ import { Banqueros } from './pages/Banqueros';
 import { Titulares } from './pages/Titulares';
 import { Actualizar } from './pages/Actualizar';
 import { PanelControl } from './pages/PanelControl';
+import { Alemania } from './pages/Alemania';
+import { Francia } from './pages/Francia';
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
               <Route path="empleo" element={<Empleo />} />
               <Route path="confianza" element={<Sentimiento />} />
               <Route path="crecimiento" element={<Crecimiento />} />
+              <Route path="alemania" element={<Alemania />} />
+              <Route path="francia" element={<Francia />} />
               <Route path="banqueros" element={<Banqueros />} />
               <Route path="titulares" element={<Titulares />} />
               <Route path="actualizar" element={<Actualizar />} />

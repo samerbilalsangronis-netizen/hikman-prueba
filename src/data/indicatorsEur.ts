@@ -340,6 +340,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
     goodDirection: 'neutral',
+    country: 'DE',
     description: 'CPI nacional alemán interanual — Alemania pesa ~30% del PIB de la Eurozona, suele adelantar el dato agregado. Sin API gratis — carga manual.',
   },
   {
@@ -354,6 +355,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
     goodDirection: 'neutral',
+    country: 'DE',
     description: 'CPI nacional alemán mensual. Sin API gratis — carga manual.',
   },
   {
@@ -368,6 +370,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
     goodDirection: 'neutral',
+    country: 'DE',
     description: 'HICP alemán (metodología armonizada UE) interanual — comparable directo con el HICP de otros países de la Eurozona. Sin API gratis — carga manual.',
   },
   {
@@ -382,6 +385,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Prices/Consumer-Price-Index/_node.html',
     goodDirection: 'neutral',
+    country: 'DE',
     description: 'HICP alemán mensual. Sin API gratis — carga manual.',
   },
   {
@@ -396,6 +400,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Short-Term-Indicators/Trade/_node.html',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Ventas minoristas alemanas mensuales. Sin API gratis — carga manual.',
   },
   {
@@ -410,6 +415,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Short-Term-Indicators/Trade/_node.html',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Ventas minoristas alemanas interanuales. Sin API gratis — carga manual.',
   },
   {
@@ -424,6 +430,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Short-Term-Indicators/Industry-Construction/_node.html',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Producción industrial alemana mensual — Alemania es el mayor productor industrial de la Eurozona. Sin API gratis — carga manual.',
   },
   {
@@ -438,6 +445,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Destatis (Oficina Federal de Estadística de Alemania)',
     sourceUrl: 'https://www.destatis.de/EN/Themes/Economy/Short-Term-Indicators/Industry-Construction/_node.html',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Nuevos pedidos a la industria manufacturera alemana — señal adelantada de producción industrial. Sin API gratis — carga manual.',
   },
   {
@@ -452,6 +460,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'S&P Global / HCOB',
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
+    country: 'DE',
     description: 'PMI manufacturero de Alemania. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
   },
   {
@@ -466,6 +475,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'ZEW — Leibniz Institute for Economic Research',
     sourceUrl: 'https://www.zew.de/en/publications/zew-indicator-of-economic-sentiment',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Encuesta ZEW de expectativas económicas a 6 meses específica de Alemania — distinta del ZEW de la Eurozona en su conjunto. Sin API gratis — carga manual.',
   },
   {
@@ -480,6 +490,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'ifo Institute',
     sourceUrl: 'https://www.ifo.de/en/survey/ifo-business-climate-germany',
     goodDirection: 'up',
+    country: 'DE',
     description:
       'Índice IFO de clima empresarial alemán (situación actual + expectativas) — encuesta de referencia del sector industrial alemán, es específicamente alemana, no un promedio de la Eurozona. Sin API gratis — carga manual.',
   },
@@ -495,6 +506,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'ifo Institute',
     sourceUrl: 'https://www.ifo.de/en/survey/ifo-business-climate-germany',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Subcomponente de expectativas a 6 meses del IFO alemán — se adelanta al índice de clima general. Sin API gratis — carga manual.',
   },
   {
@@ -509,6 +521,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'GfK / NIM',
     sourceUrl: 'https://nim.org/en/analyses-forecasts/gfk-consumer-climate',
     goodDirection: 'up',
+    country: 'DE',
     description: 'Encuesta GfK de clima de consumo alemán — el equivalente alemán a la confianza del consumidor. Sin API gratis — carga manual.',
   },
 
@@ -525,6 +538,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'INSEE (Institut national de la statistique)',
     sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759970',
     goodDirection: 'neutral',
+    country: 'FR',
     description: 'CPI nacional francés interanual. Sin API gratis — carga manual.',
   },
   {
@@ -539,6 +553,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'INSEE (Institut national de la statistique)',
     sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759970',
     goodDirection: 'neutral',
+    country: 'FR',
     description: 'CPI nacional francés mensual. Sin API gratis — carga manual.',
   },
   {
@@ -553,6 +568,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'INSEE (Institut national de la statistique)',
     sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759971',
     goodDirection: 'neutral',
+    country: 'FR',
     description: 'HICP francés (metodología armonizada UE) interanual. Sin API gratis — carga manual.',
   },
   {
@@ -567,6 +583,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'INSEE (Institut national de la statistique)',
     sourceUrl: 'https://www.insee.fr/en/statistiques/serie/001759971',
     goodDirection: 'neutral',
+    country: 'FR',
     description: 'HICP francés mensual. Sin API gratis — carga manual.',
   },
   {
@@ -581,6 +598,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'S&P Global / HCOB',
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
+    country: 'FR',
     description: 'PMI manufacturero de Francia. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
   },
 ];

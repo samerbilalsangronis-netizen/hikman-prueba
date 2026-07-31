@@ -25,6 +25,11 @@ export interface IndicatorMeta {
   parentId?: string;
   /** Ausente = 'USD' (los 41 indicadores originales no lo tienen seteado). */
   currency?: Currency;
+  /** Si está definido, es un dato de una economía interna (ej. Alemania/
+   * Francia dentro de la Eurozona) — se muestra en su propia pestaña de país
+   * en vez de en las secciones agregadas (Inflación/Crecimiento/etc. de esa
+   * divisa quedan solo con datos a nivel Eurozona). */
+  country?: 'DE' | 'FR';
 }
 
 export interface ScoreRow {

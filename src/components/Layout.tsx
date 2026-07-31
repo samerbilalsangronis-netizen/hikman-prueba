@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
-import { indicatorsBySection } from '../data/indicators';
+import { indicatorsByCountry, indicatorsBySection } from '../data/indicators';
 import { bankersForCurrency } from '../data/centralBankers';
 import type { Currency } from '../types';
 
@@ -42,6 +42,8 @@ function navFor(currency: Currency) {
   if (indicatorsBySection('empleo', currency).length > 0) items.push({ to: '/empleo', label: 'Empleo' });
   items.push({ to: '/crecimiento', label: 'Crecimiento' });
   if (indicatorsBySection('confianza', currency).length > 0) items.push({ to: '/confianza', label: 'Confianza / Sentimiento' });
+  if (indicatorsByCountry('DE', currency).length > 0) items.push({ to: '/alemania', label: '🇩🇪 Alemania' });
+  if (indicatorsByCountry('FR', currency).length > 0) items.push({ to: '/francia', label: '🇫🇷 Francia' });
   if (bankersForCurrency(currency).length > 0) items.push({ to: '/banqueros', label: 'Banqueros' });
   items.push({ to: '/actualizar', label: 'Actualizar Datos' });
 

@@ -1633,6 +1633,31 @@ sandbox sin las keys) — sí verifiqué que las tarjetas nuevas renderizan
 bien en `/inflacion` de EUR en modo local (título, fuente, estado "sin
 datos" antes de cargar el SQL).
 
+**Actualización — pestañas propias por país**: el usuario pidió que
+Alemania/Francia queden separados en sus propias secciones de nav, "así
+como Empleo/Crecimiento/Inflación", en vez de mezclados dentro de esas
+páginas agregadas. Se agregó `IndicatorMeta.country?: 'DE' | 'FR'`
+(`types.ts`), marcado en los 18 indicadores nuevos de `indicatorsEur.ts`.
+`indicatorsBySection()` (`indicators.ts`) ahora excluye todo lo que tenga
+`country` seteado — así `/inflacion`, `/crecimiento`, `/confianza` de EUR
+quedan de nuevo puramente a nivel Eurozona. Función nueva
+`indicatorsByCountry(country, currency)` + página genérica
+`CountryPage.tsx` (agrupa por sección igual que `Dashboard.tsx`, reusa
+`ChartCard`) con dos wrappers finitos `Alemania.tsx`/`Francia.tsx` — mismo
+patrón que agregar una divisa nueva, pero a nivel país dentro de EUR. Nav
+condicional en `Layout.tsx` (`🇩🇪 Alemania` / `🇫🇷 Francia`, con banderas
+emoji) solo aparece si `indicatorsByCountry(...).length > 0` — mismo
+patrón data-driven que el resto de las pestañas opcionales. Si en el
+futuro se agrega otro país (Italia, España), el patrón es: marcar
+`country` en sus indicadores, agregar el código al union type, una página
+wrapper de una línea y una ruta en `App.tsx` — no hace falta tocar
+`CountryPage.tsx` ni `Layout.tsx` más que la condición del nav.
+
+Probado en local con Playwright: la pestaña aparece, agrupa por
+Crecimiento/Inflación/Confianza correctamente, y `/inflacion` de EUR
+volvió a mostrar solo las 4 tarjetas agregadas (sin Alemania/Francia
+mezcladas).
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
