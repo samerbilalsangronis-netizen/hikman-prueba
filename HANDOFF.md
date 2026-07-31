@@ -1591,6 +1591,48 @@ falta ajustar algo):
 y que revise sobre todo los dos niveles de sesgo ambiguos y el matcheo de
 `eur_business_confidence` con IFO.
 
+**Actualización — el usuario ya corrió el SQL y confirmó que todo quedó
+bien, pero pidió 3 correcciones** (mismo día):
+
+1. **Los dos niveles ambiguos estaban mal**: "NEUTRAL DOVISH" y "NEUTRAL
+   (HAWKISH)" no son sinónimos de "DOVISH"/"HAWKISH" — son justo los
+   matices intermedios que ya existen en la escala (`neutral_bajista` /
+   `neutral_alcista`). Los había mapeado mal a los extremos.
+2. **"Confianza Empresarial" del EUR SÍ importa** (confirmado por el
+   usuario) — pero el dato que tenía cargado (IFO alemán) es
+   específicamente de Alemania, no de la Eurozona agregada.
+3. **Pidió las economías internas de Alemania y Francia** como
+   indicadores propios, no solo el agregado de Eurozona.
+
+Se agregaron **18 indicadores nuevos** a `indicatorsEur.ts` (todos
+`currency: 'EUR'`, prefijo `eur_de_`/`eur_fr_`): CPI/HICP m/m y a/a,
+ventas minoristas, producción industrial, pedidos de fábrica, PMI
+manufactura, ZEW, IFO (clima empresarial + expectativas, como dos
+indicadores separados) y GfK para Alemania; CPI/HICP m/m y a/a + PMI
+manufactura para Francia.
+
+`supabase/import_excel_fixup_2026-07-31.sql` (correr DESPUÉS del import
+original) hace 4 cosas: corrige los 2 niveles de sesgo en
+`currency_bias_history`; carga 2 indicadores eurozone-wide que se habían
+pasado por alto en la primera pasada (`eur_wage_yoy`, `eur_labor_cost_yoy`
+— estaban archivados bajo la categoría "ALEMANIA" del sheet pero el texto
+decía "ZONA EUR", error mío no haberlos visto la primera vez); saca el
+dato de IFO de `eur_business_confidence` (queda sin dato hasta que
+aparezca una fuente eurozone-wide real — no forzar el IFO alemán ahí de
+nuevo); carga los 15 puntos de dato de Alemania/Francia disponibles en el
+sheet en los indicadores nuevos.
+
+**Nota de parseo**: `FRENCH CPI Y/Y JUN` y `FRENCH HICP Y/Y` en el sheet
+tenían el valor `"0.03"` sin signo `%` (a diferencia del resto de la
+planilla, que siempre usa `%`) — se interpretó como 3% directo (0.03 ya
+es la fracción a guardar), no como 0.03%. Si el usuario confirma que el
+dato real era otro, corregirlo a mano desde "Actualizar Datos".
+
+No pude probar el fixup contra Supabase real (mismo motivo de siempre,
+sandbox sin las keys) — sí verifiqué que las tarjetas nuevas renderizan
+bien en `/inflacion` de EUR en modo local (título, fuente, estado "sin
+datos" antes de cargar el SQL).
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
