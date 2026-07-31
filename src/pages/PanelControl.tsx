@@ -1,7 +1,6 @@
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES } from '../data/CurrencyContext';
 import { MarqueeTicker } from '../components/MarqueeTicker';
-import { MarketIndicatorsPanel } from '../components/MarketIndicatorsPanel';
 import { CurrencyBiasCard } from '../components/CurrencyBiasCard';
 import { DocumentUploadList } from '../components/DocumentUploadList';
 
@@ -21,11 +20,11 @@ export function PanelControl() {
           Panel de Control
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Vista general: mercado, sesgo por divisa, informes económicos y resúmenes de mentoría.
+          Vista general: sesgo por divisa, informes económicos y resúmenes de mentoría.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr_300px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
         <aside className="flex flex-col gap-6 lg:order-1">
           <div className="rounded-xl p-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
             <DocumentUploadList
@@ -61,10 +60,6 @@ export function PanelControl() {
             />
           </div>
         </div>
-
-        <aside className="lg:order-3">
-          <MarketIndicatorsPanel />
-        </aside>
       </div>
     </div>
   );

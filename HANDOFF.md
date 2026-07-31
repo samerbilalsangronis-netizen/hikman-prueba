@@ -1352,26 +1352,35 @@ respeta `prefers-reduced-motion`). La duración se escala con la cantidad de
 titulares (`Math.max(24, items.length * 7)` segundos) para que la velocidad
 no varíe mucho con pocos o muchos titulares.
 
-**Panel de indicadores de mercado** (`MarketIndicatorsPanel.tsx` +
-`marketIndicators.ts`): agrupado por categoría (Rendimientos 10Y, Futuros de
-Divisas, Emergentes/Asia (ETF), Tecnología y Crecimiento) usando el widget
-"Single Ticker" de TradingView (gratis, sin API key,
-`s3.tradingview.com/external-embedding/embed-widget-single-quote.js`) — un
-widget por símbolo, envuelto en un `<div title="...">` propio para el
-tooltip (TradingView no permite tooltips custom dentro de su iframe). El
-`tooltip` de cada símbolo es texto editable a mano en `marketIndicators.ts`,
-no viene de ninguna API. **Importante**: no pude verificar visualmente que
-los símbolos de TradingView resuelvan bien — el sandbox de esta sesión
-bloquea la conexión saliente a `s3.tradingview.com`
-(`net::ERR_CONNECTION_RESET` al probar con Playwright), típico de un entorno
-de contenedor con red restringida, no un bug del código. Revisar en el
-primer deploy a Vercel que cada símbolo muestre precio real y no "n/a" —
-especialmente `TVC:NZ10Y` (rendimiento 10Y de Nueva Zelanda, el que más
-dudas genera de que TradingView lo tenga con ese ticker exacto). El usuario
-había mencionado una categoría "ETF" separada de "Emergentes/Asia" sin dar
-símbolos para ETF — se fusionaron en una sola categoría con VWO (que es a la
-vez ETF y proxy de emergentes/Asia); si el usuario tenía en mente otros ETFs
-específicos, agregar ahí.
+**Panel de indicadores de mercado: se intentó y se sacó (misma sesión,
+31-jul-2026)**. Historial completo por si algún día se retoma — **no
+volver a probarlo con widgets de TradingView, ya se descartó**:
+
+1. Widget "Single Ticker" de TradingView: el usuario vio "This symbol is
+   only available on TradingView" para rendimientos de bonos y futuros.
+2. Widget "Market Overview" con pestañas: mejoró (símbolos confirmados
+   reales por afuera con `WebFetch`) pero ocultaba la columna de precio en
+   anchos angostos (celular).
+3. Widget "Symbol Overview" (uno por símbolo): el usuario seguía sin ver
+   el precio, sin poder confirmar la causa exacta desde este sandbox.
+4. Se abandonó TradingView del todo. Se armó `api/market-quotes.ts`
+   (función serverless propia) combinando FRED (rendimientos 10Y — 7
+   series de la OCDE, confirmadas reales una por una), Frankfurter.app
+   (divisas spot, gratis sin key) y Finnhub `/quote` (acciones/ETF) — con
+   `MarketIndicatorsPanel.tsx` renderizando tarjetas propias en vez de
+   iframes. Recién desplegado, sin feedback todavía del usuario sobre si
+   los números aparecían bien.
+5. **El usuario decidió abortar la sección entera** ("no me gusta como
+   está quedando") antes de llegar a validar el punto 4 — se borraron
+   `MarketIndicatorsPanel.tsx`, `marketIndicators.ts` y
+   `api/market-quotes.ts`, y se sacó la columna del layout de
+   `PanelControl.tsx` (quedó en dos columnas: menú de informes a la
+   izquierda + sesgo por divisa/mentor al centro, sin la columna derecha).
+
+Si en el futuro se pide retomar esto: la parte de FRED (rendimientos 10Y)
+y Frankfurter (divisas) quedó verificada y probablemente sea la más sólida
+para arrancar de nuevo; evitar iframes de TradingView directamente, mejor
+construir la UI propia desde el principio.
 
 **Sesgo por Divisa** (`CurrencyBiasCard.tsx`, tipos `CurrencyBias`/
 `BiasSnapshot`/`BiasReason` en `types.ts`, tabla `currency_bias` +
@@ -1467,90 +1476,14 @@ viejo de "esperar a Supabase antes de tocar el estado" que ya existía en
 `addPoint`/`toggleHeadlinePin`/etc. funciona para clicks pero es una
 trampa para inputs de texto.
 
-**Widgets de TradingView, dos vueltas para llegar a algo que funciona**:
-
-1. Primer intento, `embed-widget-single-quote.js` ("Single Ticker"): el
-   usuario reportó "This symbol is only available on TradingView" — ese
-   widget solo soporta acciones/forex simples, no rendimientos de bonos
-   (`TVC:*`) ni futuros continuos (`CME:6E1!` etc.).
-2. Segundo intento, `embed-widget-market-overview.js` ("Market Overview")
-   con pestañas por categoría en un solo iframe: mejoró (ya no tira ese
-   error, y confirmé por afuera — ver abajo — que los símbolos SÍ son
-   válidos y tienen datos reales) pero el usuario mandó captura desde el
-   celular mostrando la tabla sin la columna de precio — el widget la
-   oculta solo cuando el contenedor es angosto (nuestro sidebar de
-   mercado tiene 300px en desktop, y en mobile el layout es una sola
-   columna angosta también).
-3. Se verificó independientemente (vía `WebFetch` a
-   `tradingview.com/symbols/TVC-NZ10Y/`, no depende del `s3.tradingview.com`
-   bloqueado en este sandbox) que `TVC:NZ10Y` es un símbolo real con datos
-   reales ("New Zealand Government Bonds 10 YR Yield", 4.703% al momento
-   de verificar) — así que el problema nunca fue el símbolo, fue el
-   widget de tabla angosta. Se cambió a `embed-widget-symbol-overview.js`
-   ("Symbol Overview") **un widget por símbolo** (`SymbolOverviewWidget.tsx`),
-   que muestra el precio como número grande siempre, sin lógica de ocultar
-   columnas por ancho — es el mismo widget que TradingView ofrece embeber
-   desde la página de cada símbolo. Volvió el wrapper `<div title="...">`
-   por símbolo para el tooltip propio (se había sacado en el paso 2 porque
-   Market Overview no dejaba tooltips por fila).
-   Costo: ~25 iframes más altos (110px c/u) en vez de 1 solo — la columna
-   de mercado queda bastante larga, aceptable dado que priorizamos que
-   funcione sobre que sea compacto.
-
-4. El usuario probó la tercera versión y **seguía sin ver el precio**
-   (captura desde el celular otra vez, misma pinta que el paso 2 — no se
-   pudo confirmar la causa exacta sin poder probarlo yo mismo en este
-   sandbox). En vez de intentar una cuarta variante de widget a ciegas, el
-   usuario pidió directamente **dejar de depender de TradingView y traer
-   los precios con una API gratuita** — se hizo caso. Antes de escribir
-   código se verificaron las fuentes por afuera con `WebFetch` (no
-   depende del `s3.tradingview.com`/`symbol-search.tradingview.com`
-   bloqueados en este sandbox, ver más abajo por qué esos sí están
-   bloqueados):
-   - Las 7 series de rendimiento 10Y **confirmadas reales en FRED**
-     (`fred.stlouisfed.org/series/<id>`, todas con dato de junio-2026):
-     `IRLTLT01NZM156N` (NZ), `IRLTLT01DEM156N` (Alemania, proxy EUR),
-     `IRLTLT01AUM156N` (AU), `WGS10YR` (US — la misma serie que ya usa
-     `t10y` en este proyecto), `IRLTLT01GBM156N` (GB), `IRLTLT01CAM156N`
-     (CA), `IRLTLT01JPM156N` (JP). Son series mensuales de la OCDE, no
-     intradía — está bien para un panel de contexto, no para day-trading.
-   - `api.frankfurter.dev/v1/latest?from=USD&to=...` (antes
-     `api.frankfurter.app`, migró de dominio — devuelve 301) confirmado
-     con `curl` que responde JSON real sin API key, sin límite documentado
-     (tasas del BCE). Se usa como sustituto de los futuros de divisas
-     (`6E1!`, `6J1!`, etc.) porque no existe una fuente gratuita de
-     futuros CME en tiempo real — la categoría se renombró a "Divisas
-     (spot)" para no prometer algo que no es.
-   - Acciones/ETF (`VWO`, `NVDA`, ..., `DJI`): vía Finnhub `/quote`
-     (mismo proveedor que ya usa `headlines-sync.ts`) — no se pudo
-     confirmar en la documentación pública si el índice `^DJI` funciona
-     en el plan free, así que ese símbolo puede terminar en "sin datos";
-     el resto (acciones/ETF individuales) es el caso de uso estándar de
-     Finnhub y no debería fallar.
-
-   Resultado: **`api/market-quotes.ts`** (función serverless nueva,
-   autocontenida, sin Supabase — es solo un proxy de lectura) agrega las
-   tres fuentes y devuelve `{ quotes: { [id]: {value, delta, unit} |
-   {error} }, errors, fetchedAt }` con `Cache-Control: s-maxage=300` para
-   no pegarle a las tres APIs en cada visita. El frontend
-   (`MarketIndicatorsPanel.tsx`) dejó de usar iframes de TradingView por
-   completo — ahora son tarjetas propias (HTML/CSS nuestro) con el
-   tooltip nativo del navegador (`title=`, que ahora sí funciona sin
-   trucos porque no hay iframe de por medio) y el signo +/− coloreado
-   igual que el resto del dashboard (`var(--delta-good)`/`var(--delta-bad)`).
-   Si falta `FRED_API_KEY` o `FINNHUB_API_KEY` en Vercel, esa categoría
-   completa cae a "sin datos" con el motivo en un tooltip, en vez de
-   romper el resto — mismo criterio de degradación que el resto del
-   proyecto. **`FINNHUB_API_KEY` todavía no está cargada** (ver
-   "Pendiente" en la sección de Titulares) — sin ella, la categoría
-   "Tecnología y Crecimiento" + VWO van a mostrar "sin datos" hasta que
-   el usuario la cargue (gratis en finnhub.io/register).
-
-   No pude probar esta versión end-to-end contra las tres APIs reales
-   (Vercel real + las tres keys) — solo confirmé cada fuente por separado
-   con `WebFetch`/`curl` y que el frontend compila y renderiza el estado
-   de carga/error correctamente en local. Pedirle al usuario que confirme
-   en el deploy real.
+**Widgets de TradingView, y por qué la sección terminó borrada**: ver el
+historial completo (4 vueltas: Single Ticker → Market Overview → Symbol
+Overview → API propia con FRED/Frankfurter/Finnhub → el usuario pidió
+abortar la sección entera) en "Panel de indicadores de mercado: se intentó
+y se sacó" más arriba, en la sección `## Panel de Control`. Series de FRED
+verificadas ahí por si se retoma: `IRLTLT01{NZ,DE,AU,GB,CA,JP}M156N` +
+`WGS10YR` (US) para rendimientos 10Y; `api.frankfurter.dev/v1/latest` para
+divisas spot, sin key.
 
 **Nota sobre por qué `s3.tradingview.com` y
 `symbol-search.tradingview.com` están bloqueados en este sandbox pero
