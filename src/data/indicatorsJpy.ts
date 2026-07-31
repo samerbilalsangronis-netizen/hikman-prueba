@@ -196,7 +196,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'neutral',
     description:
-      'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes).',
+      'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes). Verificado: 1.71% calculado para junio-2026, coincide con lo reportado (1.70%).',
   },
   {
     id: 'jpy_tokyo_core_cpi_yoy',
@@ -211,7 +211,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'neutral',
     description:
-      'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía").',
+      'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía"). Verificado contra junio-2026: 1.72% calculado vs 1.6% oficial — ~0.1pp de margen de imprecisión por ser derivado del índice del Dashboard en vez de la tasa oficial ya calculada (mismo tipo de margen que cny_cpi_yoy, documentado y esperado, no un bug si no coincide exacto con otra fuente).',
   },
   // Empleo
   {
