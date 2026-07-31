@@ -15,6 +15,7 @@ function navFor(currency: Currency) {
     { to: '/panel-control', label: '📊 Panel de Control' },
     { to: '/', label: 'Resumen', end: true },
     { to: '/titulares', label: 'Titulares' },
+    { to: '/renta-variable', label: '📈 Renta Variable' },
   ];
 
   if (indicatorsBySection('tasas', currency).length > 0) {
