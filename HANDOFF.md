@@ -1658,6 +1658,22 @@ Crecimiento/Inflación/Confianza correctamente, y `/inflacion` de EUR
 volvió a mostrar solo las 4 tarjetas agregadas (sin Alemania/Francia
 mezcladas).
 
+## Bug real en producción: Forex Factory rompió el feed (31-jul-2026)
+
+El usuario cargó `FINNHUB_API_KEY` en Vercel (con guía paso a paso — es
+poco técnico, hubo que explicarle desde "cómo entrar a Environment
+Variables" hasta "qué es Redeploy") y al sincronizar Titulares apareció
+`Forex Factory: fetch failed`. Confirmado por afuera con `WebFetch`
+(`getaddrinfo ENOTFOUND cdn-nfs.faireconomy.media` — DNS no resuelve más,
+no es un problema de Vercel ni de red) que Forex Factory sacó el prefijo
+`cdn-` de su CDN: la URL nueva es `https://nfs.faireconomy.media/ff_calendar_thisweek.json`
+(mismo JSON, mismos campos `title/country/date/impact/forecast/previous`,
+no hizo falta tocar el resto de `api/headlines-sync.ts`). Corregido en
+`FF_CALENDAR_URL`. **Lección**: exactamente lo que ya advertía este
+HANDOFF sobre GBP/CAD/AUD/RBNZ — las APIs/CDNs de terceros cambian de URL
+sin aviso, hay que volver a verificar en vez de asumir que sigue vigente
+si algo empieza a fallar en producción.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.

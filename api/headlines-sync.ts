@@ -19,7 +19,11 @@ import { createClient } from '@supabase/supabase-js';
 
 const G10_CNY_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'SEK', 'NOK', 'CNY'];
 
-const FF_CALENDAR_URL = 'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json';
+// Forex Factory sacó el prefijo "cdn-" de su CDN en algún momento entre
+// jul-2026 (cuando se armó esta función) y ahora — cdn-nfs.faireconomy.media
+// dejó de resolver por DNS (ENOTFOUND), confirmado por afuera con WebFetch.
+// Mismo patrón que ya advertía el HANDOFF: "las APIs cambian sin aviso".
+const FF_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
 
 interface FfEvent {
   title: string;
