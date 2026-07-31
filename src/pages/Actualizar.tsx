@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { INDICATORS, SECTION_LABELS } from '../data/indicators';
 import { useMacroData } from '../data/MacroDataContext';
 import { useCurrency } from '../data/CurrencyContext';
 import { formatValue, formatDate } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from '../components/FreshnessBadge';
+import { groupByParent } from '../lib/indicatorGroups';
 import {
   FRED_MAPPINGS,
   CBBS_MAPPING,
@@ -31,7 +32,7 @@ const JPY_AUTO_COVERED = new Set(JPY_AUTO_INDICATOR_IDS);
 const CHF_AUTO_COVERED = new Set(CHF_AUTO_INDICATOR_IDS);
 const CNY_AUTO_COVERED = new Set(CNY_AUTO_INDICATOR_IDS);
 
-function IndicatorRow({ id }: { id: string }) {
+function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
   const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast } = useMacroData();
   const points = getSeries(id);
@@ -80,8 +81,13 @@ function IndicatorRow({ id }: { id: string }) {
 
   return (
     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-      <td className="py-2.5 pr-3">
+      <td className="py-2.5 pr-3" style={isChild ? { paddingLeft: '1.5rem' } : undefined}>
         <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+          {isChild && (
+            <span style={{ color: 'var(--text-muted)' }} aria-hidden>
+              ↳
+            </span>
+          )}
           {meta.label}
           {isFred && (
             <span
@@ -445,6 +451,11 @@ export function Actualizar() {
       {sections.map((section) => {
         const rows = INDICATORS.filter((m) => m.section === section && (m.currency ?? 'USD') === currency);
         if (rows.length === 0) return null;
+        // Padre inmediatamente seguido de sus subcomponentes (ISM/PMI/GDP),
+        // en vez de todos los padres primero y los hijos amontonados al
+        // final — mismo orden visual que ya usa Crecimiento.tsx para las
+        // tarjetas, ver lib/indicatorGroups.ts.
+        const groups = groupByParent(rows);
         return (
           <div key={section}>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
@@ -463,8 +474,13 @@ export function Actualizar() {
                   </tr>
                 </thead>
                 <tbody className="px-3">
-                  {rows.map((m) => (
-                    <IndicatorRow key={m.id} id={m.id} />
+                  {groups.map(({ parent, children }) => (
+                    <Fragment key={parent.id}>
+                      <IndicatorRow id={parent.id} />
+                      {children.map((child) => (
+                        <IndicatorRow key={child.id} id={child.id} isChild />
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
