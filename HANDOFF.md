@@ -1,10 +1,66 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 30-jul-2026 (actualizado en la misma sesión que
-agregó CHF y CNY, y que corrigió datos desactualizados de CNY). Pega este
-archivo completo (o pedile a Claude que lo lea desde el repo) al abrir el
-chat nuevo — está pensado para ser autocontenido, no debería hacer falta
-buscar contexto adicional en la conversación anterior.
+Fecha de este resumen: 31-jul-2026, actualizado al final de una sesión
+muy larga (Panel de Control desde cero + migración completa del sistema
+anterior en Excel + varios bugs reales en producción). Pega este archivo
+completo (o pedile a Claude que lo lea desde el repo) al abrir el chat
+nuevo — está pensado para ser autocontenido, no debería hacer falta
+buscar contexto adicional en la conversación anterior. El documento es
+largo y crece cronológicamente (sesión por sesión, sin borrar nada
+viejo) — si solo hace falta agarrar viaje rápido, leer esta sección y la
+de "## Panel de Control" / "## Migración del sistema anterior" más abajo
+alcanza; el resto queda como referencia histórica por divisa.
+
+## ⚠️ Arrancar por acá: pendiente sin confirmar (sesión 31-jul-2026)
+
+Todo lo de esta sesión (Panel de Control + migración del Excel) está
+**pusheado a `claude/hikman-handoff-repo-aspkts`** y el PR #1 tiene cada
+commit desplegado en preview de Vercel sin errores de build. Pero quedan
+cosas del lado de Supabase/verificación que el usuario nunca confirmó
+explícitamente que hizo — **revisar esto antes de asumir que todo el
+Panel de Control tiene datos reales**:
+
+1. **`supabase/import_excel_fixup_2026-07-31.sql` — NO CONFIRMADO que se
+   haya corrido.** El usuario confirmó `schema.sql` +
+   `import_excel_2026-07-31.sql` ("todo lo que pedís que confirme está
+   fino"), pero después de que le pasé el archivo de fixup pasó directo a
+   pedir la separación de Alemania/Francia en pestañas, sin decir que lo
+   había corrido. Si no se corrió, faltan: la corrección de los 2 niveles
+   de sesgo ambiguos (EUR/JPY semana 2026-07-12 quedarían mal como
+   `dovish`/`hawkish` en vez de `neutral_bajista`/`neutral_alcista`),
+   `eur_wage_yoy`/`eur_labor_cost_yoy` sin cargar, `eur_business_confidence`
+   todavía con el dato de IFO alemán mal puesto, y los 15 puntos de dato
+   de Alemania/Francia sin cargar (las pestañas 🇩🇪🇫🇷 existen en el código
+   pero mostrarían todas las tarjetas en "sin datos"). **Preguntarle al
+   usuario o revisar directo en Supabase antes de seguir.**
+2. **Pestañas de Alemania/Francia — nunca confirmado que el usuario las
+   vio con datos reales.** Se verificó en este sandbox con Playwright en
+   modo local (sin datos, solo que la UI arma bien las tarjetas), pero el
+   usuario nunca mandó una captura ni dijo "las vi". Puede depender del
+   punto 1.
+3. **Botón "🌐 Traducir pendientes" (Titulares) — resultado sin
+   confirmar.** Se pusheó, el deploy quedó Ready, se le pidió al usuario
+   que lo probara y avisara qué mostraba — la conversación se cortó ahí
+   (el usuario pidió este mismo handoff en vez de responder). Preguntar
+   si lo probó y si tradujo bien.
+4. Menor: el usuario mencionó que tenía problemas para registrarse en
+   finnhub.io ("no me terminaba de abrir") pero después mostró la pantalla
+   de Vercel con la clave ya cargada — parece que se resolvió solo, pero
+   no está de más confirmar que la cuenta de Finnhub quedó bien activada
+   (a veces requiere click de verificación por email).
+
+Fuera de Supabase, dos decisiones de esta sesión que valen doble-check con
+el usuario si pregunta por qué un dato no está o parece raro:
+- `eur_business_confidence` (Confianza Empresarial agregada de la
+  Eurozona) quedó **sin dato** a propósito — el único dato disponible en
+  el Excel era el IFO alemán, que se movió a los indicadores nuevos de
+  Alemania (`eur_de_ifo_business_climate`/`eur_de_ifo_expectations`). No
+  hay fuente real de confianza empresarial agregada de toda la Eurozona
+  en el Excel del usuario.
+- `eur_fr_cpi_yoy`/`eur_fr_hicp_yoy` (Francia) se cargaron interpretando
+  el valor `"0.03"` del Excel (sin signo `%`, a diferencia del resto de la
+  planilla) como 3% directo. Si el usuario dice que el dato real era
+  otro, corregir a mano desde "Actualizar Datos".
 
 ## Qué es esto
 
