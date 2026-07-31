@@ -171,6 +171,8 @@ export const JPY_AUTO_INDICATOR_IDS = [
   'jpy_cpi_yoy',
   'jpy_core_cpi',
   'jpy_core_cpi_yoy',
+  'jpy_tokyo_cpi_yoy',
+  'jpy_tokyo_core_cpi_yoy',
   'jpy_unemployment',
   'jpy_employment_change',
   'jpy_retail_sales',
