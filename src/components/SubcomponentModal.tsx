@@ -29,30 +29,30 @@ export function SubcomponentModal({ parent, children, getSeries, forecasts, onCl
       aria-label={`Subcomponentes de ${parent.label}`}
     >
       <div
-        className="my-8 w-full max-w-4xl rounded-xl p-5"
+        className="my-8 w-full max-w-2xl rounded-xl p-4"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
               {parent.label}
             </h2>
-            <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
               {children.length} subcomponentes — dato actual y anterior de cada uno
             </p>
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 rounded-md px-2.5 py-1.5 text-sm"
+            className="shrink-0 rounded-md px-2 py-1 text-xs"
             style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             ✕ Cerrar
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {children.map((child) => (
-            <ChartCard key={child.id} meta={child} points={getSeries(child.id)} months={36} forecast={forecasts[child.id]} />
+            <ChartCard key={child.id} meta={child} points={getSeries(child.id)} months={36} forecast={forecasts[child.id]} compact />
           ))}
         </div>
       </div>

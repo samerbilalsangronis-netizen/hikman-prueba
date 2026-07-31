@@ -48,9 +48,13 @@ interface ChartCardProps {
   // el detalle (SubcomponentModal) en vez de expandir algo inline — ver
   // Crecimiento.tsx. childCount solo se usa para el badge "N subcomponentes".
   subcomponentsControl?: { onOpen: () => void; childCount: number };
+  // Versión más chica (menos padding, sin descripción, gráfico más bajo) —
+  // usada dentro de SubcomponentModal, donde varias tarjetas completas
+  // ocupaban demasiada pantalla (pedido explícito del usuario).
+  compact?: boolean;
 }
 
-function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsControl }: ChartCardProps) {
+function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsControl, compact = false }: ChartCardProps) {
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
   // Clave de contenido (no de referencia): points siempre es un arreglo nuevo
@@ -75,7 +79,7 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
 
   return (
     <div
-      className="flex flex-col rounded-xl p-4"
+      className={compact ? 'flex flex-col rounded-xl p-3' : 'flex flex-col rounded-xl p-4'}
       style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
     >
       {subcomponentsControl ? (
@@ -87,9 +91,11 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
             <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
             </h3>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-              {meta.description}
-            </p>
+            {!compact && (
+              <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                {meta.description}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <FreshnessBadge freshness={freshness} />
@@ -107,15 +113,20 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
             <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
             </h3>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-              {meta.description}
-            </p>
+            {!compact && (
+              <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                {meta.description}
+              </p>
+            )}
           </div>
           <FreshnessBadge freshness={freshness} />
         </div>
       )}
 
-      <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg py-2" style={{ background: 'var(--surface-2)' }}>
+      <div
+        className={compact ? 'mt-2 grid grid-cols-3 gap-1 rounded-lg py-1' : 'mt-3 grid grid-cols-3 gap-1 rounded-lg py-2'}
+        style={{ background: 'var(--surface-2)' }}
+      >
         <div className="flex flex-col items-center gap-0.5 border-r px-1 text-center" style={{ borderColor: 'var(--border)' }}>
           <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
             Anterior
@@ -157,7 +168,7 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
         </div>
       </div>
 
-      <div className="mt-2 h-[140px] w-full">
+      <div className={compact ? 'mt-2 h-[80px] w-full' : 'mt-2 h-[140px] w-full'}>
         <ResponsiveContainer width="100%" height="100%">
           {meta.chart === 'bar' ? (
             <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -266,7 +277,8 @@ function areEqual(prev: ChartCardProps, next: ChartCardProps): boolean {
     prev.points.length === next.points.length &&
     samePoint(prev.points[prev.points.length - 1], next.points[next.points.length - 1]) &&
     samePoint(prev.points[prev.points.length - 2], next.points[next.points.length - 2]) &&
-    prev.subcomponentsControl?.childCount === next.subcomponentsControl?.childCount
+    prev.subcomponentsControl?.childCount === next.subcomponentsControl?.childCount &&
+    prev.compact === next.compact
   );
 }
 
