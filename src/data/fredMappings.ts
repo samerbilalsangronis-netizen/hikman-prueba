@@ -92,6 +92,10 @@ export const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
   { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
+  // Mismo patrón que eur_cpi: solo m/m automático, a/a queda manual (ver
+  // comentario arriba sobre el sesgo de ~0.1pp al derivar la tasa a/a).
+  { indicatorId: 'eur_de_hicp_mom', seriesId: 'CP0000DEM086NEST', transform: 'pct_change' },
+  { indicatorId: 'eur_fr_hicp_mom', seriesId: 'CP0000FRM086NEST', transform: 'pct_change' },
   // PIB trimestral (nivel, millones de euros encadenados 2010). Eurostat
   // reporta la variación trimestral SIN anualizar (a diferencia de BEA/EE.UU.)
   // — se computa como pct_change de 3 meses en vez de 1.
