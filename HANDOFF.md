@@ -1,49 +1,54 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 31-jul-2026, actualizado al final de una sesión
-muy larga (Panel de Control desde cero + migración completa del sistema
-anterior en Excel + varios bugs reales en producción). Pega este archivo
-completo (o pedile a Claude que lo lea desde el repo) al abrir el chat
-nuevo — está pensado para ser autocontenido, no debería hacer falta
-buscar contexto adicional en la conversación anterior. El documento es
-largo y crece cronológicamente (sesión por sesión, sin borrar nada
-viejo) — si solo hace falta agarrar viaje rápido, leer esta sección y la
-de "## Panel de Control" / "## Migración del sistema anterior" más abajo
-alcanza; el resto queda como referencia histórica por divisa.
+Fecha de este resumen: 31-jul-2026, actualizado al final de una segunda
+sesión larga el mismo día (corrección/verificación de datos en las 9
+divisas + modal de subcomponentes ISM/PMI/GDP + sección nueva de Renta
+Variable). Pega este archivo completo (o pedile a Claude que lo lea
+desde el repo) al abrir el chat nuevo — está pensado para ser
+autocontenido, no debería hacer falta buscar contexto adicional en la
+conversación anterior. El documento es largo y crece cronológicamente
+(sesión por sesión, sin borrar nada viejo) — si solo hace falta agarrar
+viaje rápido, leer esta sección y la de "## Corrección de datos y
+features nuevas (sesión 31-jul-2026, continuación)" más abajo alcanza;
+el resto queda como referencia histórica por divisa.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión 31-jul-2026
+## ⚠️ Arrancar por acá: estado al cierre de esta sesión (31-jul-2026, continuación)
 
-Todo lo de esta sesión (Panel de Control + migración del Excel) está
-**pusheado a `claude/hikman-handoff-repo-aspkts`**, el PR #1 tiene cada
-commit desplegado en preview de Vercel sin errores de build, y el usuario
-**confirmó explícitamente** que corrió `supabase/import_excel_fixup_2026-07-31.sql`
-y que probó el botón "🌐 Traducir pendientes" con éxito. O sea: los tres
-SQL de esta sesión (`schema.sql`, `import_excel_2026-07-31.sql`,
-`import_excel_fixup_2026-07-31.sql`) están corridos, más
-`cleanup_forex_factory_headlines.sql` y el `alter table headlines add
-column title_es` sueltos. `FINNHUB_API_KEY` cargada en Vercel y
-funcionando.
+Todo lo de esta sesión está **mergeado y en producción**
+(`claude/macro-usd-web-dashboard-xm5ypk`, vía PRs #2/#3/#4, cada uno
+verificado con el check de Vercel en verde antes de mergear). No queda
+nada pendiente de deploy. Resumen rápido (detalle completo en
+"## Corrección de datos y features nuevas" más abajo):
 
-**Lo único que sigue sin una confirmación explícita tipo "lo vi"**: que
-las pestañas 🇩🇪 Alemania / 🇫🇷 Francia se vean con datos reales en el
-sitio (se verificó en este sandbox con Playwright en modo local, sin
-datos — la UI arma bien las tarjetas, pero nadie confirmó verlas ya
-pobladas después de correr el fixup). Baja probabilidad de problema dado
-que el resto del fixup se confirmó, pero si el usuario pregunta por algo
-raro en esas dos pestañas, empezar por ahí.
+- **Bug real encontrado y arreglado en AUD**: filas huérfanas de un
+  intento con CPI mensual descartado hacían que la inflación mostrara
+  un dato viejo/incorrecto — limpiado y blindado para que no vuelva a
+  pasar.
+- **CNY volvió a atrasarse** (`chinadata.live`, el mismo riesgo que ya
+  advertía el handoff anterior) — corregido a mano con datos oficiales.
+- **JPY**: CPI de Tokio (adelanto del nacional) agregado y verificado.
+- **USD**: Jobless Claims (auto) + NFIB (manual) agregados a Empleo/Confianza.
+- **EUR**: HICP m/m de Alemania y Francia automatizado vía FRED.
+- **Modal de subcomponentes**: el acordeón inline de ISM (USD) pasó a
+  ser un modal genérico, reusable para cualquier indicador con
+  `parentId` — y se agregaron **subcomponentes manuales (sin dato
+  cargado todavía)** de PMI (precios/producción/nuevas órdenes/empleo)
+  y PIB (deflactor/demanda interna/demanda externa) a las 8 divisas
+  no-USD, ~63 indicadores nuevos en total. **Ninguno tiene dato
+  cargado** — quedan con la insignia "sin datos" hasta que el usuario
+  los cargue a mano desde "Actualizar Datos" (ahora ordenada: cada
+  padre queda seguido de sus subcomponentes, ya no todos los padres
+  primero y los hijos amontonados al final).
+- **Nueva sección "📈 Renta Variable"** (nav global, al lado de
+  Titulares): índice + acciones influyentes por divisa. Fuente mixta
+  (Finnhub para USD, Yahoo Finance no oficial para el resto) — ver
+  detalle completo abajo de por qué se descartó massive.com (el pedido
+  original del usuario) y cómo se decidió la alternativa.
 
-Fuera de Supabase, dos decisiones de esta sesión que valen doble-check con
-el usuario si pregunta por qué un dato no está o parece raro:
-- `eur_business_confidence` (Confianza Empresarial agregada de la
-  Eurozona) quedó **sin dato** a propósito — el único dato disponible en
-  el Excel era el IFO alemán, que se movió a los indicadores nuevos de
-  Alemania (`eur_de_ifo_business_climate`/`eur_de_ifo_expectations`). No
-  hay fuente real de confianza empresarial agregada de toda la Eurozona
-  en el Excel del usuario.
-- `eur_fr_cpi_yoy`/`eur_fr_hicp_yoy` (Francia) se cargaron interpretando
-  el valor `"0.03"` del Excel (sin signo `%`, a diferencia del resto de la
-  planilla) como 3% directo. Si el usuario dice que el dato real era
-  otro, corregir a mano desde "Actualizar Datos".
+**Nada de esta sesión toca Supabase con SQL pendiente de correr** — los
+únicos cambios de datos fueron correcciones puntuales (AUD/CNY) ya
+pusheadas directo a producción por la propia sesión, no hace falta que
+el usuario pegue nada en el SQL Editor.
 
 ## Qué es esto
 
@@ -1790,6 +1795,261 @@ condición original solo miraba `found === 0`, sin considerar que
 `found` también es `0` cuando el fetch falló antes de llegar a contar
 nada. Se corrigió agregando `&& errors.length === 0` a esa condición.
 
+## Corrección de datos y features nuevas (sesión 31-jul-2026, continuación)
+
+Segunda sesión el mismo día, arrancó con "leamos el último handoff y
+continuemos" (PR #1 se mergeó a producción al toque) y siguió con una
+lista larga de pedidos del usuario: auditar y corregir datos
+desactualizados en todas las divisas, agregar indicadores faltantes
+puntuales, y dos features nuevas (modal de subcomponentes, Renta
+Variable). Todo mergeado a producción en 3 PRs (#2, #3, #4).
+
+### 1. Auditoría de frescura — bug real en AUD, CNY atrasado otra vez
+
+El usuario reportó que la inflación de AUD no reflejaba el dato de
+junio (publicado el miércoles). Investigación:
+
+- **Causa real**: `indicator_overrides` tenía **78 filas huérfanas**
+  para `aud_cpi`/`aud_cpi_yoy`/`aud_core_cpi`/`aud_core_cpi_yoy`/
+  `aud_weighted_median`/`aud_weighted_median_yoy` — de un intento
+  anterior con el CPI **mensual** de la ABS (descartado en una sesión
+  previa a favor de la base trimestral "pre-October 2025", ver lección
+  AUD #21/22 arriba) que nunca se limpió al cambiar de fuente. Como el
+  frontend toma `points[points.length - 1]` (el de fecha más nueva) y
+  esas filas mensuales huérfanas (ej. `2026-05-01`) tenían fecha más
+  reciente que el trimestre real ya sincronizado (`2026-04-01` = Q2),
+  se mostraba el dato viejo/mensual en vez del trimestral correcto.
+  **Se borraron las 78 filas** (`month not in (1,4,7,10)`) y se corrió
+  el sync real — Q2-2026 (CPI, Core, Weighted Median) y PPI Q2 (que
+  tampoco estaba, release distinto al de CPI) quedaron al día,
+  verificado contra la ABS Data API en vivo.
+- **Blindaje agregado a `api/aud-sync.ts`**: después de cada upsert de
+  un indicador trimestral, `cleanupOffCycleRows()` borra cualquier fila
+  con mes fuera de {1,4,7,10} para ese id — previene que este mismo
+  patrón (fuente cambia de granularidad, filas viejas quedan huérfanas)
+  vuelva a colarse como "el dato más reciente" en el futuro. Aplica a
+  los 10 ids trimestrales de AUD (`QUARTERLY_IDS` en el archivo).
+- **CNY se atrasó de nuevo** (no reportado por el usuario esta vez, se
+  encontró al auditar el resto de divisas): `chinadata.live` volvió a
+  quedar ~2 meses atrás en 8 de 13 series (CPI, PPI, ventas minoristas,
+  producción industrial, inversión fija, PIB — solo PMI seguía al día),
+  exactamente el patrón que ya advertía este HANDOFF ("puede volver a
+  atrasarse, chequear los 13 de una"). Se verificaron los valores
+  oficiales de junio/Q2-2026 contra NBS/GACC (vía prensa — CNBC,
+  FocusEconomics, Reuters/investinglive) y se pushearon directo a
+  Supabase: `cny_cpi` -0.3% m/m, `cny_cpi_yoy` 1.0%, `cny_ppi` -0.3%
+  m/m, `cny_ppi_yoy` 4.1%, `cny_retail_sales_yoy` 1.0%,
+  `cny_industrial_output_yoy` 5.3%, `cny_fixed_asset_investment` -5.7%
+  (acumulado ene-jun), `cny_gdp_qoq` 0.9%, `cny_gdp_yoy` 4.3%,
+  `cny_trade_balance` 125630 (USD millones). **Este agregador sigue
+  siendo el punto más frágil del dashboard — si se repite una tercera
+  vez, considerar el fallback ya sugerido en el handoff previo**
+  (scraper de `stats.gov.cn/english/PressRelease/` para lo que no sea
+  PMI).
+- **Resto de divisas** (USD/EUR/GBP/CAD/NZD/JPY/CHF): se disparó un
+  sync real de cada una contra producción, 0 errores, ninguna otra con
+  el mismo patrón de filas huérfanas en sus series trimestrales
+  automáticas (se auditaron todas: `gdp_qoq`/`gdp_deflator` de USD,
+  `eur_gdp_qoq`/`eur_gdp_yoy`, `nzd_cpi`/`nzd_gdp_*`,
+  `jpy_gdp_qoq`/`jpy_gdp_yoy`, `chf_gdp_qoq`/`chf_gdp_yoy`/
+  `chf_consumer_confidence`, `cny_gdp_qoq`/`cny_gdp_yoy` — todas con
+  saltos limpios de 3 meses entre puntos). El único "atraso" detectado
+  fuera de AUD/CNY es el rezago normal de publicación del PIB
+  (EUR/NZD/JPY/CHF todavía en Q1-2026 porque Q2 no se publica hasta
+  agosto/septiembre en la mayoría de países — no es un bug).
+
+### 2. JPY — CPI de Tokio (adelanto del nacional)
+
+`jpy_tokyo_cpi_yoy` / `jpy_tokyo_core_cpi_yoy` — el e-Stat Dashboard
+(misma API que ya usa el resto de JPY) publica el CPI de Tokio bajo el
+**mismo IndicatorCode** que el nacional, con `RegionCode=13100` (東京都
+区部, los 23 barrios especiales). Solo a/a — es lo único que sigue el
+mercado para esta serie (no hay m/m publicado/seguido para Tokio).
+**Importante**: el Dashboard de e-Stat solo tiene el desglose municipal
+con valores **crudos** (`IsSeasonalAdjustment='1'`, a diferencia del
+nacional que usa `'2'`) — pero eso coincide con la convención real, el
+mercado siempre mira a/a crudo para Tokio. El Dashboard se actualiza
+~1 mes más tarde que el comunicado de adelanto real del Statistics
+Bureau (que es la razón de ser de esta serie: adelanta ~3-4 semanas al
+CPI nacional del mismo mes) — se cargó a mano el punto de julio-2026
+(2.0% headline / 1.9% core, verificado contra FXStreet/Investing/Yahoo
+Finance) para no perder el dato más reciente mientras el sync
+automático llega a la misma fecha. Verificado: headline 1.71%
+calculado vs 1.70% oficial para junio (match casi exacto); core 1.72%
+calculado vs 1.6% oficial (~0.1pp de margen — mismo tipo de margen ya
+aceptado y documentado en `cny_cpi_yoy`, no se revirtió a manual porque
+no hay alternativa m/m más precisa para esta serie).
+
+### 3. USD — Jobless Claims (auto) + NFIB (manual)
+
+`initial_claims`/`continuing_claims` — FRED tiene `ICSA`/`CCSA`,
+semanales, sin transformar (`transform: 'level'`), agregadas a Empleo.
+NFIB Small Business Optimism Index — **verificado que NO está en FRED**
+(cero resultados buscando "NFIB" o "small business optimism" en el
+buscador de series de FRED) y NFIB no publica un CSV público abierto
+(403 al pedir su página de encuestas directo) — queda manual en
+Confianza, mismo criterio que Conference Board (`cb`).
+
+### 4. EUR — HICP m/m de Alemania y Francia automatizado
+
+`CP0000DEM086NEST` / `CP0000FRM086NEST` en FRED — **mismos códigos de
+serie que `eur_cpi` a nivel Eurozona** (`CP0000EZ19M086NEST`), solo con
+el `geo` cambiado a DE/FR — están vivos y al día (verificado hasta
+junio-2026). Se agregaron `eur_de_hicp_mom`/`eur_fr_hicp_mom`
+automáticos. **El a/a de ambos queda manual a propósito**: derivarlo
+del índice (mismo método `pct_change_yoy` que ya usa `eur_gdp_yoy`) dio
+2.35%/2.02% contra el 2.4%/2.0% oficial de junio (Destatis/INSEE) — un
+sesgo de ~0.05-0.1pp, la misma magnitud por la que `eur_cpi_yoy`/
+`eur_core_cpi_yoy` ya estaban excluidos del mapeo automático a nivel
+Eurozona (ver comentario en `fredMappings.ts`) — se mantuvo la misma
+vara de precisión para consistencia.
+
+Se investigó automatizar Ventas Minoristas/Producción Industrial de
+Alemania vía Eurostat (`sts_trtu_m`/`sts_inpr_m`, con `s_adj=SCA`,
+`indic_bt=VOL_SLS`/sin indic_bt, `unit=I21`) — **sí están al día** (mayo
+2026) pero el m/m derivado dio ~0.1-0.15pp de diferencia contra el
+comunicado oficial de Destatis (1.1% retail/0.9% industrial oficial vs
+~0.99%/0.76% derivado) — se descartó por el mismo motivo que el a/a de
+HICP. Quedan manuales. **Ojo con `s_adj`**: Eurostat tiene tres códigos
+(`NSA`/`CA`/`SCA`) — `CA` (solo ajuste de calendario) da un número
+distinto a `SCA` (ajuste estacional + calendario, la que reportan los
+comunicados oficiales) — confundirlos da un m/m con sesgo grande, no
+sutil.
+
+### 5. Modal de subcomponentes ISM/PMI/GDP (cambio de UX + ~63 indicadores nuevos)
+
+El usuario pidió cambiar el acordeón inline de ISM (USD) — tocar la
+tarjeta la expandía hacia abajo con los subcomponentes — por una
+**ventana/modal** que muestre los subcomponentes con dato actual y
+anterior. Se generalizó en vez de hardcodear para ISM:
+
+- `src/lib/indicatorGroups.ts` (`groupByParent`): agrupa una lista de
+  `IndicatorMeta` en `{ parent, children }[]` usando el campo
+  `parentId` que ya existía (hasta ahora solo lo usaba ISM). Reusado
+  tanto por `Crecimiento.tsx` (decide qué tarjeta muestra el botón "N
+  subcomponentes") como por `Actualizar.tsx` (ver punto 6).
+- `src/components/SubcomponentModal.tsx`: overlay `fixed inset-0` con
+  backdrop oscuro (`rgba(0,0,0,0.55)`), reusa `ChartCard` para cada
+  hijo. **Ojo**: al verificar con Playwright + captura de pantalla, el
+  backdrop se veía "ausente" a simple vista en la imagen — resultó ser
+  un error de percepción mía viendo el PNG a baja resolución, no un bug
+  real: se confirmó con `getComputedStyle` + muestreo de pixel RGB
+  (`(112,112,111)`, coincide exacto con `rgba(0,0,0,0.55)` sobre fondo
+  blanco) que el overlay renderiza perfecto. **Lección para la próxima
+  vez que algo se vea raro en una captura**: antes de asumir que hay un
+  bug de CSS, verificar con `elementFromPoint` + pixel real, no confiar
+  solo en la impresión visual de una imagen comprimida/reescalada.
+- `ChartCard.tsx`: el prop `expandControl` (con estado `expanded`/
+  `onToggle`) se simplificó a `subcomponentsControl` (solo `onOpen` +
+  `childCount`) — ya no hay estado de expandido, el modal se abre o no.
+
+**Se agregaron subcomponentes manuales (sin dato cargado) a las 8
+divisas no-USD** — mismo patrón que ya tenía ISM, ninguna fuente
+gratis los publica como series separadas:
+- **PMI** (4 c/u: nuevas órdenes, producción, empleo, precios) al PMI
+  Manufactura/Flash principal de cada divisa: `eur_de_pmi_manuf`,
+  `eur_fr_pmi_manuf`, `gbp_pmi_manuf_flash`, `cad_pmi_manuf`,
+  `aud_pmi_manuf`, `nzd_pmi_manuf`, `jpy_pmi_manuf`, `chf_pmi_manuf`,
+  `cny_pmi_manuf` — 9 padres × 4 = 36 nuevos.
+- **PIB** (3 c/u: deflactor, demanda interna, demanda externa) al PIB
+  principal de cada divisa (más USD, que ya tenía `gdp_deflator` como
+  tarjeta suelta — pasó a ser hijo de `gdp_qoq` en vez de eso): 9
+  padres × 3 = 27 nuevos (2 en USD porque el deflactor ya existía).
+- Total: **~63 indicadores nuevos, todos manuales, ninguno con dato
+  cargado todavía** — quedan con la insignia "sin datos" hasta que el
+  usuario los cargue desde "Actualizar Datos". Ver "Gaps conocidos"
+  abajo.
+- **Bug propio encontrado durante la carga en batch**: al usar `Edit`
+  con un `old_string` que terminaba justo antes del `},` de cierre de
+  un objeto (sin incluir el `{` del siguiente), el reemplazo dejaba un
+  `},` duplicado y rompía el array — pasó en `indicatorsChf.ts` y
+  `indicatorsCny.ts` (para los subcomponentes de PIB), detectado porque
+  `npm run build` tira error de sintaxis inmediato. **Lección**: al
+  insertar un bloque nuevo entre dos objetos existentes, o el
+  `old_string` incluye el `{` de apertura del siguiente objeto, o hay
+  que revisar el resultado a mano — no asumir que "el build no tiró
+  error" sin correrlo (en este caso si tiró error y se agarró antes de
+  pushear, pero vale la pena el hábito).
+
+### 6. Actualizar Datos — orden agrupado (padre + subcomponentes juntos)
+
+Antes, cada sección de "Actualizar Datos" simplemente filtraba
+`INDICATORS` por `section`+`currency` preservando el orden de
+declaración del array — como los subcomponentes de ISM se declaraban
+TODOS DESPUÉS de los dos padres (`ism_manuf`, `ism_serv`, *después*
+sus 10 hijos), la tabla mostraba "PMI Manufactura, PMI Servicios, PIB,
+Ventas Minoristas... [recién acá empiezan los subcomponentes de
+todo lo anterior, mezclados]" — el orden visual que el usuario se quejó
+que "no queda bien". Se resolvió reusando el mismo `groupByParent` de
+`Crecimiento.tsx`: ahora cada sección arma `groups = groupByParent(rows)`
+y renderiza cada padre inmediatamente seguido de sus hijos (con indent +
+"↳" en la fila para que se lea la jerarquía). Aplica a cualquier
+sección con `parentId` (hoy: Crecimiento), no solo USD.
+
+Para el caso de Alemania/Francia dentro de Inflación de EUR (que el
+usuario también pidió ver ordenado): esos indicadores usan el campo
+`country`, no `parentId` — no se tocó `groupByParent` para esto, porque
+**ya estaban ordenados por construcción**: `indicatorsEur.ts` declara
+primero todos los indicadores generales de Eurozona, después el bloque
+completo de Alemania, después el bloque completo de Francia — al
+preservar el orden de declaración, la tabla ya sale agrupada sin
+código nuevo. Verificado con Playwright.
+
+### 7. Nueva sección "Renta Variable y Acciones" (`/renta-variable`)
+
+Pedido original del usuario: integrar la API de **massive.com** para
+cotización en tiempo real de renta variable por divisa. Investigación
+antes de construir nada (mismo criterio de "verificar antes de
+automatizar" de todo el proyecto):
+
+- **massive.com tiene tiempo real, pero no gratis**: el tier gratis
+  ("Stocks Basic") es 5 llamadas/min y **solo datos de fin de día** (ni
+  siquiera delayed). 15 min delayed arranca en $29/mes ("Starter"),
+  tiempo real de verdad en $199/mes ("Advanced"). Este proyecto nunca
+  pagó por ninguna API hasta ahora.
+- Se evaluó **Finnhub** (ya integrado, tiene key en Vercel) como
+  alternativa gratis con tiempo real real — pero su tier gratis **solo
+  cubre acciones de EE.UU.**, mercados internacionales (LSE, TSX, ASX,
+  TSE, Euronext, SIX) requieren plan pago incluso en Finnhub.
+- Se le presentó la disyuntiva al usuario (pagar, usar massive.com
+  gratis con datos de fin de día, o mezclar fuentes) y **eligió**:
+  Finnhub para las acciones de USD (fuente oficial, ya integrada) +
+  **Yahoo Finance** (API no oficial, `query1.finance.yahoo.com`, sin
+  key) para todo lo demás — incluidos **todos los índices** de las 9
+  divisas, porque Finnhub free no cotiza bien índices. Se verificó con
+  curl, ANTES de integrarlo, que los 9 índices representativos y 8
+  acciones de muestra responden bien (mismo criterio del proyecto:
+  nunca automatizar sin probar la fuente primero).
+- **`api/equities-quotes.ts`**: a diferencia de todos los demás
+  `*-sync.ts`, esta función **no escribe en Supabase** — no tiene
+  sentido guardar un "histórico" de un precio que se pide fresco en
+  cada carga de la página (no es una serie macro con un punto por
+  mes/trimestre). Recibe `symbols`/`sources`/`labels` por query string
+  desde el frontend (`src/data/equities.ts` tiene la config fija de
+  qué símbolo mostrar por divisa), pide en paralelo (`Promise.all`) a
+  Finnhub o Yahoo según corresponda por símbolo.
+- **Gotcha real encontrado y manejado**: las acciones de Londres
+  (`AZN.L`, `SHEL.L`, etc.) cotizan en **peniques** (`currency: "GBp"`
+  o `"GBX"` en la respuesta de Yahoo), no en libras — hay que dividir
+  por 100 o el precio sale 100x más alto de lo real. Se detecta y
+  convierte en `fetchYahooQuote()`.
+- Índices/acciones elegidas por divisa (en `src/data/equities.ts`, el
+  usuario puede pedir cambiarlas): USD=S&P500+Apple/Microsoft/Nvidia,
+  EUR=Euro Stoxx 50+SAP/LVMH/ASML, GBP=FTSE100+AstraZeneca/Shell/HSBC,
+  CAD=TSX+RBC/Shopify/TD, AUD=ASX200+BHP/CBA/CSL,
+  NZD=NZX50+Fisher&Paykel/Auckland Airport, JPY=Nikkei225+Toyota/Sony/
+  SoftBank, CHF=SMI+Nestlé/Roche/Novartis, CNY=CSI300+Kweichow Moutai/
+  Bank of China.
+- Verificado contra producción real (no solo local): Finnhub (AAPL) y
+  Yahoo (S&P500, SAP, AstraZeneca en GBP ya convertido, Toyota,
+  Moutai) responden bien, 0 errores.
+- **Riesgo aceptado y documentado**: Yahoo Finance no oficial no tiene
+  SLA ni garantía de Yahoo — podría cambiar de formato o bloquear sin
+  aviso en cualquier momento (mismo nivel de riesgo que ya se acepta
+  con el CSV del RBA o el de Aduanas de Japón, ambos tampoco son APIs
+  oficiales soportadas). Si `/api/equities-quotes` empieza a fallar
+  para símbolos `source: 'yahoo'`, revisar ahí primero.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
@@ -1906,6 +2166,24 @@ nada. Se corrigió agregando `&& errors.length === 0` a esa condición.
   si se repite seguido conviene reconsiderar la fuente** (dejar
   `chinadata.live` solo para PMI, agregar un scraper de
   `stats.gov.cn/english/PressRelease/` como fallback para el resto).
+- **`chinadata.live` volvió a atrasarse una segunda vez el 31-jul-2026**
+  (un día después de la primera corrección) — mismo patrón, 8 de 13
+  series ~2 meses atrás. Corregido de nuevo a mano (ver "Corrección de
+  datos..." arriba). Dos veces en dos días es más frecuente de lo que
+  el handoff anterior anticipaba — si pasa una tercera vez, priorizar
+  el fallback de scraper de `stats.gov.cn` en vez de seguir corrigiendo
+  a mano cada vez.
+- **~63 subcomponentes nuevos de PMI/PIB (sesión 31-jul-2026,
+  continuación) no tienen ningún dato cargado** — ver la sección
+  "Modal de subcomponentes ISM/PMI/GDP" arriba para la lista completa
+  de ids. Todos manuales, quedan con la insignia "sin datos" hasta que
+  el usuario los cargue desde "Actualizar Datos" (ahora agrupados justo
+  debajo de su padre, más fácil de encontrar).
+- **Renta Variable (`/renta-variable`) depende de una API no oficial de
+  Yahoo Finance** para 8 de las 9 divisas (todo salvo las 3 acciones de
+  USD, que usan Finnhub) — sin SLA, podría romperse sin aviso. Si deja
+  de responder, revisar `api/equities-quotes.ts` primero (ver detalle
+  en "Nueva sección Renta Variable" arriba).
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
