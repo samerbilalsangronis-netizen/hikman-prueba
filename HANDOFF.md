@@ -1446,6 +1446,48 @@ de archivos a Storage en esta sesión (sandbox sin Supabase configurado y con
 que la cinta, las tarjetas de sesgo, el fijado de titulares y el resto de
 las páginas existentes (Resumen, Titulares) no tienen regresiones.
 
+### Bugs reales encontrados por el usuario tras el deploy (mismo día)
+
+**"No me deja escribir ni agregar motivos en Sesgo"** — bug real, no de
+percepción. Todas las funciones nuevas de `MacroDataContext.tsx`
+(`updateBiasSummary`, `addBiasReason`, etc., y las de `reports`/
+`mentor_notes`) hacían `await supabase...` **antes** de llamar a
+`setBiases`/`setReports`/etc. Con un `<textarea>`/`<input>` controlado
+atado directo a ese estado, cada tecla dispara un viaje de red completo
+antes de que el valor se actualice — si Supabase tarda, se siente
+"trabado"; si la llamada falla (política RLS, tabla sin migrar, lo que
+sea), el estado local nunca se actualiza y **no se puede escribir nada,
+nunca**, sin importar cuánto se reintente. Se arregló invirtiendo el orden
+en las 11 funciones nuevas: primero `setState` (síncrono), después el
+`await` a Supabase envuelto en `try/catch` (no bloquea ni rompe la UI si
+falla, solo lo deja en consola). **Lección para el futuro**: cualquier
+función nueva que alimente un campo de texto controlado (no un botón de
+un solo click) tiene que actualizar el estado local primero — el patrón
+viejo de "esperar a Supabase antes de tocar el estado" que ya existía en
+`addPoint`/`toggleHeadlinePin`/etc. funciona para clicks pero es una
+trampa para inputs de texto.
+
+**Widgets de TradingView mostrando "This symbol is only available on
+TradingView"** — el widget que usé primero (`embed-widget-single-quote.js`,
+"Single Ticker") solo soporta acciones/forex simples, no rindes de bonos
+(`TVC:*`) ni futuros continuos (`CME:6E1!` etc.) — exactamente los símbolos
+que pidió el usuario. Se reemplazó por un solo widget **"Market Overview"**
+(`embed-widget-market-overview.js`, `MarketOverviewWidget.tsx`) con pestañas
+por categoría (soporta bonos/futuros/índices/acciones juntos, es el widget
+que TradingView recomienda para dashboards mixtos como este) — un solo
+iframe en vez de ~25. Costo: TradingView no deja poner un tooltip custom
+por fila dentro de su iframe, así que el tooltip por símbolo pasó a vivir
+en un `<details>` colapsable aparte, debajo del widget
+(`MarketIndicatorsPanel.tsx`), con el mismo texto de `marketIndicators.ts`.
+Sigue sin poder verificarse en este sandbox (misma razón: `s3.tradingview.com`
+bloqueado) — pedirle al usuario que confirme en el deploy real que ahora
+sí aparecen precios.
+
+**Pedido de UI**: los 5 botones de sesgo (Hawkish/Neutro Alcista/.../Dovish)
+ocupaban mucho lugar mostrados todos juntos — se colapsaron a un solo badge
+con el nivel actual que despliega la lista al tocarlo (`CurrencyBiasCard.tsx`,
+`levelPickerOpen` + click-outside con `useRef`/`useEffect`).
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.

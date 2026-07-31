@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { useCurrency } from '../data/CurrencyContext';
@@ -30,6 +30,8 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
   const { setCurrency } = useCurrency();
   const navigate = useNavigate();
 
+  const [levelPickerOpen, setLevelPickerOpen] = useState(false);
+  const levelPickerRef = useRef<HTMLDivElement>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editingBase, setEditingBase] = useState(false);
   const [centralBank, setCentralBank] = useState(bias.centralBank);
@@ -38,6 +40,17 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
 
   const [reasonLabel, setReasonLabel] = useState('');
   const [reasonColor, setReasonColor] = useState<ReasonColor>('neutral');
+
+  useEffect(() => {
+    if (!levelPickerOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (levelPickerRef.current && !levelPickerRef.current.contains(e.target as Node)) {
+        setLevelPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [levelPickerOpen]);
 
   function handleViewCurrency() {
     setCurrency(bias.currency);
@@ -86,21 +99,42 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
       </div>
 
       <div>
-        <div className="flex flex-wrap gap-1.5">
-          {BIAS_LEVELS.map((level) => (
-            <button
-              key={level}
-              onClick={() => updateBiasLevel(bias.currency, level)}
-              className="rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
-              style={{
-                background: bias.current.level === level ? BIAS_COLORS[level] : 'transparent',
-                color: bias.current.level === level ? '#fff' : BIAS_COLORS[level],
-                border: `1px solid ${BIAS_COLORS[level]}`,
-              }}
+        <div ref={levelPickerRef} className="relative inline-block">
+          <button
+            onClick={() => setLevelPickerOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+            style={{
+              background: bias.current.level ? BIAS_COLORS[bias.current.level] : 'transparent',
+              color: bias.current.level ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${bias.current.level ? BIAS_COLORS[bias.current.level] : 'var(--border)'}`,
+            }}
+          >
+            {bias.current.level ? BIAS_LABELS[bias.current.level] : 'Sin definir'}
+            <span style={{ fontSize: '0.7em' }}>▾</span>
+          </button>
+          {levelPickerOpen && (
+            <div
+              className="absolute left-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col gap-0.5 rounded-lg p-1.5 shadow-lg"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
             >
-              {BIAS_LABELS[level]}
-            </button>
-          ))}
+              {BIAS_LEVELS.map((level) => (
+                <button
+                  key={level}
+                  onClick={() => {
+                    updateBiasLevel(bias.currency, level);
+                    setLevelPickerOpen(false);
+                  }}
+                  className="rounded-md px-2.5 py-1.5 text-left text-xs font-bold uppercase tracking-wide"
+                  style={{
+                    background: bias.current.level === level ? BIAS_COLORS[level] : 'transparent',
+                    color: bias.current.level === level ? '#fff' : BIAS_COLORS[level],
+                  }}
+                >
+                  {BIAS_LABELS[level]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {bias.previous?.level && (
           <p className="mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
