@@ -1497,9 +1497,70 @@ trampa para inputs de texto.
    de mercado queda bastante larga, aceptable dado que priorizamos que
    funcione sobre que sea compacto.
 
-Tampoco pude probar visualmente esta tercera versión en el sandbox (mismo
-bloqueo a `s3.tradingview.com`) — pedirle al usuario que confirme que ahora
-sí aparece el precio en cada tarjeta.
+4. El usuario probó la tercera versión y **seguía sin ver el precio**
+   (captura desde el celular otra vez, misma pinta que el paso 2 — no se
+   pudo confirmar la causa exacta sin poder probarlo yo mismo en este
+   sandbox). En vez de intentar una cuarta variante de widget a ciegas, el
+   usuario pidió directamente **dejar de depender de TradingView y traer
+   los precios con una API gratuita** — se hizo caso. Antes de escribir
+   código se verificaron las fuentes por afuera con `WebFetch` (no
+   depende del `s3.tradingview.com`/`symbol-search.tradingview.com`
+   bloqueados en este sandbox, ver más abajo por qué esos sí están
+   bloqueados):
+   - Las 7 series de rendimiento 10Y **confirmadas reales en FRED**
+     (`fred.stlouisfed.org/series/<id>`, todas con dato de junio-2026):
+     `IRLTLT01NZM156N` (NZ), `IRLTLT01DEM156N` (Alemania, proxy EUR),
+     `IRLTLT01AUM156N` (AU), `WGS10YR` (US — la misma serie que ya usa
+     `t10y` en este proyecto), `IRLTLT01GBM156N` (GB), `IRLTLT01CAM156N`
+     (CA), `IRLTLT01JPM156N` (JP). Son series mensuales de la OCDE, no
+     intradía — está bien para un panel de contexto, no para day-trading.
+   - `api.frankfurter.dev/v1/latest?from=USD&to=...` (antes
+     `api.frankfurter.app`, migró de dominio — devuelve 301) confirmado
+     con `curl` que responde JSON real sin API key, sin límite documentado
+     (tasas del BCE). Se usa como sustituto de los futuros de divisas
+     (`6E1!`, `6J1!`, etc.) porque no existe una fuente gratuita de
+     futuros CME en tiempo real — la categoría se renombró a "Divisas
+     (spot)" para no prometer algo que no es.
+   - Acciones/ETF (`VWO`, `NVDA`, ..., `DJI`): vía Finnhub `/quote`
+     (mismo proveedor que ya usa `headlines-sync.ts`) — no se pudo
+     confirmar en la documentación pública si el índice `^DJI` funciona
+     en el plan free, así que ese símbolo puede terminar en "sin datos";
+     el resto (acciones/ETF individuales) es el caso de uso estándar de
+     Finnhub y no debería fallar.
+
+   Resultado: **`api/market-quotes.ts`** (función serverless nueva,
+   autocontenida, sin Supabase — es solo un proxy de lectura) agrega las
+   tres fuentes y devuelve `{ quotes: { [id]: {value, delta, unit} |
+   {error} }, errors, fetchedAt }` con `Cache-Control: s-maxage=300` para
+   no pegarle a las tres APIs en cada visita. El frontend
+   (`MarketIndicatorsPanel.tsx`) dejó de usar iframes de TradingView por
+   completo — ahora son tarjetas propias (HTML/CSS nuestro) con el
+   tooltip nativo del navegador (`title=`, que ahora sí funciona sin
+   trucos porque no hay iframe de por medio) y el signo +/− coloreado
+   igual que el resto del dashboard (`var(--delta-good)`/`var(--delta-bad)`).
+   Si falta `FRED_API_KEY` o `FINNHUB_API_KEY` en Vercel, esa categoría
+   completa cae a "sin datos" con el motivo en un tooltip, en vez de
+   romper el resto — mismo criterio de degradación que el resto del
+   proyecto. **`FINNHUB_API_KEY` todavía no está cargada** (ver
+   "Pendiente" en la sección de Titulares) — sin ella, la categoría
+   "Tecnología y Crecimiento" + VWO van a mostrar "sin datos" hasta que
+   el usuario la cargue (gratis en finnhub.io/register).
+
+   No pude probar esta versión end-to-end contra las tres APIs reales
+   (Vercel real + las tres keys) — solo confirmé cada fuente por separado
+   con `WebFetch`/`curl` y que el frontend compila y renderiza el estado
+   de carga/error correctamente en local. Pedirle al usuario que confirme
+   en el deploy real.
+
+**Nota sobre por qué `s3.tradingview.com` y
+`symbol-search.tradingview.com` están bloqueados en este sandbox pero
+`tradingview.com` (la página normal) no**: el proxy del entorno da
+`ERR_CONNECTION_RESET` en el primero (probablemente bloqueo por dominio/CDN)
+y `403 Forbidden` de nginx en el segundo (probablemente bloqueo por
+user-agent o por ser una API, no una página). `WebFetch` sí llega porque
+corre por la infraestructura de Anthropic, no por el proxy local de este
+contenedor — usarlo como alternativa la próxima vez que haga falta
+verificar algo de una fuente externa bloqueada acá.
 
 **Pedido de UI**: los 5 botones de sesgo (Hawkish/Neutro Alcista/.../Dovish)
 ocupaban mucho lugar mostrados todos juntos — se colapsaron a un solo badge

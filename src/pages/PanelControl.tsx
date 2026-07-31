@@ -1,4 +1,3 @@
-import { useOutletContext } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES } from '../data/CurrencyContext';
 import { MarqueeTicker } from '../components/MarqueeTicker';
@@ -7,7 +6,6 @@ import { CurrencyBiasCard } from '../components/CurrencyBiasCard';
 import { DocumentUploadList } from '../components/DocumentUploadList';
 
 export function PanelControl() {
-  const { theme } = useOutletContext<{ theme: 'light' | 'dark' }>();
   const { headlines, biases, reports, addReport, deleteReport, mentorNotes, addMentorNote, deleteMentorNote } = useMacroData();
 
   const pinnedHeadlines = headlines.filter((h) => h.pinned);
@@ -65,7 +63,7 @@ export function PanelControl() {
         </div>
 
         <aside className="lg:order-3">
-          <MarketIndicatorsPanel theme={theme} />
+          <MarketIndicatorsPanel />
         </aside>
       </div>
     </div>
