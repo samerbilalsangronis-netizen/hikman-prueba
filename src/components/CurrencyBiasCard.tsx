@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { useCurrency } from '../data/CurrencyContext';
-import { BIAS_COLORS, BIAS_LABELS, REASON_COLORS, REASON_COLOR_LABELS } from '../lib/bias';
+import { BIAS_COLORS, BIAS_LABELS, BIAS_LEVELS } from '../lib/bias';
 import { formatDate } from '../lib/format';
-import type { BiasLevel, CurrencyBias, ReasonColor } from '../types';
-
-const BIAS_LEVELS: BiasLevel[] = ['hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish'];
-const REASON_COLOR_OPTIONS: ReasonColor[] = ['good', 'neutral', 'bad'];
+import type { BiasLevel, BiasSnapshot, CurrencyBias } from '../types';
 
 function toDateInput(iso?: string) {
   return iso ? iso.slice(0, 10) : '';
+}
+
+function Dot({ level }: { level: BiasLevel }) {
+  return <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: BIAS_COLORS[level] }} title={BIAS_LABELS[level]} />;
 }
 
 interface CurrencyBiasCardProps {
@@ -39,7 +40,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
   const [nextMeeting, setNextMeeting] = useState(toDateInput(bias.nextMeeting));
 
   const [reasonLabel, setReasonLabel] = useState('');
-  const [reasonColor, setReasonColor] = useState<ReasonColor>('neutral');
+  const [reasonColor, setReasonColor] = useState<BiasLevel>('neutral');
 
   useEffect(() => {
     if (!levelPickerOpen) return;
@@ -71,7 +72,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
 
   function handleRollover() {
     const ok = window.confirm(
-      `¿Actualizar sesgo de ${bias.currency}? La semana en curso pasa a "Anterior" y arranca una semana nueva en blanco. El badge grande se mantiene hasta que lo cambies vos.`,
+      `¿Actualizar sesgo de ${bias.currency}? La semana en curso se archiva en el historial y arranca una semana nueva en blanco. El badge grande se mantiene hasta que lo cambies vos.`,
     );
     if (!ok) return;
     rolloverBias(bias.currency);
@@ -80,6 +81,32 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
   function handleSaveBase() {
     updateBiasBase(bias.currency, { centralBank, policyRate, nextMeeting: nextMeeting || undefined });
     setEditingBase(false);
+  }
+
+  function renderSnapshot(snapshot: BiasSnapshot, key: string) {
+    return (
+      <div key={key} className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <span className="font-semibold" style={{ color: snapshot.level ? BIAS_COLORS[snapshot.level] : 'var(--text-muted)' }}>
+            {snapshot.level ? BIAS_LABELS[snapshot.level] : 'Sin definir'}
+          </span>
+          <span style={{ color: 'var(--text-muted)' }}>{formatDate(snapshot.startedAt.slice(0, 10))}</span>
+        </div>
+        {snapshot.summary && (
+          <p style={{ color: 'var(--text-secondary)' }}>{snapshot.summary}</p>
+        )}
+        {snapshot.reasons.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {snapshot.reasons.map((r) => (
+              <span key={r.id} className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                <Dot level={r.color} />
+                {r.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -136,9 +163,9 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
             </div>
           )}
         </div>
-        {bias.previous?.level && (
+        {bias.history[0]?.level && (
           <p className="mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Anterior: <span style={{ color: BIAS_COLORS[bias.previous.level] }}>{BIAS_LABELS[bias.previous.level]}</span>
+            Anterior: <span style={{ color: BIAS_COLORS[bias.history[0].level as BiasLevel] }}>{BIAS_LABELS[bias.history[0].level as BiasLevel]}</span>
           </p>
         )}
       </div>
@@ -165,7 +192,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
             bias.current.reasons.map((reason) => (
               <div key={reason.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1" style={{ border: '1px solid var(--border)' }}>
                 <span className="flex min-w-0 items-center gap-2 text-xs" style={{ color: 'var(--text-primary)' }}>
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: REASON_COLORS[reason.color] }} title={REASON_COLOR_LABELS[reason.color]} />
+                  <Dot level={reason.color} />
                   <span className="truncate">{reason.label}</span>
                   {reason.headlineId && (
                     <span className="shrink-0 text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -191,13 +218,13 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
           />
           <select
             value={reasonColor}
-            onChange={(e) => setReasonColor(e.target.value as ReasonColor)}
+            onChange={(e) => setReasonColor(e.target.value as BiasLevel)}
             className="rounded-md px-2 py-1 text-xs"
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           >
-            {REASON_COLOR_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {REASON_COLOR_LABELS[c]}
+            {BIAS_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {BIAS_LABELS[level]}
               </option>
             ))}
           </select>
@@ -258,30 +285,14 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
       )}
 
       <button onClick={() => setShowHistory((v) => !v)} className="self-start text-xs underline" style={{ color: 'var(--text-muted)' }}>
-        {showHistory ? 'Ocultar historial' : 'Historial'}
+        {showHistory ? 'Ocultar historial' : `Historial (${bias.history.length})`}
       </button>
       {showHistory && (
-        <div className="rounded-md p-3 text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-          {bias.previous ? (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="font-semibold" style={{ color: bias.previous.level ? BIAS_COLORS[bias.previous.level] : 'var(--text-muted)' }}>
-                  {bias.previous.level ? BIAS_LABELS[bias.previous.level] : 'Sin definir'}
-                </span>
-                <span style={{ color: 'var(--text-muted)' }}>{formatDate(bias.previous.startedAt.slice(0, 10))}</span>
-              </div>
-              {bias.previous.summary && <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>{bias.previous.summary}</p>}
-              <div className="mt-1.5 flex flex-col gap-1">
-                {bias.previous.reasons.map((r) => (
-                  <span key={r.id} className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: REASON_COLORS[r.color] }} />
-                    {r.label}
-                  </span>
-                ))}
-              </div>
-            </>
+        <div className="flex flex-col gap-2 rounded-md p-3 text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+          {bias.history.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>Todavía no hay semanas archivadas.</p>
           ) : (
-            <p style={{ color: 'var(--text-muted)' }}>Todavía no hay una semana anterior archivada.</p>
+            bias.history.map((snapshot, i) => renderSnapshot(snapshot, snapshot.id ?? String(i)))
           )}
         </div>
       )}

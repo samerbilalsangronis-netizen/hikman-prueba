@@ -109,20 +109,20 @@ export interface Headline {
  * alcista/bajista" son matices intermedios que pidió el usuario. */
 export type BiasLevel = 'hawkish' | 'neutral_alcista' | 'neutral' | 'neutral_bajista' | 'dovish';
 
-/** Color del resultado del dato que motiva el sesgo (no anterior/previsión/actual
- * como en Actualizar Datos — acá es directamente si el dato fue bueno/malo/neutral
- * para la divisa). */
-export type ReasonColor = 'good' | 'bad' | 'neutral';
-
 export interface BiasReason {
   id: string;
   label: string;
-  color: ReasonColor;
+  /** Tono del motivo (no anterior/previsión/actual como en Actualizar Datos —
+   * acá es directamente hacia dónde apunta ese dato para la divisa). Misma
+   * escala de 5 niveles que el sesgo grande. */
+  color: BiasLevel;
   /** Si este motivo viene de un titular fijado desde Titulares. */
   headlineId?: string;
 }
 
 export interface BiasSnapshot {
+  /** Solo en entradas de historial (current no necesita id propio). */
+  id?: string;
   level: BiasLevel | null;
   summary: string;
   reasons: BiasReason[];
@@ -133,7 +133,9 @@ export interface BiasSnapshot {
 export interface CurrencyBias {
   currency: Currency;
   current: BiasSnapshot;
-  previous?: BiasSnapshot;
+  /** Semanas archivadas, más reciente primero. Se agrega una al presionar
+   * "Actualizar sesgo" — no hay límite de cuántas se guardan. */
+  history: BiasSnapshot[];
   centralBank: string;
   policyRate: string;
   nextMeeting?: string;

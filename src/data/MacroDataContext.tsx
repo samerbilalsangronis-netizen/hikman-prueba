@@ -24,6 +24,7 @@ import { CENTRAL_BANK_BY_CURRENCY } from '../lib/bias';
 import { CURRENCIES } from './CurrencyContext';
 import type {
   BankerNote,
+  BiasLevel,
   BiasReason,
   Currency,
   CurrencyBias,
@@ -31,7 +32,6 @@ import type {
   FomcProbabilities,
   Headline,
   ImpactLevel,
-  ReasonColor,
   ScoreRow,
   SeriesPoint,
   Statement,
@@ -61,6 +61,7 @@ function defaultBiasMap(): BiasMap {
       centralBank: CENTRAL_BANK_BY_CURRENCY[currency],
       policyRate: '',
       current: { level: null, summary: '', reasons: [], startedAt: new Date().toISOString() },
+      history: [],
     };
   }
   return map;
@@ -200,7 +201,7 @@ interface MacroDataContextValue {
   updateBiasLevel: (currency: Currency, level: CurrencyBias['current']['level']) => Promise<void>;
   updateBiasSummary: (currency: Currency, summary: string) => Promise<void>;
   updateBiasBase: (currency: Currency, base: { centralBank: string; policyRate: string; nextMeeting?: string }) => Promise<void>;
-  addBiasReason: (currency: Currency, reason: { label: string; color: ReasonColor; headlineId?: string }) => Promise<void>;
+  addBiasReason: (currency: Currency, reason: { label: string; color: BiasLevel; headlineId?: string }) => Promise<void>;
   removeBiasReason: (currency: Currency, reasonId: string) => Promise<void>;
   rolloverBias: (currency: Currency) => Promise<void>;
   reports: DocumentEntry[];
@@ -249,7 +250,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     }
 
     const client = supabase;
-    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, reportsRes, mentorNotesRes] = await Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
       ),
@@ -271,10 +272,12 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         .limit(300),
       supabase
         .from('currency_bias')
-        .select(
-          'currency, central_bank, policy_rate, next_meeting, current_level, current_summary, current_started_at, previous_level, previous_summary, previous_started_at, previous_reasons',
-        ),
+        .select('currency, central_bank, policy_rate, next_meeting, current_level, current_summary, current_started_at'),
       supabase.from('currency_bias_reasons').select('id, currency, label, color, headline_id').order('created_at', { ascending: true }),
+      supabase
+        .from('currency_bias_history')
+        .select('id, currency, level, summary, reasons, started_at')
+        .order('started_at', { ascending: false }),
       supabase.from('reports').select('id, title, text_content, file_url, file_name, created_at').order('created_at', { ascending: false }),
       supabase
         .from('mentor_notes')
@@ -397,17 +400,21 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         current_level: CurrencyBias['current']['level'];
         current_summary: string | null;
         current_started_at: string;
-        previous_level: CurrencyBias['current']['level'];
-        previous_summary: string | null;
-        previous_started_at: string | null;
-        previous_reasons: BiasReason[] | null;
       }[];
       const reasonRows = (biasReasonsRes.data ?? []) as {
         id: string;
         currency: Currency;
         label: string;
-        color: ReasonColor;
+        color: BiasLevel;
         headline_id: string | null;
+      }[];
+      const historyRows = (!biasHistoryRes.error ? (biasHistoryRes.data ?? []) : []) as {
+        id: string;
+        currency: Currency;
+        level: CurrencyBias['current']['level'];
+        summary: string | null;
+        reasons: BiasReason[] | null;
+        started_at: string;
       }[];
       const map = defaultBiasMap();
       for (const row of baseRows) {
@@ -422,21 +429,18 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
             startedAt: row.current_started_at,
             reasons: [],
           },
-          previous:
-            row.previous_started_at
-              ? {
-                  level: row.previous_level,
-                  summary: row.previous_summary ?? '',
-                  startedAt: row.previous_started_at,
-                  reasons: row.previous_reasons ?? [],
-                }
-              : undefined,
+          history: [],
         };
       }
       for (const r of reasonRows) {
         const entry = map[r.currency];
         if (!entry) continue;
         entry.current.reasons.push({ id: r.id, label: r.label, color: r.color, headlineId: r.headline_id ?? undefined });
+      }
+      for (const h of historyRows) {
+        const entry = map[h.currency];
+        if (!entry) continue;
+        entry.history.push({ id: h.id, level: h.level, summary: h.summary ?? '', startedAt: h.started_at, reasons: h.reasons ?? [] });
       }
       setBiases(map);
     }
@@ -737,7 +741,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   );
 
   const addBiasReason = useCallback(
-    async (currency: Currency, reason: { label: string; color: ReasonColor; headlineId?: string }) => {
+    async (currency: Currency, reason: { label: string; color: BiasLevel; headlineId?: string }) => {
       const id = crypto.randomUUID();
       const next: BiasReason = { id, ...reason };
       setBiases((prev) => {
@@ -776,14 +780,15 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Botón "Actualizar sesgo": rollover semanal. Archiva la semana actual como
-  // "Anterior" (congela sus motivos en previous_reasons) y arranca una
-  // semana en blanco — el badge grande no se toca acá, se elige aparte (se
-  // puede cambiar en cualquier momento, no solo los fines de semana).
+  // una fila nueva en el historial (con sus motivos congelados) y arranca
+  // una semana en blanco — el badge grande no se toca acá, se elige aparte
+  // (se puede cambiar en cualquier momento, no solo los fines de semana).
   const rolloverBias = useCallback(
     async (currency: Currency) => {
       const bias = biases[currency];
       if (!bias) return;
       const archivedCurrent = bias.current;
+      const archivedId = crypto.randomUUID();
       const newStartedAt = new Date().toISOString();
 
       setBiases((prev) => {
@@ -791,7 +796,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
           ...prev,
           [currency]: {
             ...prev[currency],
-            previous: archivedCurrent,
+            history: [{ ...archivedCurrent, id: archivedId }, ...prev[currency].history],
             current: { level: archivedCurrent.level, summary: '', reasons: [], startedAt: newStartedAt },
           },
         };
@@ -801,17 +806,16 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
 
       if (!supabaseEnabled || !supabase) return;
       try {
+        await supabase.from('currency_bias_history').insert({
+          id: archivedId,
+          currency,
+          level: archivedCurrent.level,
+          summary: archivedCurrent.summary,
+          reasons: archivedCurrent.reasons,
+          started_at: archivedCurrent.startedAt,
+        });
         await supabase.from('currency_bias').upsert(
-          {
-            currency,
-            previous_level: archivedCurrent.level,
-            previous_summary: archivedCurrent.summary,
-            previous_started_at: archivedCurrent.startedAt,
-            previous_reasons: archivedCurrent.reasons,
-            current_level: archivedCurrent.level,
-            current_summary: '',
-            current_started_at: newStartedAt,
-          },
+          { currency, current_level: archivedCurrent.level, current_summary: '', current_started_at: newStartedAt },
           { onConflict: 'currency' },
         );
         await supabase.from('currency_bias_reasons').delete().eq('currency', currency);

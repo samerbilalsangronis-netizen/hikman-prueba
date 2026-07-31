@@ -1500,6 +1500,97 @@ ocupaban mucho lugar mostrados todos juntos — se colapsaron a un solo badge
 con el nivel actual que despliega la lista al tocarlo (`CurrencyBiasCard.tsx`,
 `levelPickerOpen` + click-outside con `useRef`/`useEffect`).
 
+## Migración del sistema anterior (Excel, sesión 31-jul-2026)
+
+El usuario subió `HIKMAN CAPITAL SISTEMA 2.0.xlsx` — la planilla donde
+llevaba manualmente todo esto antes del dashboard (hojas `SESGOS`,
+`MOTIVOS`, `TITULARES`, `DATOS_ECO`, más `CUENTAS`/`NOTAS`/`REPORTES`/
+`TRADES`/`BANCOS`/`ORADORES` que no se usaron acá). Pidió cargar el sesgo,
+los titulares y los indicadores económicos manuales ya registrados.
+
+**Antes de migrar, dos cambios de modelo** (la planilla real resultó más
+rica de lo que se había construido, ver arriba "Ampliar modelo de Sesgo"):
+1. `CurrencyBias.previous` (una sola semana atrás) → `history: BiasSnapshot[]`
+   (lista completa, sin límite) — la hoja `SESGOS` tenía 5-6 semanas
+   archivadas por divisa, no solo una. Tabla nueva `currency_bias_history`
+   en `schema.sql` (con migración `alter table currency_bias drop column
+   previous_*` para el proyecto que ya estaba en producción).
+2. `BiasReason.color` pasó de `'good'|'bad'|'neutral'` a `BiasLevel` (los
+   mismos 5 niveles que el sesgo grande) — la hoja `MOTIVOS` usa esa
+   escala real (`TONO`: HAWKISH/DOVISH/NEUTRO/NEUTRO ALCISTA/NEUTRO
+   BAJISTA), no bueno/malo/neutral. Migración de datos en `schema.sql`
+   (`update currency_bias_reasons set color = case ... end`) por si ya
+   había motivos cargados en producción con la escala vieja.
+
+**El SQL de importación quedó en `supabase/import_excel_2026-07-31.sql`**
+(180 inserts: 8 `currency_bias` + 32 `currency_bias_history` + 26
+`currency_bias_reasons` + 55 `headlines` + 59 `indicator_overrides`) — se
+generó con scripts de Python ad-hoc (ya borrados, no quedaron en el repo,
+esto es la única documentación de las decisiones de mapeo). **Correr
+DESPUÉS de `schema.sql`** (necesita `currency_bias_history` y el
+constraint nuevo de `currency_bias_reasons.color`).
+
+Decisiones de mapeo importantes (para no tener que re-derivarlas si hace
+falta ajustar algo):
+
+- **SESGOS**: se filtró `ACTIVO=True` (40 de 41 filas). Por divisa, la
+  fila con `SEMANA` más reciente pasó a ser la semana actual
+  (`currency_bias`); el resto quedó en `currency_bias_history`. Dos
+  niveles de sesgo ambiguos en el texto original se interpretaron a mano:
+  `'NEUTRAL DOVISH'` (EUR) → `dovish`, `'NEUTRAL (HAWKISH)'` (JPY) →
+  `hawkish` — revisar si el usuario quiso decir otra cosa.
+- **MOTIVOS**: se filtró `ACTIVO=True` (32 de 59 filas — el resto eran
+  correcciones/duplicados que el usuario mismo desactivó). Se
+  emparejaron con la semana de `SESGOS` de la misma divisa más cercana en
+  fecha (tolerancia 3 días — `MOTIVOS.SEMANA` usa lunes y `SESGOS.SEMANA`
+  a veces domingo para la misma semana real, no calzan exacto). Cuando una
+  semana de `SESGOS` no tenía motivos estructurados en `MOTIVOS`, se
+  usó como respaldo el texto libre de `SESGOS.MOTIVOS` partido por guiones,
+  con el color = el nivel de sesgo de esa semana (no hay tono por ítem en
+  el texto libre, es la mejor aproximación disponible).
+- **TITULARES**: se filtró `ACTIVO=True` (55 de 154). La hoja no tiene
+  columna de fuente/`source` — se usó el texto genérico "Hikman Capital
+  (importado del sistema anterior)". 12 de las 55 no tenían `IMPACTO`
+  cargado — se les puso `bajo` por defecto. `DIVISAS` (texto libre, ej.
+  "MEDIO ORIENTE", "SP500") se cargó tal cual en `tags`, sin validarlo
+  contra ninguna lista fija.
+- **DATOS_ECO**: de 265 filas activas, solo se importaron **59** — las que
+  matchean contra un indicador de carga manual real del catálogo
+  (`src/data/indicators*.ts`, cruzado contra los ids que sí sincronizan
+  por API en `api/*-sync.ts`). El resto (**206 filas**) se descartó a
+  propósito, la mayoría porque:
+  - Ya sincronizan solas por API (CPI/PPI/GDP/empleo/ventas minoristas de
+    casi todas las divisas) — importarlas hubiera pisado datos correctos
+    de FRED/ABS/StatCan/etc. con una transcripción manual.
+  - No tienen ningún indicador equivalente en el dashboard (ej. componentes
+    del PCE, balance fiscal, datos por país dentro de la Eurozona como
+    Alemania/Francia/Italia — el catálogo de EUR es solo a nivel Eurozona).
+  - Ambigüedad de unidades que no se quiso arriesgar a importar mal: el
+    "Confianza del Consumidor Westpac" de AUD traía un % de variación en
+    vez del nivel del índice; "Cambios en el Empleo" de NZD traía un % en
+    vez de miles de personas — se dejaron sin cargar en vez de adivinar.
+  - Series con nombre parecido pero que son otra cosa: BSI del BOJ ≠
+    Tankan (`jpy_business_confidence` es específicamente Tankan grandes
+    manufactureras); "EXPECTATIVAS DE NEGOCIO" de NAB (AUD) ≠ "Confianza
+    Empresarial" NAB; dos filas de "BALANZA COMERCIAL" bajo NZD con
+    magnitudes absurdamente distintas (800M vs 723.98B) — la segunda es
+    casi seguro de China, mal etiquetada como NZD, se descartó.
+  - `eur_business_confidence` se completó con el IFO alemán (`CONFIANZA
+    EMPRESARIAL IFO`) a falta de algo mejor — el catálogo dice
+    "confianza industrial de la Eurozona" (podría ser el ESI de la
+    Comisión Europea, un dato distinto) — **revisar si esto es lo que el
+    usuario quería** o si prefiere dejarlo vacío.
+  - Parseo de valores: porcentajes con coma decimal (`"2,8%"` → `0.028`),
+    sufijos K/M/B (`"98K"` → `98000`, `"3,098B"` → `3098` en millones para
+    formato `trade`) — todos los 59 valores parsearon sin error, se
+    imprimió cada `raw → stored` para revisar a ojo antes de generar el
+    SQL final.
+
+**Todavía no se corrió `import_excel_2026-07-31.sql` contra Supabase real**
+— avisarle al usuario que lo pegue en el SQL Editor después de `schema.sql`,
+y que revise sobre todo los dos niveles de sesgo ambiguos y el matcheo de
+`eur_business_confidence` con IFO.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.

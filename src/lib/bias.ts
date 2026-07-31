@@ -1,4 +1,6 @@
-import type { BiasLevel, Currency, ReasonColor } from '../types';
+import type { BiasLevel, Currency } from '../types';
+
+export const BIAS_LEVELS: BiasLevel[] = ['hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish'];
 
 export const BIAS_LABELS: Record<BiasLevel, string> = {
   hawkish: 'Hawkish',
@@ -16,18 +18,6 @@ export const BIAS_COLORS: Record<BiasLevel, string> = {
   neutral: 'var(--text-muted)',
   neutral_bajista: '#e0975a',
   dovish: 'var(--status-critical)',
-};
-
-export const REASON_COLOR_LABELS: Record<ReasonColor, string> = {
-  good: 'Bueno',
-  bad: 'Malo',
-  neutral: 'Neutral',
-};
-
-export const REASON_COLORS: Record<ReasonColor, string> = {
-  good: 'var(--status-good)',
-  bad: 'var(--status-critical)',
-  neutral: 'var(--text-muted)',
 };
 
 export const CENTRAL_BANK_BY_CURRENCY: Record<Currency, string> = {

@@ -89,9 +89,9 @@ alter table headlines add column if not exists bias_currency text;
 
 -- Sesgo por divisa (Panel de Control, "3ra capa"): badge grande manual
 -- (hawkish/neutro alcista/neutro/neutro bajista/dovish), datos base del
--- banco central y snapshot "anterior" (se llena al presionar "Actualizar
--- sesgo" — ver currency_bias_reasons abajo para los motivos de la semana en
--- curso). Un registro por divisa.
+-- banco central y la semana EN CURSO — ver currency_bias_history abajo para
+-- las semanas archivadas y currency_bias_reasons para los motivos de la
+-- semana en curso. Un registro por divisa.
 create table if not exists currency_bias (
   currency text primary key,
   central_bank text not null default '',
@@ -100,29 +100,70 @@ create table if not exists currency_bias (
   current_level text check (current_level in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
   current_summary text not null default '',
   current_started_at timestamptz not null default now(),
-  previous_level text check (previous_level in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
-  previous_summary text,
-  previous_started_at timestamptz,
-  -- Copia congelada de los motivos que tenía la semana anterior al momento
-  -- del rollover (array de {id,label,color,headlineId}) — currency_bias_reasons
-  -- solo guarda los de la semana EN CURSO, se borran al hacer rollover.
-  previous_reasons jsonb not null default '[]',
   updated_at timestamptz not null default now()
 );
 
--- Motivos de la semana en curso de cada divisa: nombre del dato + color del
--- resultado (bueno/malo/neutral para la divisa — no anterior/previsión/actual
--- como en Actualizar Datos). Se cargan a mano o se fijan desde un titular en
--- Titulares (headline_id). Se borran todos los de una divisa al presionar
--- "Actualizar sesgo" (ya quedaron congelados en currency_bias.previous_reasons).
+-- Migración: versiones anteriores de este archivo guardaban solo UNA semana
+-- "anterior" en estas columnas — se reemplazó por currency_bias_history
+-- (historial completo, sin límite). Borra las columnas viejas si existen;
+-- no pierde datos reales porque nunca se llegó a usar "Actualizar sesgo" en
+-- producción con esa versión.
+alter table currency_bias drop column if exists previous_level;
+alter table currency_bias drop column if exists previous_summary;
+alter table currency_bias drop column if exists previous_started_at;
+alter table currency_bias drop column if exists previous_reasons;
+
+-- Semanas archivadas de sesgo (una fila por vez que se presionó "Actualizar
+-- sesgo"), con sus motivos ya congelados en "reasons" (jsonb, array de
+-- {id,label,color,headlineId} — no se linkea a currency_bias_reasons porque
+-- esa tabla solo guarda los de la semana EN CURSO). Sin límite de filas por
+-- divisa, a diferencia de la versión anterior que solo guardaba una semana
+-- atrás.
+create table if not exists currency_bias_history (
+  id text primary key,
+  currency text not null,
+  level text check (level in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
+  summary text not null default '',
+  reasons jsonb not null default '[]',
+  started_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+-- Motivos de la semana en curso de cada divisa: nombre del dato + tono
+-- (misma escala de 5 niveles que el sesgo grande — no anterior/previsión/
+-- actual como en Actualizar Datos). Se cargan a mano o se fijan desde un
+-- titular en Titulares (headline_id). Se borran todos los de una divisa al
+-- presionar "Actualizar sesgo" (ya quedaron congelados en
+-- currency_bias_history.reasons).
 create table if not exists currency_bias_reasons (
   id text primary key,
   currency text not null,
   label text not null,
-  color text not null check (color in ('good', 'bad', 'neutral')),
+  color text not null check (color in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
   headline_id text,
   created_at timestamptz not null default now()
 );
+
+-- Migración: la versión anterior de esta tabla usaba color en
+-- ('good','bad','neutral'). Se reemplaza por la escala de 5 niveles real
+-- del usuario — mapeo aproximado antes de aplicar el constraint nuevo
+-- (good→hawkish, bad→dovish, neutral se mantiene). No hace nada si la
+-- tabla ya tiene el constraint nuevo o está vacía.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'currency_bias_reasons' and column_name = 'color'
+  ) then
+    update currency_bias_reasons
+    set color = case color when 'good' then 'hawkish' when 'bad' then 'dovish' else color end
+    where color in ('good', 'bad');
+  end if;
+end $$;
+alter table currency_bias_reasons drop constraint if exists currency_bias_reasons_color_check;
+alter table currency_bias_reasons
+  add constraint currency_bias_reasons_color_check
+  check (color in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish'));
 
 -- Informes económicos (menú izquierdo del Panel de Control) y resúmenes del
 -- mentor Nufal Bakali — mismo shape, tablas separadas para listarlos aparte.
@@ -154,6 +195,7 @@ alter table fomc_watch enable row level security;
 alter table banker_statements enable row level security;
 alter table headlines enable row level security;
 alter table currency_bias enable row level security;
+alter table currency_bias_history enable row level security;
 alter table currency_bias_reasons enable row level security;
 alter table reports enable row level security;
 alter table mentor_notes enable row level security;
@@ -208,6 +250,12 @@ create policy "public read/write headlines"
 drop policy if exists "public read/write currency_bias" on currency_bias;
 create policy "public read/write currency_bias"
   on currency_bias for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write currency_bias_history" on currency_bias_history;
+create policy "public read/write currency_bias_history"
+  on currency_bias_history for all
   using (true)
   with check (true);
 
