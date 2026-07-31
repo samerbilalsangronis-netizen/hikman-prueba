@@ -12,7 +12,7 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
   const items = headlines
     .slice()
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .map((h) => ({ text: h.title, color: IMPACT_COLORS[h.impact], url: h.url }));
+    .map((h) => ({ text: h.titleEs || h.title, color: IMPACT_COLORS[h.impact], url: h.url }));
 
   const duration = Math.max(24, items.length * 7);
 

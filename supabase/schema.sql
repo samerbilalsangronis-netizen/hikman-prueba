@@ -79,6 +79,11 @@ create table if not exists headlines (
   -- Si está fijado como motivo del sesgo de una divisa (Panel de Control).
   -- Fijar acá siempre implica pinned=true (aparece también en la cinta).
   bias_currency text,
+  -- Traducción al español del título — solo se completa para lo que trae
+  -- Finnhub (viene en inglés); las cargas manuales ya se escriben en
+  -- español, se dejan en null. Se muestra debajo del título original en
+  -- HeadlineCard.tsx.
+  title_es text,
   created_at timestamptz not null default now()
 );
 
@@ -86,6 +91,7 @@ create table if not exists headlines (
 -- esta sesión (create table if not exists no agrega columnas nuevas a una
 -- tabla existente).
 alter table headlines add column if not exists bias_currency text;
+alter table headlines add column if not exists title_es text;
 
 -- Sesgo por divisa (Panel de Control, "3ra capa"): badge grande manual
 -- (hawkish/neutro alcista/neutro/neutro bajista/dovish), datos base del

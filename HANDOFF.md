@@ -1692,6 +1692,39 @@ correr el sync viejo antes de este cambio y quedaron titulares con
 `source = 'Forex Factory (calendario económico)'` en la tabla, para
 borrarlos a mano.
 
+**Traducción automática de titulares (mismo día)**: el usuario pidió que
+los titulares de Finnhub (vienen en inglés) se vean traducidos, o con la
+traducción debajo. Se eligió lo segundo — mantener el original + traducción
+abajo en cursiva — para no perder matices en un contexto de trading.
+Columna nueva `headlines.title_es` (`schema.sql`, con migración `alter
+table ... add column if not exists` para lo que ya estaba en producción).
+Traducción vía **MyMemory** (`api.mymemory.translated.net`, gratis, sin
+API key) — confirmado con una prueba manual con `WebFetch` antes de
+integrarlo (mismo criterio que con Frankfurter/Forex Factory: no asumir
+que una API de terceros gratuita funciona sin probarla primero). Se
+traduce en `fetchFinnhubHeadlines` (`api/headlines-sync.ts`), una llamada
+por titular relevante — si falla una traducción puntual, esa fila queda
+con `title_es: null` sin romper el resto del sync (`translateToSpanish`
+atrapa cualquier error y devuelve `null`). Las cargas manuales (ya en
+español) no se tocan, `title_es` queda `null` para esas.
+
+Frontend: `Headline.titleEs` nuevo (`types.ts`), seleccionado y mapeado en
+`MacroDataContext.tsx`. `HeadlineCard.tsx` muestra la traducción en
+cursiva debajo del título original cuando existe. `MarqueeTicker.tsx`
+usa `titleEs || title` (prioriza la traducción en la cinta, ya que ahí no
+hay espacio para mostrar las dos versiones). Probado en local con
+Playwright inyectando un titular de prueba en localStorage (no hay forma
+de generar una traducción real sin pegarle a la API desde un sync
+verdadero) — se ve título en inglés + traducción en cursiva debajo, tal
+como se pidió.
+
+Nota para cuando se corra en Supabase real: como el `upsert` de
+`headlines-sync.ts` usa `ignoreDuplicates: true`, un titular que ya existía
+**nunca se actualiza** en syncs siguientes (ni `title_es` ni nada más) —
+si una traducción falló la primera vez (quedó `null`), no se va a
+reintentar sola; habría que borrar esa fila para que se vuelva a traer y
+traducir en el próximo sync.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.

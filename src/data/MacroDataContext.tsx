@@ -267,7 +267,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         ),
       supabase
         .from('headlines')
-        .select('id, title, source, url, published_at, impact, tags, is_manual, pinned, bias_currency')
+        .select('id, title, source, url, published_at, impact, tags, is_manual, pinned, bias_currency, title_es')
         .order('published_at', { ascending: false })
         .limit(300),
       supabase
@@ -370,6 +370,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         is_manual: boolean;
         pinned: boolean;
         bias_currency: Currency | null;
+        title_es: string | null;
       }[];
       setHeadlines(
         rows.map((r) => ({
@@ -383,6 +384,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
           isManual: r.is_manual,
           pinned: r.pinned,
           biasCurrency: r.bias_currency ?? undefined,
+          titleEs: r.title_es ?? undefined,
         })),
       );
     }

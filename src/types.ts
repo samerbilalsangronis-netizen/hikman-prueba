@@ -108,6 +108,9 @@ export interface Headline {
   /** Si está fijado como motivo del sesgo de una divisa (Panel de Control). Fijar a una
    * divisa siempre implica pinned=true (aparece en la cinta también). */
   biasCurrency?: Currency;
+  /** Traducción al español — solo para titulares que vienen en inglés (Finnhub);
+   * las cargas manuales ya están en español, esto queda sin definir. */
+  titleEs?: string;
 }
 
 /** Sesgo grande de una divisa. Va de dovish a hawkish; los dos "neutro

@@ -52,6 +52,11 @@ export function HeadlineCard({ headline, onTogglePin, onDelete, onSetBiasCurrenc
             headline.title
           )}
         </div>
+        {headline.titleEs && (
+          <div className="text-sm italic" style={{ color: 'var(--text-secondary)' }}>
+            {headline.titleEs}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
           <span>{headline.source}</span>
           <span>·</span>

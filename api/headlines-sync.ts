@@ -43,6 +43,26 @@ interface HeadlineRow {
   tags: string[];
   is_manual: boolean;
   pinned: boolean;
+  title_es: string | null;
+}
+
+// MyMemory (mymemory.translated.net): gratis, sin API key, confirmado con
+// una prueba manual antes de usarlo (mismo criterio que con Forex
+// Factory/Frankfurter — no asumir que una API de terceros funciona sin
+// probarla). Límite generoso para este volumen (unas pocas decenas de
+// titulares por sync) en el tier anónimo. Si falla o se corta, no rompe el
+// sync — el titular queda sin traducción (title_es null) en vez de
+// bloquear el resto.
+async function translateToSpanish(text: string): Promise<string | null> {
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|es`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = (await res.json()) as { responseData?: { translatedText?: string } };
+    return json.responseData?.translatedText || null;
+  } catch {
+    return null;
+  }
 }
 
 interface FinnhubNewsItem {
@@ -139,6 +159,7 @@ async function fetchFinnhubHeadlines(apiKey: string): Promise<HeadlineRow[]> {
       tags: classified.tags,
       is_manual: false,
       pinned: false,
+      title_es: await translateToSpanish(item.headline),
     });
   }
   return out;
