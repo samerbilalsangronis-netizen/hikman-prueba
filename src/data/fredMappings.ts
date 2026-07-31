@@ -46,6 +46,8 @@ export const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
+  { indicatorId: 'initial_claims', seriesId: 'ICSA', transform: 'level' },
+  { indicatorId: 'continuing_claims', seriesId: 'CCSA', transform: 'level' },
   // Confianza / Sentimiento
   { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento

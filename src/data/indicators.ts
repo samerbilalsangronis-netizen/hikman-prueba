@@ -251,6 +251,20 @@ const USD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Encuesta de confianza del consumidor del Conference Board. Sin API pública — carga manual.',
   },
+  {
+    id: 'nfib',
+    label: 'Optimismo de Pequeñas Empresas (NFIB)',
+    shortLabel: 'NFIB',
+    section: 'confianza',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'line',
+    source: 'NFIB Research Center',
+    sourceUrl: 'https://www.nfib.com/surveys/small-business-economic-trends/',
+    goodDirection: 'up',
+    description:
+      'Índice de optimismo de pequeñas empresas de la NFIB. No está en FRED (verificado, la NFIB no cede su serie completa para redistribución) ni tiene CSV público abierto — carga manual.',
+  },
   // Empleo
   {
     id: 'nfp',
@@ -316,6 +330,32 @@ const USD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://adpemploymentreport.com/',
     goodDirection: 'up',
     description: 'Creación de empleo privado según ADP, adelanto del NFP.',
+  },
+  {
+    id: 'initial_claims',
+    label: 'Solicitudes Iniciales de Desempleo',
+    shortLabel: 'Solicit. Iniciales',
+    section: 'empleo',
+    format: 'thousands',
+    frequency: 'weekly',
+    chart: 'bar',
+    source: 'Departamento de Trabajo (FRED: ICSA)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/ICSA',
+    goodDirection: 'down',
+    description: 'Nuevas solicitudes semanales de seguro por desempleo — el dato de empleo más adelantado, se publica todos los jueves.',
+  },
+  {
+    id: 'continuing_claims',
+    label: 'Solicitudes Continuas de Desempleo',
+    shortLabel: 'Solicit. Continuas',
+    section: 'empleo',
+    format: 'thousands',
+    frequency: 'weekly',
+    chart: 'bar',
+    source: 'Departamento de Trabajo (FRED: CCSA)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/CCSA',
+    goodDirection: 'down',
+    description: 'Personas que siguen cobrando el seguro por desempleo (renovaciones) — se publica con una semana de rezago respecto a las solicitudes iniciales.',
   },
   // Inflación — cada medida va m/m seguido de su a/a (no todos los m/m
   // juntos y luego todos los a/a) para que se lean emparejados en pantalla.
