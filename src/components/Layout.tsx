@@ -12,6 +12,7 @@ import type { Currency } from '../types';
 // cualquier divisa futura con el mismo patrón.
 function navFor(currency: Currency) {
   const items: { to: string; label: string; end?: boolean }[] = [
+    { to: '/panel-control', label: '📊 Panel de Control' },
     { to: '/', label: 'Resumen', end: true },
     { to: '/titulares', label: 'Titulares' },
   ];
@@ -149,7 +150,7 @@ export function Layout() {
         </nav>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <Outlet />
+        <Outlet context={{ theme }} />
       </main>
       <footer className="mx-auto max-w-7xl px-4 py-8 text-xs sm:px-6" style={{ color: 'var(--text-muted)' }}>
         Datos actualizados manualmente. Revisa las insignias de frescura en cada tarjeta antes de operar con ellos.

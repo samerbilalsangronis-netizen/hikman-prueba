@@ -1,5 +1,7 @@
-import type { Headline } from '../types';
+import type { Currency, Headline } from '../types';
 import { IMPACT_COLORS, IMPACT_LABELS } from '../lib/impact';
+
+const BIAS_CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'CHF', 'CNY'];
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -11,9 +13,10 @@ interface HeadlineCardProps {
   headline: Headline;
   onTogglePin: (id: string, pinned: boolean) => void;
   onDelete: (id: string) => void;
+  onSetBiasCurrency: (id: string, currency: Currency | undefined) => void;
 }
 
-export function HeadlineCard({ headline, onTogglePin, onDelete }: HeadlineCardProps) {
+export function HeadlineCard({ headline, onTogglePin, onDelete, onSetBiasCurrency }: HeadlineCardProps) {
   const color = IMPACT_COLORS[headline.impact];
 
   return (
@@ -64,7 +67,25 @@ export function HeadlineCard({ headline, onTogglePin, onDelete }: HeadlineCardPr
           ))}
         </div>
       </div>
-      <div className="flex shrink-0 gap-1.5 self-start">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 self-start">
+        <select
+          value={headline.biasCurrency ?? ''}
+          onChange={(e) => onSetBiasCurrency(headline.id, (e.target.value || undefined) as Currency | undefined)}
+          className="rounded-md px-2 py-1 text-xs"
+          style={{
+            border: '1px solid var(--border)',
+            background: headline.biasCurrency ? 'var(--series-1)' : 'transparent',
+            color: headline.biasCurrency ? '#fff' : 'var(--text-secondary)',
+          }}
+          title="Fijar como motivo del sesgo de una divisa (también aparece en la cinta del Panel de Control)"
+        >
+          <option value="">Fijar a divisa…</option>
+          {BIAS_CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => onTogglePin(headline.id, !headline.pinned)}
           className="rounded-md px-2.5 py-1 text-xs font-semibold"

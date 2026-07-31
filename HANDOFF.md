@@ -1335,11 +1335,106 @@ agua por completo. Se arregló agregando la clase `isolate` al `<div>` raíz
 otro elemento `fixed`/`absolute` con z-index en el futuro, tenerlo en
 cuenta.
 
-**Pendiente**: Panel de Control (cinta corrediza de titulares fijados +
-panel de indicadores de mercado tipo Bloomberg — SP500, DXY, VIX, oro,
-petróleo, rendimientos, etc., ver captura que compartió el usuario) — el
-usuario todavía no aprobó la lista final de indicadores. `FINNHUB_API_KEY`
-sin configurar en Vercel.
+**Pendiente**: `FINNHUB_API_KEY` sin configurar en Vercel (ver sección de
+Titulares arriba). El Panel de Control en sí ya se construyó, ver sección
+siguiente.
+
+## Panel de Control (sesión 31-jul-2026)
+
+Nueva página global `/panel-control` (no depende de la divisa seleccionada,
+por eso está primera en `navFor` en `Layout.tsx`). Cuatro piezas:
+
+**Cinta corrediza** (`MarqueeTicker.tsx`): arranca con "HIKMAN CAPITAL" y
+sigue con los titulares que tengan `pinned=true` (fijados desde Titulares).
+Loop infinito con `@keyframes marquee-scroll` en `index.css` (duplica el
+contenido una vez y anima `translateX(-50%)` para que no se note el reinicio;
+respeta `prefers-reduced-motion`). La duración se escala con la cantidad de
+titulares (`Math.max(24, items.length * 7)` segundos) para que la velocidad
+no varíe mucho con pocos o muchos titulares.
+
+**Panel de indicadores de mercado** (`MarketIndicatorsPanel.tsx` +
+`marketIndicators.ts`): agrupado por categoría (Rendimientos 10Y, Futuros de
+Divisas, Emergentes/Asia (ETF), Tecnología y Crecimiento) usando el widget
+"Single Ticker" de TradingView (gratis, sin API key,
+`s3.tradingview.com/external-embedding/embed-widget-single-quote.js`) — un
+widget por símbolo, envuelto en un `<div title="...">` propio para el
+tooltip (TradingView no permite tooltips custom dentro de su iframe). El
+`tooltip` de cada símbolo es texto editable a mano en `marketIndicators.ts`,
+no viene de ninguna API. **Importante**: no pude verificar visualmente que
+los símbolos de TradingView resuelvan bien — el sandbox de esta sesión
+bloquea la conexión saliente a `s3.tradingview.com`
+(`net::ERR_CONNECTION_RESET` al probar con Playwright), típico de un entorno
+de contenedor con red restringida, no un bug del código. Revisar en el
+primer deploy a Vercel que cada símbolo muestre precio real y no "n/a" —
+especialmente `TVC:NZ10Y` (rendimiento 10Y de Nueva Zelanda, el que más
+dudas genera de que TradingView lo tenga con ese ticker exacto). El usuario
+había mencionado una categoría "ETF" separada de "Emergentes/Asia" sin dar
+símbolos para ETF — se fusionaron en una sola categoría con VWO (que es a la
+vez ETF y proxy de emergentes/Asia); si el usuario tenía en mente otros ETFs
+específicos, agregar ahí.
+
+**Sesgo por Divisa** (`CurrencyBiasCard.tsx`, tipos `CurrencyBias`/
+`BiasSnapshot`/`BiasReason` en `types.ts`, tabla `currency_bias` +
+`currency_bias_reasons`): badge grande (Hawkish/Neutro Alcista/Neutro/Neutro
+Bajista/Dovish) editable manualmente en cualquier momento vía
+`updateBiasLevel` — **no** está atado al botón de actualizar semanal, el
+usuario pidió explícitamente poder cambiarlo entre semana si un dato mueve
+el sentimiento. El botón "⟳ Actualizar sesgo" (`rolloverBias`) es el
+rollover semanal: congela los motivos de la semana en curso en
+`currency_bias.previous_reasons` (jsonb, copia estática) junto con
+nivel/resumen/fecha de inicio como "Anterior", y arranca
+`current_started_at` de nuevo con motivos vacíos — el nivel del badge se
+mantiene igual al momento del rollover (no se resetea a null), solo el
+usuario lo cambia después si corresponde. Confirmación con `window.confirm`
+antes de ejecutar (borra `currency_bias_reasons` de esa divisa en Supabase,
+ya están congelados en `previous_reasons` así que no se pierde nada, pero es
+irreversible desde la UI).
+
+Motivos de la semana ("nombre del dato + color bueno/malo/neutral", no
+anterior/previsión/actual): se cargan a mano desde la tarjeta
+(`addBiasReason`/`removeBiasReason`) o se fijan desde un titular en Titulares
+con el nuevo selector "Fijar a divisa…" en `HeadlineCard.tsx`
+(`setHeadlineBiasCurrency` en `MacroDataContext.tsx`). Fijar un titular a una
+divisa **siempre** fuerza `pinned=true` (aparece también en la cinta, pedido
+explícito del usuario) y crea un motivo con `headlineId` vinculado
+(color `neutral` por defecto — el titular no trae un color de resultado
+propio, el usuario lo puede editar borrando y recargando, no hay edición
+inline de color todavía). Desfijar de la divisa (volver el select a vacío)
+borra ese motivo vinculado pero **no** desfija de la cinta — son dos cosas
+independientes una vez fijado, tal como pidió el usuario. `Headline` ganó el
+campo `biasCurrency?: Currency` (columna `bias_currency` en `headlines`,
+migración `alter table ... add column if not exists` para proyectos que ya
+tenían la tabla).
+
+Datos base (banco central, tasa, próxima reunión): editable inline
+(`updateBiasBase`) — no hay fuente automática de "próxima reunión" para
+divisas no-USD (solo existe `fomcMeetings.ts` para la Fed), así que es 100%
+manual para las 9 divisas. `CENTRAL_BANK_BY_CURRENCY` en `lib/bias.ts` da el
+nombre del banco central por defecto al crear el registro.
+
+**Informes económicos y resúmenes del mentor** (`DocumentUploadList.tsx`,
+reutilizado dos veces en `PanelControl.tsx` con tablas separadas `reports` y
+`mentor_notes` — mismo shape `DocumentEntry`): texto y/o archivo (PDF/imagen)
+por entrada, el usuario pidió ambos. El archivo sube al bucket de Storage
+`documents` (`uploadDocumentFile` en `MacroDataContext.tsx`, `public: true`
+— mismo criterio de seguridad que el resto del proyecto). La carga de
+archivo se deshabilita en modo local (`syncMode !== 'cloud'`) porque no hay
+backend donde guardarlo — el texto sigue funcionando sin Supabase.
+
+**Pendiente de correr en Supabase**: el `supabase/schema.sql` completo
+(tablas nuevas `currency_bias`, `currency_bias_reasons`, `reports`,
+`mentor_notes`, columna `bias_currency` en `headlines`, bucket `documents`)
+todavía no se corrió contra la base real — avisar al usuario que tiene que
+pegarlo en el SQL Editor de Supabase antes de que el Panel de Control
+sincronice en la nube (mientras tanto cae a `localStorage`, que ya se probó
+funciona end-to-end: fijar titular a divisa → aparece en la cinta y como
+motivo con 📌).
+
+No pude probar visualmente los widgets de TradingView ni el flujo de subida
+de archivos a Storage en esta sesión (sandbox sin Supabase configurado y con
+`s3.tradingview.com` bloqueado) — sí se probó con Playwright en modo local
+que la cinta, las tarjetas de sesgo, el fijado de titulares y el resto de
+las páginas existentes (Resumen, Titulares) no tienen regresiones.
 
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 

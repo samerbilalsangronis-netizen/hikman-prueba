@@ -141,7 +141,7 @@ function ManualHeadlineForm() {
 }
 
 export function Titulares() {
-  const { headlines, toggleHeadlinePin, deleteHeadline, refresh } = useMacroData();
+  const { headlines, toggleHeadlinePin, deleteHeadline, setHeadlineBiasCurrency, refresh } = useMacroData();
   const [filter, setFilter] = useState<ImpactLevel | 'todos'>('todos');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ found: number; errors: string[] } | null>(null);
@@ -237,7 +237,15 @@ export function Titulares() {
             Sin titulares todavía. Sincronizá o agregá uno manualmente.
           </p>
         ) : (
-          filtered.map((h) => <HeadlineCard key={h.id} headline={h} onTogglePin={toggleHeadlinePin} onDelete={deleteHeadline} />)
+          filtered.map((h) => (
+            <HeadlineCard
+              key={h.id}
+              headline={h}
+              onTogglePin={toggleHeadlinePin}
+              onDelete={deleteHeadline}
+              onSetBiasCurrency={setHeadlineBiasCurrency}
+            />
+          ))
         )}
       </div>
     </div>

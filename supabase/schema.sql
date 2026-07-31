@@ -76,6 +76,74 @@ create table if not exists headlines (
   tags text[] not null default '{}',
   is_manual boolean not null default false,
   pinned boolean not null default false,
+  -- Si está fijado como motivo del sesgo de una divisa (Panel de Control).
+  -- Fijar acá siempre implica pinned=true (aparece también en la cinta).
+  bias_currency text,
+  created_at timestamptz not null default now()
+);
+
+-- Migración para proyectos que ya tenían la tabla headlines creada antes de
+-- esta sesión (create table if not exists no agrega columnas nuevas a una
+-- tabla existente).
+alter table headlines add column if not exists bias_currency text;
+
+-- Sesgo por divisa (Panel de Control, "3ra capa"): badge grande manual
+-- (hawkish/neutro alcista/neutro/neutro bajista/dovish), datos base del
+-- banco central y snapshot "anterior" (se llena al presionar "Actualizar
+-- sesgo" — ver currency_bias_reasons abajo para los motivos de la semana en
+-- curso). Un registro por divisa.
+create table if not exists currency_bias (
+  currency text primary key,
+  central_bank text not null default '',
+  policy_rate text not null default '',
+  next_meeting date,
+  current_level text check (current_level in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
+  current_summary text not null default '',
+  current_started_at timestamptz not null default now(),
+  previous_level text check (previous_level in ('hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish')),
+  previous_summary text,
+  previous_started_at timestamptz,
+  -- Copia congelada de los motivos que tenía la semana anterior al momento
+  -- del rollover (array de {id,label,color,headlineId}) — currency_bias_reasons
+  -- solo guarda los de la semana EN CURSO, se borran al hacer rollover.
+  previous_reasons jsonb not null default '[]',
+  updated_at timestamptz not null default now()
+);
+
+-- Motivos de la semana en curso de cada divisa: nombre del dato + color del
+-- resultado (bueno/malo/neutral para la divisa — no anterior/previsión/actual
+-- como en Actualizar Datos). Se cargan a mano o se fijan desde un titular en
+-- Titulares (headline_id). Se borran todos los de una divisa al presionar
+-- "Actualizar sesgo" (ya quedaron congelados en currency_bias.previous_reasons).
+create table if not exists currency_bias_reasons (
+  id text primary key,
+  currency text not null,
+  label text not null,
+  color text not null check (color in ('good', 'bad', 'neutral')),
+  headline_id text,
+  created_at timestamptz not null default now()
+);
+
+-- Informes económicos (menú izquierdo del Panel de Control) y resúmenes del
+-- mentor Nufal Bakali — mismo shape, tablas separadas para listarlos aparte.
+-- Archivo opcional (PDF/imagen, sube al bucket de Storage "documents") y/o
+-- texto pegado; al menos uno de los dos debería estar presente (no se fuerza
+-- por SQL para no complicar el insert desde la UI).
+create table if not exists reports (
+  id text primary key,
+  title text not null,
+  text_content text,
+  file_url text,
+  file_name text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists mentor_notes (
+  id text primary key,
+  title text not null,
+  text_content text,
+  file_url text,
+  file_name text,
   created_at timestamptz not null default now()
 );
 
@@ -85,6 +153,10 @@ alter table indicator_forecasts enable row level security;
 alter table fomc_watch enable row level security;
 alter table banker_statements enable row level security;
 alter table headlines enable row level security;
+alter table currency_bias enable row level security;
+alter table currency_bias_reasons enable row level security;
+alter table reports enable row level security;
+alter table mentor_notes enable row level security;
 
 -- Nota de seguridad: estas políticas permiten leer y escribir a cualquiera que
 -- tenga la URL y la clave "anon" del proyecto (que va embebida en el sitio
@@ -121,3 +193,44 @@ create policy "public read/write headlines"
   on headlines for all
   using (true)
   with check (true);
+
+create policy "public read/write currency_bias"
+  on currency_bias for all
+  using (true)
+  with check (true);
+
+create policy "public read/write currency_bias_reasons"
+  on currency_bias_reasons for all
+  using (true)
+  with check (true);
+
+create policy "public read/write reports"
+  on reports for all
+  using (true)
+  with check (true);
+
+create policy "public read/write mentor_notes"
+  on mentor_notes for all
+  using (true)
+  with check (true);
+
+-- Bucket de Storage para los archivos de informes/resúmenes del mentor
+-- (PDF/imagen). Se crea acá con SQL para no depender de tocar la UI de
+-- Supabase; público de solo lectura, mismo criterio de seguridad que el
+-- resto del proyecto (cualquiera con la URL del proyecto puede leer/escribir
+-- — está bien para un dashboard personal de uso propio).
+insert into storage.buckets (id, name, public)
+values ('documents', 'documents', true)
+on conflict (id) do nothing;
+
+create policy "public read documents"
+  on storage.objects for select
+  using (bucket_id = 'documents');
+
+create policy "public write documents"
+  on storage.objects for insert
+  with check (bucket_id = 'documents');
+
+create policy "public delete documents"
+  on storage.objects for delete
+  using (bucket_id = 'documents');

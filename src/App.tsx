@@ -11,6 +11,7 @@ import { Crecimiento } from './pages/Crecimiento';
 import { Banqueros } from './pages/Banqueros';
 import { Titulares } from './pages/Titulares';
 import { Actualizar } from './pages/Actualizar';
+import { PanelControl } from './pages/PanelControl';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <HashRouter>
           <Routes>
             <Route element={<Layout />}>
+              <Route path="panel-control" element={<PanelControl />} />
               <Route index element={<Dashboard />} />
               <Route path="tasas" element={<Tasas />} />
               <Route path="inflacion" element={<Inflacion />} />

@@ -100,4 +100,53 @@ export interface Headline {
   /** true = cargado a mano desde la UI, false = vino de una API. */
   isManual: boolean;
   pinned: boolean;
+  /** Si está fijado como motivo del sesgo de una divisa (Panel de Control). Fijar a una
+   * divisa siempre implica pinned=true (aparece en la cinta también). */
+  biasCurrency?: Currency;
+}
+
+/** Sesgo grande de una divisa. Va de dovish a hawkish; los dos "neutro
+ * alcista/bajista" son matices intermedios que pidió el usuario. */
+export type BiasLevel = 'hawkish' | 'neutral_alcista' | 'neutral' | 'neutral_bajista' | 'dovish';
+
+/** Color del resultado del dato que motiva el sesgo (no anterior/previsión/actual
+ * como en Actualizar Datos — acá es directamente si el dato fue bueno/malo/neutral
+ * para la divisa). */
+export type ReasonColor = 'good' | 'bad' | 'neutral';
+
+export interface BiasReason {
+  id: string;
+  label: string;
+  color: ReasonColor;
+  /** Si este motivo viene de un titular fijado desde Titulares. */
+  headlineId?: string;
+}
+
+export interface BiasSnapshot {
+  level: BiasLevel | null;
+  summary: string;
+  reasons: BiasReason[];
+  /** Cuándo arrancó esta semana (se resetea al presionar "Actualizar sesgo"). */
+  startedAt: string;
+}
+
+export interface CurrencyBias {
+  currency: Currency;
+  current: BiasSnapshot;
+  previous?: BiasSnapshot;
+  centralBank: string;
+  policyRate: string;
+  nextMeeting?: string;
+}
+
+/** Informe económico o resumen del mentor (Nufal Bakali) — mismo shape para
+ * ambos, se guardan en tablas separadas. Archivo y texto son opcionales pero
+ * al menos uno debe estar presente. */
+export interface DocumentEntry {
+  id: string;
+  title: string;
+  text?: string;
+  fileUrl?: string;
+  fileName?: string;
+  createdAt: string;
 }
