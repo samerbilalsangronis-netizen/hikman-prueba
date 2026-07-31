@@ -56,11 +56,35 @@ create table if not exists banker_statements (
   updated_at timestamptz not null default now()
 );
 
+-- Titulares de alto impacto (sección Titulares): mezcla de lo que trae
+-- /api/headlines-sync.ts (calendario económico de Forex Factory + noticias
+-- de Finnhub, filtrados a G10 + CNY + bonos/renta variable) y lo que se
+-- carga a mano desde la UI cuando el usuario ve algo relevante que las APIs
+-- no captaron. "pinned" = aparece en la cinta corrediza del Panel de
+-- Control (sección todavía no construida).
+create table if not exists headlines (
+  -- id como texto (no uuid autogenerado): /api/headlines-sync.ts arma un id
+  -- determinístico (fuente + hash del título/fecha) para poder upsertear sin
+  -- duplicar el mismo titular en cada corrida; las cargas manuales usan
+  -- crypto.randomUUID() desde el navegador.
+  id text primary key,
+  title text not null,
+  source text not null,
+  url text,
+  published_at timestamptz not null,
+  impact text not null check (impact in ('alto', 'medio', 'bajo')),
+  tags text[] not null default '{}',
+  is_manual boolean not null default false,
+  pinned boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 alter table indicator_overrides enable row level security;
 alter table score_overrides enable row level security;
 alter table indicator_forecasts enable row level security;
 alter table fomc_watch enable row level security;
 alter table banker_statements enable row level security;
+alter table headlines enable row level security;
 
 -- Nota de seguridad: estas políticas permiten leer y escribir a cualquiera que
 -- tenga la URL y la clave "anon" del proyecto (que va embebida en el sitio
@@ -90,5 +114,10 @@ create policy "public read/write fomc_watch"
 
 create policy "public read/write banker_statements"
   on banker_statements for all
+  using (true)
+  with check (true);
+
+create policy "public read/write headlines"
+  on headlines for all
   using (true)
   with check (true);

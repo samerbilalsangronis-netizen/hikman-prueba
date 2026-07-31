@@ -83,3 +83,21 @@ export interface BankerNote {
   current?: Statement;
   previous?: Statement;
 }
+
+/** 'alto' = rojo, 'medio' = naranja, 'bajo' = gris (insignias de Titulares). */
+export type ImpactLevel = 'alto' | 'medio' | 'bajo';
+
+export interface Headline {
+  id: string;
+  title: string;
+  source: string;
+  url?: string;
+  /** ISO datetime (con hora si se conoce, si no medianoche UTC del día). */
+  publishedAt: string;
+  impact: ImpactLevel;
+  /** Divisas/activos que afecta, ej. ['USD', 'Bonos'] — usado para el filtro de relevancia. */
+  tags: string[];
+  /** true = cargado a mano desde la UI, false = vino de una API. */
+  isManual: boolean;
+  pinned: boolean;
+}

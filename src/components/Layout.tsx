@@ -11,7 +11,10 @@ import type { Currency } from '../types';
 // una lista de divisas "incompletas" y funciona automáticamente para
 // cualquier divisa futura con el mismo patrón.
 function navFor(currency: Currency) {
-  const items: { to: string; label: string; end?: boolean }[] = [{ to: '/', label: 'Resumen', end: true }];
+  const items: { to: string; label: string; end?: boolean }[] = [
+    { to: '/', label: 'Resumen', end: true },
+    { to: '/titulares', label: 'Titulares' },
+  ];
 
   if (indicatorsBySection('tasas', currency).length > 0) {
     items.push({

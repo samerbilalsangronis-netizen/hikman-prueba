@@ -20,7 +20,7 @@ const SCORE_SEED = [
   ...CHF_SCORE_SEED,
 ];
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { BankerNote, FomcProbabilities, ScoreRow, SeriesPoint, Statement } from '../types';
+import type { BankerNote, FomcProbabilities, Headline, ImpactLevel, ScoreRow, SeriesPoint, Statement } from '../types';
 
 type SeriesMap = Record<string, SeriesPoint[]>;
 type ForecastMap = Record<string, number>;
@@ -32,6 +32,7 @@ const SCORE_KEY = 'macro-dashboard:score:v1';
 const FORECASTS_KEY = 'macro-dashboard:forecasts:v1';
 const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
 const BANKER_NOTES_KEY = 'macro-dashboard:banker-notes:v1';
+const HEADLINES_KEY = 'macro-dashboard:headlines:v1';
 
 function loadLocalOverrides(): SeriesMap {
   try {
@@ -78,6 +79,15 @@ function loadLocalBankerNotes(): BankerNotesMap {
   }
 }
 
+function loadLocalHeadlines(): Headline[] {
+  try {
+    const raw = localStorage.getItem(HEADLINES_KEY);
+    return raw ? (JSON.parse(raw) as Headline[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 function mergeSeries(base: SeriesPoint[], overrides: SeriesPoint[]): SeriesPoint[] {
   const map = new Map<string, number>();
   for (const [date, value] of base) map.set(date, value);
@@ -121,6 +131,11 @@ interface MacroDataContextValue {
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
   bankerNotes: BankerNotesMap;
   addBankerStatement: (bankerId: string, statement: Statement) => Promise<void>;
+  headlines: Headline[];
+  addManualHeadline: (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => Promise<void>;
+  toggleHeadlinePin: (id: string, pinned: boolean) => Promise<void>;
+  updateHeadlineImpact: (id: string, impact: ImpactLevel) => Promise<void>;
+  deleteHeadline: (id: string) => Promise<void>;
   resetOverrides: () => Promise<void>;
   exportJson: () => string;
   loading: boolean;
@@ -136,6 +151,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
   const [bankerNotes, setBankerNotes] = useState<BankerNotesMap>({});
+  const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [loading, setLoading] = useState(supabaseEnabled);
 
   const base = historicalSeries as unknown as SeriesMap;
@@ -147,26 +163,32 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
       setBankerNotes(loadLocalBankerNotes());
+      setHeadlines(loadLocalHeadlines());
       setLoading(false);
       return;
     }
 
     const client = supabase;
-    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes] = await Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes] = await Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
       supabase.from('fomc_watch').select('meeting_date, prob_cut, prob_hold, prob_hike, note'),
-      // banker_statements es una tabla nueva — si todavía no corriste el SQL
-      // en Supabase (ver supabase/schema.sql), esto simplemente da error y se
-      // ignora, sin romper el resto de la carga.
+      // banker_statements y headlines son tablas nuevas — si todavía no
+      // corriste el SQL en Supabase (ver supabase/schema.sql), esto
+      // simplemente da error y se ignora, sin romper el resto de la carga.
       supabase
         .from('banker_statements')
         .select(
           'banker_id, current_statement_date, current_stance, current_summary, current_source_url, previous_statement_date, previous_stance, previous_summary, previous_source_url',
         ),
+      supabase
+        .from('headlines')
+        .select('id, title, source, url, published_at, impact, tags, is_manual, pinned')
+        .order('published_at', { ascending: false })
+        .limit(300),
     ]);
 
     {
@@ -240,6 +262,33 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         };
       }
       setBankerNotes(map);
+    }
+
+    if (!headlinesRes.error && headlinesRes.data) {
+      const rows = headlinesRes.data as {
+        id: string;
+        title: string;
+        source: string;
+        url: string | null;
+        published_at: string;
+        impact: ImpactLevel;
+        tags: string[];
+        is_manual: boolean;
+        pinned: boolean;
+      }[];
+      setHeadlines(
+        rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          source: r.source,
+          url: r.url ?? undefined,
+          publishedAt: r.published_at,
+          impact: r.impact,
+          tags: r.tags ?? [],
+          isManual: r.is_manual,
+          pinned: r.pinned,
+        })),
+      );
     }
 
     setLoading(false);
@@ -354,6 +403,61 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     [bankerNotes],
   );
 
+  const addManualHeadline = useCallback(async (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => {
+    const next: Headline = { ...headline, id: crypto.randomUUID(), isManual: true, pinned: false };
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').insert({
+        id: next.id,
+        title: next.title,
+        source: next.source,
+        url: next.url || null,
+        published_at: next.publishedAt,
+        impact: next.impact,
+        tags: next.tags,
+        is_manual: true,
+        pinned: false,
+      });
+    }
+    setHeadlines((prev) => {
+      const updated = [next, ...prev];
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const toggleHeadlinePin = useCallback(async (id: string, pinned: boolean) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').update({ pinned }).eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.map((h) => (h.id === id ? { ...h, pinned } : h));
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const updateHeadlineImpact = useCallback(async (id: string, impact: ImpactLevel) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').update({ impact }).eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.map((h) => (h.id === id ? { ...h, impact } : h));
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const deleteHeadline = useCallback(async (id: string) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('headlines').delete().eq('id', id);
+    }
+    setHeadlines((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      if (!supabaseEnabled) localStorage.setItem(HEADLINES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const resetOverrides = useCallback(async () => {
     if (supabaseEnabled && supabase) {
       await supabase.from('indicator_overrides').delete().neq('indicator_id', '');
@@ -395,6 +499,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      headlines,
+      addManualHeadline,
+      toggleHeadlinePin,
+      updateHeadlineImpact,
+      deleteHeadline,
       resetOverrides,
       exportJson,
       loading,
@@ -413,6 +522,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      headlines,
+      addManualHeadline,
+      toggleHeadlinePin,
+      updateHeadlineImpact,
+      deleteHeadline,
       resetOverrides,
       exportJson,
       loading,
