@@ -3198,6 +3198,22 @@ reabrir la discusión)**:
   reciente (BusinessNZ revisa el ajuste estacional mes a mes, es
   comportamiento normal, no un error).
 
+### GBP PMI Manufactura junio-2026 tenía el flash, no el final
+
+El usuario avisó "el dato de junio de PMI manufacturero de la libra no
+coincidía". Confirmado: `gbp_pmi_manuf_flash` tenía cargado 53.1 para
+junio-2026, que es el FLASH — el final (publicado 1-jul-2026) es 52.5:
+"UK June final manufacturing PMI 52.5 vs 53.1 prelim" (investingLive).
+Corregido a 52.5. De paso se chequeó Servicios del mismo mes por las
+dudas: tenía 48.7 (flash), el final es 48.8 — diferencia mínima pero se
+corrigió igual ("UK June final services PMI 48.8 vs 48.7 prelim").
+
+Esto reabrió la sospecha de la sección anterior (el mismo tipo de
+error puede estar en enero-junio 2026 de `sp_pmi_manuf`/`serv`,
+`jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`) — se lanzó una auditoría
+dedicada de esos 36 valores, ver resultado más abajo o en el próximo
+commit si todavía no se resolvió al momento de leer esto.
+
 ### Duplicados de PMI headline (Excel vs backfill)
 
 El usuario avisó (con capturas) que en AUD aparecían dos puntos en julio
