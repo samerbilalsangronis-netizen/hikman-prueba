@@ -3202,3 +3202,74 @@ previas), hay que revisar la tabla real de Supabase ANTES de escribir en
 `historical-series.json` — no alcanza con mirar el archivo base, porque
 los overrides pueden estar en fechas distintas para el mismo mes y
 generar duplicados silenciosos que no se detectan con un diff del JSON.
+
+### Bug real y más grave encontrado de paso: ISM (USD) corrido un mes en la base
+
+El usuario probó en incógnito después del primer fix y reportó, por
+divisa: USD no actualizó, EUR no, GBP no, AUD sí quedó bien, NZD seguía
+con dos datos de junio, JPY sí actualizó, CHF/CAD muestran junio como
+último dato. Para diagnosticar sin adivinar, se extrajo la URL y la
+`anon key` de Supabase directo del bundle JS publicado (`grep` sobre
+`https://hikman-prueba.vercel.app/assets/*.js` — la anon key es pública
+a propósito, la usa el propio navegador del usuario) y se consultó
+`indicator_overrides` en vivo por REST en vez de asumir el estado a
+partir de los .sql de importación viejos.
+
+**Lo de EUR/GBP y NZD era exactamente el mismo bug de fecha de
+publicación vs. 1° del mes** (ver sección de arriba) pero en filas que
+no estaban en `import_excel_2026-07-31.sql` — alguien las había cargado
+después, vía Actualizar Datos, con la fecha real del flash
+(`2026-07-24`). Confirmado y agregado a
+`supabase/migration_2026-08-01_pmi_dedup_2.sql`.
+
+**Lo de USD era otra cosa, más seria**: `ism_manuf`/`ism_serv` en
+`historical-series.json` tenían **todo el rango nov-2025 a jun-2026
+corrido un mes** — el valor de cada mes real estaba guardado bajo la
+fecha del mes SIGUIENTE. Detectado comparando, mes por mes, contra los
+comunicados oficiales de ISM en prnewswire.com (título siempre
+"Manufacturing/Services PMI at X%; <mes> ISM ... Report" — fuente
+inequívoca). El desfasaje calzó EXACTO en 6-7 meses seguidos (ver la
+tabla abajo), lo que descarta coincidencia — es un bug real de cuando se
+sembró originalmente este archivo (probablemente un scraper viejo que
+usaba fecha de publicación en vez de fecha de período, de antes de
+saberse que ISM no tiene API pública ni está en FRED).
+
+Además, **el punto más reciente de cada serie tenía manuf/serv
+cruzados entre sí**: lo que estaba guardado como "julio" de
+`ism_manuf` (54.0) era en realidad el dato real de SERVICIOS de junio, y
+lo guardado como "julio" de `ism_serv` (53.3) era el dato real de
+MANUFACTURA de junio. Julio 2026 de ISM (ambos reportes) todavía no
+se había publicado a la fecha de esta corrección (sale el 3-ago-2026
+Manufactura, ~5/6-ago Servicios) — se eliminó esa entrada de julio en
+vez de dejar un valor inventado.
+
+| Mes | `ism_manuf` real (verificado ISM) | `ism_serv` real (verificado ISM) |
+|---|---|---|
+| Nov-2025 | 48.2 | 52.6 |
+| Dic-2025 | 47.9 | 54.4 |
+| Ene-2026 | 52.6 | 53.8 |
+| Feb-2026 | 52.4 | 56.1 |
+| Mar-2026 | 52.7 | 54.0 |
+| Abr-2026 | 52.7 | 53.6 |
+| May-2026 | 54.0 | 54.5 |
+| Jun-2026 | 53.3 | 54.0 |
+| Jul-2026 | **no publicado todavía** | **no publicado todavía** |
+
+**Fix aplicado**: se reemplazaron esos 8-9 puntos por serie en
+`historical-series.json` con los valores de la tabla de arriba, en la
+fecha real de cada uno (commit de esta sesión). Los 2 overrides sueltos
+en Supabase que tapaban/duplicaban esto (`ism_manuf` 2026-07-01=53.3,
+`ism_serv` 2026-07-06=54 — la misma carga manual de junio, mal fechada
+con la fecha de publicación) están en
+`supabase/migration_2026-08-01_pmi_dedup_2.sql`.
+
+**IMPORTANTE — sin auditar todavía**: el desfasaje se verificó y
+confirmó SOLO para nov-2025 a jun-2026 (8 meses). No se revisó el resto
+del histórico de `ism_manuf`/`ism_serv`, que arranca en 2015 — dado que
+el patrón calzó exacto en los 8 meses probados, es razonable sospechar
+que el mismo corrimiento existe más atrás en el tiempo, pero confirmarlo
+mes por mes contra ISM para 10+ años de historia es un trabajo aparte,
+grande, que no se hizo en esta sesión. Si el usuario nota algo raro en
+ISM antes de nov-2025 (por ejemplo comparando el gráfico contra
+tradingeconomics.com/united-states/ism-manufacturing-pmi), es candidato
+a ser el mismo bug.
