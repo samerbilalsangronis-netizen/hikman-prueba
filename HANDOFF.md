@@ -3263,6 +3263,19 @@ en Supabase que tapaban/duplicaban esto (`ism_manuf` 2026-07-01=53.3,
 con la fecha de publicación) están en
 `supabase/migration_2026-08-01_pmi_dedup_2.sql`.
 
+**El mismo bug también estaba en los subcomponentes de ISM** (Nuevas
+Órdenes/Producción/Empleo/Precios) — cargados como overrides en
+`indicator_overrides` con la fecha de publicación de junio (2026-07-01
+Manufactura, 2026-07-06 Servicios) en vez de 2026-06-01. Verificado
+contra el comunicado de junio: los valores son correctos (56/52.2/49.7/73
+para Manufactura, 55.1/51.2/67.7 para Servicios), solo mal fechados. Como
+acá no hay ningún dato base debajo (para estos ids `historical-series.json`
+está vacío, todo es override manual), el fix es un `UPDATE` de la fecha en
+vez de un `DELETE` — `supabase/migration_2026-08-01_ism_subcomponents.sql`.
+De paso quedó registrado que `ism_manuf_supplier_deliveries`,
+`ism_manuf_inventories` e `ism_serv_business_activity` nunca se cargaron
+(ni junio ni ningún mes) — pendiente si el usuario los quiere completos.
+
 **IMPORTANTE — sin auditar todavía**: el desfasaje se verificó y
 confirmó SOLO para nov-2025 a jun-2026 (8 meses). No se revisó el resto
 del histórico de `ism_manuf`/`ism_serv`, que arranca en 2015 — dado que
