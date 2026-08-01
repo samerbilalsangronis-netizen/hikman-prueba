@@ -3210,9 +3210,17 @@ corrigió igual ("UK June final services PMI 48.8 vs 48.7 prelim").
 
 Esto reabrió la sospecha de la sección anterior (el mismo tipo de
 error puede estar en enero-junio 2026 de `sp_pmi_manuf`/`serv`,
-`jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`) — se lanzó una auditoría
-dedicada de esos 36 valores, ver resultado más abajo o en el próximo
-commit si todavía no se resolvió al momento de leer esto.
+`jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`) — se auditaron esos 36
+valores mes a mes contra fuente (mayormente investingLive, que suele
+titular "<mes> final <país> <serie> PMI X vs Y prelim/prior", formato
+inequívoco). **35 de 36 estaban correctos** (ya eran el final, no el
+flash). Un solo error real: `aud_pmi_serv` marzo-2026 tenía 46.6
+(flash) en vez de 46.3 (final) — confirmado: "The S&P Global Australia
+Services PMI Business Activity Index fell sharply to 46.3 from 52.8 in
+February" (investingLive, informe final del 6-abr-2026) vs. el flash del
+23-mar-2026 que decía "Services activity drops sharply to 46.6".
+Corregido. Con esto, el riesgo de flash-vs-final en enero-junio 2026
+queda cerrado — todo lo demás de estas 3 series se confirmó correcto.
 
 ### Duplicados de PMI headline (Excel vs backfill)
 
