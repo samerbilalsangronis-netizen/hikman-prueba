@@ -11,6 +11,7 @@ import {
   CBBS_MAPPING,
   EUR_FRED_MAPPINGS,
   EUR_EUROSTAT_INDICATOR_ID,
+  EUR_HICP_FPD_INDICATOR_IDS,
   GBP_BOE_INDICATOR_ID,
   GBP_TRADE_BALANCE_INDICATOR_ID,
   CAD_AUTO_INDICATOR_IDS,
@@ -23,7 +24,12 @@ import {
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
 const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
-const EUR_AUTO_COVERED = new Set([...EUR_FRED_MAPPINGS.map((m) => m.indicatorId), EUR_EUROSTAT_INDICATOR_ID]);
+const EUR_AUTO_COVERED = new Set([
+  ...EUR_FRED_MAPPINGS.map((m) => m.indicatorId),
+  EUR_EUROSTAT_INDICATOR_ID,
+  ...EUR_HICP_FPD_INDICATOR_IDS,
+]);
+const EUR_HICP_FPD_COVERED = new Set(EUR_HICP_FPD_INDICATOR_IDS);
 const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID, GBP_TRADE_BALANCE_INDICATOR_ID]);
 const CAD_AUTO_COVERED = new Set(CAD_AUTO_INDICATOR_IDS);
 const AUD_AUTO_COVERED = new Set(AUD_AUTO_INDICATOR_IDS);
@@ -94,9 +100,11 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
               className="rounded px-1 py-0.5 text-[10px] font-semibold"
               style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
               title={
-                id === EUR_EUROSTAT_INDICATOR_ID
-                  ? 'Se sincroniza automáticamente desde Eurostat'
-                  : id === GBP_BOE_INDICATOR_ID
+                EUR_HICP_FPD_COVERED.has(id)
+                  ? 'Se sincroniza automáticamente desde Eurostat (prc_hicp_fpd) — muestra el dato flash apenas sale y lo reemplaza por el final en la misma fecha cuando Eurostat lo publica, sin intervención manual'
+                  : id === EUR_EUROSTAT_INDICATOR_ID
+                    ? 'Se sincroniza automáticamente desde Eurostat'
+                    : id === GBP_BOE_INDICATOR_ID
                     ? 'Se sincroniza automáticamente desde el Banco de Inglaterra'
                     : CAD_AUTO_COVERED.has(id)
                       ? 'Se sincroniza automáticamente desde StatCan / Bank of Canada'
@@ -113,7 +121,9 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
                                 : 'Se sincroniza automáticamente desde FRED'
               }
             >
-              {id === EUR_EUROSTAT_INDICATOR_ID
+              {EUR_HICP_FPD_COVERED.has(id)
+                ? 'EUROSTAT'
+                : id === EUR_EUROSTAT_INDICATOR_ID
                 ? 'EUROSTAT'
                 : id === GBP_BOE_INDICATOR_ID
                   ? 'BOE'

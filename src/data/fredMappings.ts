@@ -88,23 +88,13 @@ export const CBBS_MAPPING = {
 // acá: FRED la tiene discontinuada desde 2023, se sincroniza directo desde
 // Eurostat (ver api/eur-sync.ts).
 //
-// eur_cpi_yoy / eur_core_cpi_yoy NO están acá (a diferencia de USD, que sí
-// deriva su a/a del índice NSA): verificado contra el dato FINAL publicado
-// (18-jul-2026) que calcular a/a como cociente de dos observaciones del
-// índice HICP de FRED (redondeado a 2 decimales por Eurostat) da 2.7%/2.4%
-// cuando el valor oficial es 2.8%/2.4% — un sesgo de redondeo de ~0.1pp al
-// componerse sobre 12 meses. El dataset de Eurostat con la tasa a/a ya
-// calculada (prc_hicp_manr) está discontinuado desde feb-2026. Carga manual.
+// HICP (CPI/core CPI de Eurozona/Alemania/Francia, m/m y a/a) se movió a
+// Eurostat prc_hicp_fpd (ver EUR_HICP_FPD_INDICATOR_IDS) — ya NO vía FRED.
+// Solo quedan acá las tasas del BCE y el PIB.
 export const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_deposit_rate', seriesId: 'ECBDFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_refi_rate', seriesId: 'ECBMRRFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
-  { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
-  { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
-  // Mismo patrón que eur_cpi: solo m/m automático, a/a queda manual (ver
-  // comentario arriba sobre el sesgo de ~0.1pp al derivar la tasa a/a).
-  { indicatorId: 'eur_de_hicp_mom', seriesId: 'CP0000DEM086NEST', transform: 'pct_change' },
-  { indicatorId: 'eur_fr_hicp_mom', seriesId: 'CP0000FRM086NEST', transform: 'pct_change' },
   // PIB trimestral (nivel, millones de euros encadenados 2010). Eurostat
   // reporta la variación trimestral SIN anualizar (a diferencia de BEA/EE.UU.)
   // — se computa como pct_change de 3 meses en vez de 1.
@@ -112,8 +102,26 @@ export const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_gdp_yoy', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_yoy' },
 ];
 
-// Único indicador EUR sincronizado desde Eurostat en vez de FRED.
+// Único indicador EUR sincronizado desde Eurostat une_rt_m (desempleo).
 export const EUR_EUROSTAT_INDICATOR_ID = 'eur_unemployment';
+
+// HICP de Eurozona/Alemania/Francia — Eurostat prc_hicp_fpd ("first released
+// data"), que separa la vuelta flash (FLS, ~1 semana tras cerrar el mes) de
+// la final (FIN, ~2-3 semanas después) con la tasa m/m y a/a YA CALCULADA.
+// Se guarda con la fecha del PERÍODO (no la de publicación), así que el
+// upsert (indicator_id, date) pisa el valor flash con el final apenas
+// Eurostat lo publica, en la misma fila, sin intervención manual — ver
+// api/eur-sync.ts para el detalle de la mezcla FIN>FLS por período.
+export const EUR_HICP_FPD_INDICATOR_IDS = [
+  'eur_cpi',
+  'eur_cpi_yoy',
+  'eur_core_cpi',
+  'eur_core_cpi_yoy',
+  'eur_de_hicp_mom',
+  'eur_de_hicp_yoy',
+  'eur_fr_hicp_mom',
+  'eur_fr_hicp_yoy',
+];
 
 // GBP — a diferencia de USD/EUR, casi todo queda manual (ver indicatorsGbp.ts:
 // la API de ONS está congelada/desactualizada). La Bank Rate se sincroniza

@@ -13,27 +13,94 @@ interface FredMapping {
   transform: FredTransform;
 }
 
-// eur_cpi_yoy / eur_core_cpi_yoy quedaron afuera: verificado contra el dato
-// FINAL publicado (18-jul-2026) que el a/a derivado del índice HICP de FRED
-// (redondeado a 2 decimales por Eurostat) tiene un sesgo de ~0.1pp al
-// componerse sobre 12 meses (dio 2.7%/2.4% vs el oficial 2.8%/2.4%). El
-// dataset de Eurostat con la tasa a/a ya calculada (prc_hicp_manr) está
-// discontinuado desde feb-2026. Carga manual — ver src/data/fredMappings.ts.
+// El HICP (CPI/core CPI de Eurozona/Alemania/Francia) se sincroniza vía
+// prc_hicp_fpd (ver HICP_FPD_MAPPINGS más abajo), no FRED — FRED solo
+// republica el dato FINAL de Eurostat con ~1 mes de rezago respecto al
+// flash. Quedan acá solo las tasas del BCE y el PIB.
 const EUR_FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'eur_ecb_deposit_rate', seriesId: 'ECBDFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_refi_rate', seriesId: 'ECBMRRFR', transform: 'level_pct' },
   { indicatorId: 'eur_ecb_marginal_rate', seriesId: 'ECBMLFR', transform: 'level_pct' },
-  { indicatorId: 'eur_cpi', seriesId: 'CP0000EZ19M086NEST', transform: 'pct_change' },
-  { indicatorId: 'eur_core_cpi', seriesId: 'TOTNRGFOODEA20MI15XM', transform: 'pct_change' },
-  // Alemania/Francia (agregados 31-jul-2026): mismo patrón que eur_cpi,
-  // solo m/m — verificado el a/a derivado contra el dato oficial de
-  // junio-2026 (Destatis/INSEE) y descartado por el mismo sesgo de ~0.1pp
-  // que ya excluye a eur_cpi_yoy/eur_core_cpi_yoy de este mapeo.
-  { indicatorId: 'eur_de_hicp_mom', seriesId: 'CP0000DEM086NEST', transform: 'pct_change' },
-  { indicatorId: 'eur_fr_hicp_mom', seriesId: 'CP0000FRM086NEST', transform: 'pct_change' },
   { indicatorId: 'eur_gdp_qoq', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_quarter' },
   { indicatorId: 'eur_gdp_yoy', seriesId: 'CLVMNACSCAB1GQEA19', transform: 'pct_change_yoy' },
 ];
+
+// HICP vía Eurostat prc_hicp_fpd ("first released data") — a diferencia de
+// prc_hicp_manr (discontinuado feb-2026) o de re-derivar desde el índice de
+// FRED (sesgo de ~0.1pp, ver historial de commits), este dataset trae la
+// tasa m/m y a/a YA CALCULADA por Eurostat, separada por vuelta de
+// publicación (`release`: FLS=flash, ~1 semana después de terminado el mes;
+// FIN=final/revisado, ~2-3 semanas después del flash). Pedimos las dos
+// vueltas juntas (FIN+FLS) y nos quedamos con FIN cuando existe para un
+// período, si no con FLS — como se guarda con la fecha del PERÍODO
+// (YYYY-MM-01), no la de publicación, el upsert (indicator_id, date) hace
+// que la corrida siguiente pise el valor flash con el final automáticamente
+// en la MISMA fila apenas Eurostat lo publique, sin intervención manual.
+// Verificado 1-ago-2026: EA20 headline flash jul-2026 2.9% (coincide con el
+// comunicado de Eurostat del 31-jul), DE flash 2.8%, FR flash 2.4% (INSEE
+// "résultats provisoires"), FIN de jun-2026 headline 2.7% (revisado a la
+// baja desde el flash de 2.8% — la revisión real que motiva este cambio).
+interface HicpFpdMapping {
+  indicatorId: string;
+  geo: string;
+  coicop: string;
+  unit: 'RCH_M' | 'RCH_A';
+}
+
+const HICP_FPD_MAPPINGS: HicpFpdMapping[] = [
+  { indicatorId: 'eur_cpi', geo: 'EA20', coicop: 'TOTAL', unit: 'RCH_M' },
+  { indicatorId: 'eur_cpi_yoy', geo: 'EA20', coicop: 'TOTAL', unit: 'RCH_A' },
+  { indicatorId: 'eur_core_cpi', geo: 'EA20', coicop: 'TOT_X_NRG_FOOD', unit: 'RCH_M' },
+  { indicatorId: 'eur_core_cpi_yoy', geo: 'EA20', coicop: 'TOT_X_NRG_FOOD', unit: 'RCH_A' },
+  { indicatorId: 'eur_de_hicp_mom', geo: 'DE', coicop: 'TOTAL', unit: 'RCH_M' },
+  { indicatorId: 'eur_de_hicp_yoy', geo: 'DE', coicop: 'TOTAL', unit: 'RCH_A' },
+  { indicatorId: 'eur_fr_hicp_mom', geo: 'FR', coicop: 'TOTAL', unit: 'RCH_M' },
+  { indicatorId: 'eur_fr_hicp_yoy', geo: 'FR', coicop: 'TOTAL', unit: 'RCH_A' },
+];
+
+const HICP_FPD_BASE = 'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_fpd';
+
+interface JsonStatDataset {
+  id: string[];
+  size: number[];
+  value: Record<string, number>;
+  status?: Record<string, string>;
+  dimension: Record<string, { category: { index: Record<string, number> } }>;
+}
+
+async function fetchHicpFpd(mapping: HicpFpdMapping): Promise<Observation[]> {
+  const url = `${HICP_FPD_BASE}/M.${mapping.unit}.${mapping.coicop}.FIN+FLS.${mapping.geo}?format=JSON`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) throw new Error(`Eurostat prc_hicp_fpd ${mapping.geo}/${mapping.coicop}/${mapping.unit}: HTTP ${res.status}`);
+  const json = (await res.json()) as JsonStatDataset;
+  const timeIndex = json.dimension.time.category.index;
+  const releaseIndex = json.dimension.release.category.index;
+  const nTime = json.size[json.id.indexOf('time')];
+  const nRelease = json.size[json.id.indexOf('release')];
+  const timeByPos = new Map(Object.entries(timeIndex).map(([k, v]) => [v, k]));
+  const finPos = releaseIndex['FIN'];
+  const flsPos = releaseIndex['FLS'];
+
+  // period -> valor, prioridad FIN sobre FLS (se recorre FLS primero y se
+  // pisa con FIN si también está disponible para ese mismo período).
+  const byPeriod = new Map<string, number>();
+  for (const releasePos of [flsPos, finPos]) {
+    if (releasePos === undefined) continue;
+    for (const [key, value] of Object.entries(json.value)) {
+      const idx = Number(key);
+      const timePos = idx % nTime;
+      const thisReleasePos = Math.floor(idx / nTime) % nRelease;
+      if (thisReleasePos !== releasePos) continue;
+      const period = timeByPos.get(timePos);
+      if (period === undefined) continue;
+      byPeriod.set(`${period}-01`, value / 100);
+    }
+  }
+
+  return Array.from(byPeriod.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 const FETCH_LIMIT = 60;
@@ -153,6 +220,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const obs = await fetchFredObservations(mapping.seriesId, fredKey);
       const series = computeSeries(mapping.transform, obs).slice(-BACKFILL_LIMIT);
+      if (series.length === 0) continue;
+      const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: mapping.indicatorId, date: latest.date, value: latest.value, points: series.length });
+    } catch (err) {
+      errors.push({ indicatorId: mapping.indicatorId, error: (err as Error).message });
+    }
+  }
+
+  for (const mapping of HICP_FPD_MAPPINGS) {
+    try {
+      const series = (await fetchHicpFpd(mapping)).slice(-BACKFILL_LIMIT);
       if (series.length === 0) continue;
       const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
       const { error } = await supabase.from('indicator_overrides').upsert(rows);
