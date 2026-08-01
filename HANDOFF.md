@@ -1,24 +1,26 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 31-jul-2026, actualizado al final de una segunda
-sesión larga el mismo día (corrección/verificación de datos en las 9
-divisas + modal de subcomponentes ISM/PMI/GDP + sección nueva de Renta
-Variable). Pega este archivo completo (o pedile a Claude que lo lea
-desde el repo) al abrir el chat nuevo — está pensado para ser
-autocontenido, no debería hacer falta buscar contexto adicional en la
-conversación anterior. El documento es largo y crece cronológicamente
-(sesión por sesión, sin borrar nada viejo) — si solo hace falta agarrar
-viaje rápido, leer esta sección y la de "## Corrección de datos y
-features nuevas (sesión 31-jul-2026, continuación)" más abajo alcanza;
-el resto queda como referencia histórica por divisa.
+Fecha de este resumen: 1-ago-2026, actualizado al final de una sesión
+maratónica que arrancó el 31-jul-2026 (corrección/verificación de datos
+en las 9 divisas) y siguió sin cortar hasta el 1-ago (modal de
+subcomponentes generalizado a todas las secciones, Renta Variable,
+Score USD, auto-refresh sin botones, PCE). Pega este archivo completo
+(o pedile a Claude que lo lea desde el repo) al abrir el chat nuevo —
+está pensado para ser autocontenido, no debería hacer falta buscar
+contexto adicional en la conversación anterior. El documento es largo y
+crece cronológicamente (sesión por sesión, sin borrar nada viejo) — si
+solo hace falta agarrar viaje rápido, leer esta sección y la de
+"## Corrección de datos y features nuevas (sesión 31-jul/1-ago-2026)"
+más abajo alcanza; el resto queda como referencia histórica por divisa.
 
-## ⚠️ Arrancar por acá: estado al cierre de esta sesión (31-jul-2026, continuación)
+## ⚠️ Arrancar por acá: estado al cierre de esta sesión (1-ago-2026)
 
-Todo lo de esta sesión está **mergeado y en producción**
-(`claude/macro-usd-web-dashboard-xm5ypk`, vía PRs #2/#3/#4, cada uno
-verificado con el check de Vercel en verde antes de mergear). No queda
-nada pendiente de deploy. Resumen rápido (detalle completo en
-"## Corrección de datos y features nuevas" más abajo):
+Todo está **mergeado y en producción**
+(`claude/macro-usd-web-dashboard-xm5ypk`, vía PRs #2 al #10, cada uno
+verificado con el check de Vercel en verde antes de mergear, y varios
+además verificados en vivo contra `hikman-prueba.vercel.app` después
+del deploy). No queda nada pendiente de deploy. Resumen rápido (detalle
+completo en "## Corrección de datos y features nuevas" más abajo):
 
 - **Bug real encontrado y arreglado en AUD**: filas huérfanas de un
   intento con CPI mensual descartado hacían que la inflación mostrara
@@ -27,28 +29,62 @@ nada pendiente de deploy. Resumen rápido (detalle completo en
 - **CNY volvió a atrasarse** (`chinadata.live`, el mismo riesgo que ya
   advertía el handoff anterior) — corregido a mano con datos oficiales.
 - **JPY**: CPI de Tokio (adelanto del nacional) agregado y verificado.
-- **USD**: Jobless Claims (auto) + NFIB (manual) agregados a Empleo/Confianza.
+- **USD**: Jobless Claims (auto) + NFIB (manual) agregados a Empleo/
+  Confianza; **PCE** (headline + core, m/m y a/a) agregado a Inflación
+  — la medida de inflación que realmente target-ea la Fed — con
+  **Ingresos y Consumo Personal como subcomponentes** de la tarjeta PCE
+  m/m.
 - **EUR**: HICP m/m de Alemania y Francia automatizado vía FRED.
-- **Modal de subcomponentes**: el acordeón inline de ISM (USD) pasó a
-  ser un modal genérico, reusable para cualquier indicador con
-  `parentId` — y se agregaron **subcomponentes manuales (sin dato
-  cargado todavía)** de PMI (precios/producción/nuevas órdenes/empleo)
-  y PIB (deflactor/demanda interna/demanda externa) a las 8 divisas
-  no-USD, ~63 indicadores nuevos en total. **Ninguno tiene dato
-  cargado** — quedan con la insignia "sin datos" hasta que el usuario
-  los cargue a mano desde "Actualizar Datos" (ahora ordenada: cada
-  padre queda seguido de sus subcomponentes, ya no todos los padres
-  primero y los hijos amontonados al final).
+- **Modal de subcomponentes, ahora en TODA la app**: el acordeón inline
+  de ISM (USD) pasó a ser un modal genérico (`SubcomponentModal.tsx` +
+  `groupByParent()`), primero solo en Crecimiento y después generalizado
+  a `SectionGrid.tsx` (usado por Inflación/Empleo/Tasas/Confianza) —
+  cualquier indicador con `parentId`, en cualquier sección, abre el
+  modal al tocarlo. Se agregaron subcomponentes manuales (precios/
+  producción/nuevas órdenes/empleo) a **todos** los PMI Manufactura Y
+  Servicios/No Manufacturero de las 9 divisas (no solo Manufactura,
+  como quedó en la primera pasada — el usuario lo notó), más PIB
+  (deflactor/demanda interna/demanda externa) en las 9, más PCE
+  (Ingresos/Consumo Personal) en USD — bastante más de 100 indicadores
+  nuevos en total. **Casi ninguno tiene dato cargado** (excepción: los
+  2 de PCE, automáticos vía FRED) — quedan con la insignia "sin datos"
+  hasta que el usuario los cargue a mano. El modal en sí se achicó
+  (`max-w-2xl` + modo `compact` de `ChartCard`) tras feedback del
+  usuario de que ocupaba demasiada pantalla.
+- **Actualizar Datos**: reordenada para que cada padre quede seguido de
+  sus subcomponentes (ya no todos los padres primero); **se sacó el
+  botón de "Sincronizar"** de todas las divisas y de Titulares
+  (sync+traducción) — reemplazado por auto-refresh vía GitHub Actions
+  (`.github/workflows/`, cada 10 min Titulares / cada 30 min divisas),
+  porque Vercel Hobby (el plan gratis de este proyecto) no permite cron
+  jobs más frecuentes que una vez por día.
+- **Score compuesto USD**: PIB agregado (Máx 2/Mín -2), Solicitudes
+  Iniciales/Continuas de Desempleo agregadas (Máx 1/Mín -1 c/u),
+  Confianza del Consumidor (CB) reducida de Máx 2 a Máx 1.
 - **Nueva sección "📈 Renta Variable"** (nav global, al lado de
-  Titulares): índice + acciones influyentes por divisa. Fuente mixta
-  (Finnhub para USD, Yahoo Finance no oficial para el resto) — ver
-  detalle completo abajo de por qué se descartó massive.com (el pedido
-  original del usuario) y cómo se decidió la alternativa.
+  Titulares): índice(s) + acciones influyentes por divisa, ampliada
+  después a pedido del usuario (Nasdaq + Dow Jones en USD, más AMD/
+  Alphabet/Amazon/Meta; DAX en EUR). Fuente mixta (Finnhub para USD,
+  Yahoo Finance no oficial para el resto) — ver detalle completo abajo
+  de por qué se descartó massive.com (el pedido original del usuario) y
+  cómo se decidió la alternativa.
 
 **Nada de esta sesión toca Supabase con SQL pendiente de correr** — los
 únicos cambios de datos fueron correcciones puntuales (AUD/CNY) ya
 pusheadas directo a producción por la propia sesión, no hace falta que
 el usuario pegue nada en el SQL Editor.
+
+**Sobre los commits "Unverified" en GitHub**: el usuario recibe un aviso
+del stop hook local (`stop-hook-git-check.sh`) cada vez que un merge
+commit queda con `committer: noreply@github.com` (el comportamiento
+normal de GitHub al mergear un PR vía API o botón web, no algo que
+dependa de la sesión). Ya se le explicó dos veces en esta sesión que es
+puramente cosmético (solo la etiqueta "Verified"/"Unverified" en la web
+de GitHub, no afecta el código ni el deploy) y **el usuario pidió
+explícitamente no tocarlo** — no reescribir esos commits con
+`--amend --reset-author` ni hacer `force-push` sobre la rama de
+producción para "solucionarlo". Si el aviso vuelve a aparecer, no hace
+falta re-explicarlo de cero — remitir a este párrafo.
 
 ## Qué es esto
 
@@ -2050,6 +2086,181 @@ automatizar" de todo el proyecto):
   oficiales soportadas). Si `/api/equities-quotes` empieza a fallar
   para símbolos `source: 'yahoo'`, revisar ahí primero.
 
+## Corrección de datos y features nuevas, parte 2 (sesión 31-jul/1-ago-2026)
+
+Tercera tanda de pedidos el mismo día/madrugada, después de que las
+secciones 1-7 de arriba ya estaban mergeadas (PRs #2-#4). Todo lo de
+acá abajo se mergeó en PRs #5 al #10, cada uno con el check de Vercel
+en verde antes de mergear.
+
+### 8. Modal más compacto + PMI Servicios sin subcomponentes (bug de cobertura)
+
+Feedback del usuario con captura de pantalla: el modal de
+subcomponentes "se ve algo amplio y ocupa mucha pantalla" y "los pmi
+de servicios no tienen esa función de subcomponentes".
+
+- **Achicado**: `SubcomponentModal.tsx` pasó de `max-w-4xl`/`p-5`/
+  `gap-4` a `max-w-2xl`/`p-4`/`gap-3`, y cada `ChartCard` hijo se
+  renderiza con el nuevo prop `compact` (`ChartCard.tsx`: oculta el
+  párrafo de descripción, `p-3` en vez de `p-4`, gráfico
+  `h-[80px]` en vez de `h-[140px]`).
+- **PMI Servicios**: la sección 5 de arriba solo había agregado
+  subcomponentes al PMI **Manufactura**/Flash de cada divisa — un
+  gap real de cobertura, no un bug de código (el sistema
+  `parentId`/`groupByParent` ya soportaba cualquier padre, simplemente
+  no se habían declarado los hijos para Servicios). Se agregaron los
+  mismos 4 subcomponentes (precios, producción, nuevas órdenes,
+  empleo) al PMI Servicios/No-Manufacturero principal de cada divisa:
+  `sp_pmi_serv` (USD), `eur_pmi_serv_flash` (+ el flash de
+  Manufactura Eurozona, `eur_pmi_manuf_flash`, que también se había
+  quedado sin hijos en la primera pasada), `gbp_pmi_serv_flash`,
+  `cad_pmi_serv`, `aud_pmi_serv`, `nzd_pmi_serv`, `jpy_pmi_serv`,
+  `chf_pmi_serv`, `cny_pmi_non_manuf` — 9 padres × 4 = 36 indicadores
+  más, mismo criterio que Manufactura (manuales, sin dato cargado).
+- **Bug de arquitectura encontrado en el camino**: el modal de
+  subcomponentes solo funcionaba en `Crecimiento.tsx` (tenía su propia
+  copia de `groupByParent` + `SubcomponentModal`) — el resto de
+  secciones (`Inflacion.tsx`, `Empleo.tsx`, `Tasas.tsx`,
+  `Sentimiento.tsx`) usaban `SectionGrid.tsx`, que NO tenía la lógica
+  de modal. Esto se iba a notar recién con el pedido de PCE (punto 10
+  abajo): sus subcomponentes habrían aparecido como tarjetas sueltas
+  sin agrupar en vez de abrir el modal. Se generalizó `SectionGrid.tsx`
+  para que use `groupByParent` + `SubcomponentModal` internamente
+  (mismo patrón que tenía `Crecimiento.tsx`), y `Crecimiento.tsx` se
+  simplificó a un simple `<SectionGrid section="crecimiento" months={36} />`
+  para no duplicar la lógica. Verificado sin regresión con Playwright
+  en Crecimiento e Inflación.
+- **Falso positivo investigado y descartado**: al revisar una captura
+  de Playwright del modal (antes del achique), parecía que no tenía
+  backdrop oscuro — se verificó con `getComputedStyle` +
+  `document.elementFromPoint()` + muestreo de pixel RGB real y se
+  confirmó que el modal SIEMPRE renderizó bien (`position: fixed`,
+  z-index correcto, `rgba(0,0,0,0.55)` sobre blanco en las coordenadas
+  del backdrop) — el problema era la imagen de baja resolución, no el
+  código. No se cambió nada por esto.
+
+### 9. Renta Variable — más índices y acciones tech en USD, DAX en EUR
+
+Pedido: agregar más acciones tech influyentes a USD ("nvidia, amd,
+entre otras"), agregar Nasdaq y Dow Jones 30 junto al S&P 500, y
+agregar el DAX alemán a EUR.
+
+- `EquityGroup` en `src/data/equities.ts` pasó de `index: EquitySymbol`
+  (uno solo) a `indices: EquitySymbol[]` (array) para soportar más de
+  un índice por divisa. `RentaVariable.tsx` itera `group.indices` en
+  vez de renderizar un único índice.
+- **USD**: `indices` ahora `S&P 500` (`^GSPC`) + `Nasdaq Composite`
+  (`^IXIC`) + `Dow Jones 30` (`^DJI`), los tres vía Yahoo (Finnhub free
+  no cotiza bien índices, ver punto 7 arriba). `stocks` pasó de
+  Apple/Microsoft/Nvidia a Apple/Microsoft/**Nvidia/AMD**/Alphabet
+  (Google)/Amazon/Meta Platforms — 7 acciones tech, todas vía Finnhub
+  (US-only pero gratis y real-time real).
+- **EUR**: `indices` ahora `Euro Stoxx 50` (`^STOXX50E`) + `DAX
+  (Alemania)` (`^GDAXI`), ambos vía Yahoo. `stocks` sin cambios
+  (SAP.DE, MC.PA, ASML.AS).
+- Resto de divisas (GBP/CAD/AUD/NZD/JPY/CHF/CNY) sin cambios — un solo
+  índice cada una.
+- Verificado en vivo contra producción: los 2 índices nuevos de USD y
+  el DAX responden bien vía Yahoo, y las 4 acciones tech nuevas
+  responden bien vía Finnhub.
+
+### 10. Score compuesto USD — PIB, Jobless Claims, CB reducido
+
+Tres pedidos puntuales sobre `src/data/scoreSeed.ts` (USD):
+
+- Agregado `gdp_qoq` ("PIB") con `weight: 'Máx(2) / Mín(-2)'`.
+- Agregado `initial_claims` ("Solicitudes Iniciales de Desempleo") y
+  `continuing_claims` ("Solicitudes Continuas de Desempleo"), cada uno
+  con `weight: 'Máx(1) / Mín(-1)'`.
+- `cb` (Confianza del Consumidor, Conference Board) reducido de
+  `'Máx(2) / Mín(-2)'` a `'Máx(1) / Mín(-1)'`.
+- Recordatorio de arquitectura (ya documentado en sesiones previas,
+  vale la pena repetirlo): `weight` es solo una etiqueta descriptiva,
+  el `<select>` real en `ScorePanel.tsx` siempre ofrece el rango fijo
+  [-2,-1,0,1,2] sin importar el label — es un límite "de honor" para
+  el analista, no una restricción de código. No hubo que tocar
+  `ScorePanel.tsx` para ninguno de estos tres cambios.
+
+### 11. Auto-refresh vía GitHub Actions — se eliminaron los botones manuales
+
+Pedido: eliminar los botones de "Sincronizar/Actualizar" (Titulares +
+las 9 divisas) y reemplazarlos por refresco automático — Titulares
+cada 10 min, divisas cada 30 min, para "no estar dándole click al
+botón".
+
+- **Vercel Cron (plan Hobby/gratis, el único que paga este proyecto)
+  solo permite una ejecución por día** — no sirve para 10min/30min. Se
+  le presentó la disyuntiva al usuario (pagar Vercel Pro, resignarse a
+  refresco diario, o usar GitHub Actions gratis) y **eligió GitHub
+  Actions**.
+- **Gotcha real**: los workflows programados de GitHub Actions
+  (`schedule: cron:`) solo se leen desde la rama **default** del repo
+  — confirmado con `git remote show origin` →
+  `claude/macro-usd-web-dashboard-xm5ypk`. No alcanza con que el
+  archivo `.yml` esté en cualquier rama, tiene que llegar a la rama
+  default vía merge para que GitHub empiece a dispararlo solo.
+- `.github/workflows/sync-titulares.yml`: cron `*/10 * * * *` +
+  `workflow_dispatch` (para poder dispararlo a mano si hace falta),
+  dos pasos: `POST /api/headlines-sync` y `POST
+  /api/translate-headlines`.
+- `.github/workflows/sync-currencies.yml`: cron `*/30 * * * *` +
+  `workflow_dispatch`, 9 pasos (uno por divisa: `/api/fred-sync`,
+  `/api/eur-sync`, `/api/gbp-sync`, `/api/cad-sync`, `/api/aud-sync`,
+  `/api/nzd-sync`, `/api/jpy-sync`, `/api/chf-sync`,
+  `/api/cny-sync`), cada uno con `continue-on-error: true` para que si
+  una divisa falla no frene el resto.
+- Ambos workflows confirmados **activos y disparados manualmente una
+  vez** (`workflow_dispatch`) contra producción para verificar antes
+  de confiar en el cron: "Sincronizar Titulares" terminó con
+  `conclusion: success`; "Sincronizar Divisas" quedó corriendo sus 9
+  pasos secuenciales sin error reportado.
+- `src/pages/Actualizar.tsx`: se sacó el botón "⟳ Sincronizar" y todo
+  su estado asociado (`fredSyncing`, `fredResult`, `handleFredSync`) —
+  quedó una nota de texto en el encabezado y en el tooltip de cada fila
+  automática explicando la cadencia de 30 min.
+- `src/pages/Titulares.tsx`: se sacaron los botones de sync manual y
+  de "traducir pendientes" (y su estado) — quedó nota de texto sobre
+  la cadencia de 10 min, y el estado vacío ahora dice "Esperá al
+  próximo sync automático... o agregá uno manualmente" en vez de
+  invitar a tocar un botón que ya no existe.
+- **La carga manual de indicadores en "Actualizar Datos" (los inputs
+  de texto por indicador) NO se tocó** — solo se eliminó el botón de
+  sincronización automática por API, que es un concepto distinto (los
+  manuales nunca tuvieron botón de sync, siempre fueron de carga a
+  mano).
+
+### 12. USD — PCE (la medida de inflación que target-ea la Fed) + subcomponentes
+
+Pedido: agregar PCE si FRED lo tiene, y depués (pregunta de
+seguimiento) si Ingresos/Consumo Personal son cifras mensuales,
+agregarlas como subcomponentes de la tarjeta PCE m/m.
+
+- FRED tiene `PCEPI` (índice de precios PCE) y `PCEPILFE` (núcleo,
+  excluye alimentos y energía) — mismo patrón de transform que CPI:
+  `pce`/`core_pce` (`transform: 'pct_change'`, m/m) y
+  `pce_yoy`/`core_pce_yoy` (`transform: 'pct_change_yoy'`, a/a).
+  Agregados a la sección Inflación de USD, verificados al día contra
+  FRED (junio-2026 disponible).
+- **Ingresos y Consumo Personal SÍ son mensuales** (series `PI`
+  —Personal Income— y `PCE` —Personal Consumption Expenditures, el
+  gasto nominal, no confundir con el índice de precios `PCEPI`— ambas
+  de FRED, publicadas el mismo día que el índice de precios PCE).
+  Agregadas como `personal_income`/`personal_spending`, ambas con
+  `parentId: 'pce'` (child de la tarjeta PCE m/m, no de la a/a — igual
+  criterio que ISM: los subcomponentes cuelgan de la versión m/m
+  porque es la que sigue el mercado mes a mes).
+- Con `SectionGrid.tsx` ya generalizado (punto 8), estos dos
+  subcomponentes automáticamente obtuvieron el botón "2
+  subcomponentes" + modal en la tarjeta PCE m/m sin tocar código de
+  UI — la única diferencia con el resto de subcomponentes nuevos de
+  esta sesión es que **estos dos SÍ tienen dato real cargado** (son
+  automáticos vía FRED, no manuales like el resto del punto 5/8).
+
+Con esto la lista completa de PRs mergeados esta sesión (segunda
+mitad del 31-jul hasta 1-ago-2026) es #2 al #10, todos verificados con
+el check de Vercel en verde y varios además probados en vivo contra
+`hikman-prueba.vercel.app`.
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
@@ -2173,17 +2384,28 @@ automatizar" de todo el proyecto):
   el handoff anterior anticipaba — si pasa una tercera vez, priorizar
   el fallback de scraper de `stats.gov.cn` en vez de seguir corrigiendo
   a mano cada vez.
-- **~63 subcomponentes nuevos de PMI/PIB (sesión 31-jul-2026,
-  continuación) no tienen ningún dato cargado** — ver la sección
-  "Modal de subcomponentes ISM/PMI/GDP" arriba para la lista completa
-  de ids. Todos manuales, quedan con la insignia "sin datos" hasta que
-  el usuario los cargue desde "Actualizar Datos" (ahora agrupados justo
-  debajo de su padre, más fácil de encontrar).
+- **~99 subcomponentes nuevos de PMI Manufactura+Servicios/PIB (sesión
+  31-jul/1-ago-2026) no tienen ningún dato cargado** — 63 de la
+  primera pasada (solo Manufactura) + 36 más de PMI Servicios agregados
+  después (ver secciones 5 y 8 arriba para la lista completa de ids).
+  Todos manuales, quedan con la insignia "sin datos" hasta que el
+  usuario los cargue desde "Actualizar Datos" (ahora agrupados justo
+  debajo de su padre, más fácil de encontrar). **Excepción real con
+  dato cargado**: `personal_income`/`personal_spending` (subcomponentes
+  de PCE m/m en USD, ver sección 12) — automáticos vía FRED, no
+  manuales.
 - **Renta Variable (`/renta-variable`) depende de una API no oficial de
-  Yahoo Finance** para 8 de las 9 divisas (todo salvo las 3 acciones de
-  USD, que usan Finnhub) — sin SLA, podría romperse sin aviso. Si deja
-  de responder, revisar `api/equities-quotes.ts` primero (ver detalle
-  en "Nueva sección Renta Variable" arriba).
+  Yahoo Finance** para todos los índices de las 9 divisas y las
+  acciones de 8 de las 9 (todo salvo las 7 acciones de USD, que usan
+  Finnhub) — sin SLA, podría romperse sin aviso. Si deja de responder,
+  revisar `api/equities-quotes.ts` primero (ver detalle en "Nueva
+  sección Renta Variable" arriba).
+- **GitHub Actions (`sync-titulares.yml`/`sync-currencies.yml`) es el
+  único mecanismo de refresco automático** desde que se sacaron los
+  botones manuales (sección 11) — si GitHub tiene una interrupción de
+  servicio o el repo cambia de rama default, el refresco se corta en
+  silencio (no hay alerta configurada). Revisar la pestaña "Actions"
+  del repo si los datos parecen no actualizarse solos.
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
