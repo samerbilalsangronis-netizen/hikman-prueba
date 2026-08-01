@@ -1,78 +1,117 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 1-ago-2026, actualizado al final de una sesión
-maratónica que arrancó el 31-jul-2026 (corrección/verificación de datos
-en las 9 divisas) y siguió sin cortar hasta el 1-ago (modal de
-subcomponentes generalizado a todas las secciones, Renta Variable,
-Score USD, auto-refresh sin botones, PCE). Pega este archivo completo
-(o pedile a Claude que lo lea desde el repo) al abrir el chat nuevo —
-está pensado para ser autocontenido, no debería hacer falta buscar
-contexto adicional en la conversación anterior. El documento es largo y
-crece cronológicamente (sesión por sesión, sin borrar nada viejo) — si
-solo hace falta agarrar viaje rápido, leer esta sección y la de
-"## Corrección de datos y features nuevas (sesión 31-jul/1-ago-2026)"
-más abajo alcanza; el resto queda como referencia histórica por divisa.
+Fecha de este resumen: 1-ago-2026, actualizado al cierre de una TERCERA
+sesión el mismo día (las dos anteriores: 31-jul corrección/verificación
+de datos en las 9 divisas + features nuevas; 1-ago madrugada modal de
+subcomponentes generalizado, Renta Variable, Score USD, auto-refresh sin
+botones, PCE). Esta sesión arrancó respondiendo dudas del usuario sobre
+lo que se había mergeado horas antes y terminó siendo otra tanda larga:
+preliminar/final, automatización real de EUR (HICP y PIB por
+componente), un bug real de infraestructura (el cron de GitHub Actions
+nunca había disparado solo), y un rediseño de los subcomponentes de PIB
+en las 9 divisas con backfill histórico. Pega este archivo completo (o
+pedile a Claude que lo lea desde el repo) al abrir el chat nuevo — está
+pensado para ser autocontenido. El documento es largo y crece
+cronológicamente (sesión por sesión, sin borrar nada viejo) — si solo
+hace falta agarrar viaje rápido, leer esta sección y la de
+"## Sesión 1-ago-2026 (tarde/noche): preliminar/final, EUR flash→final,
+cron de GitHub Actions roto, subcomponentes de PIB" más abajo alcanza;
+el resto queda como referencia histórica por divisa.
 
-## ⚠️ Arrancar por acá: estado al cierre de esta sesión (1-ago-2026)
+## ⚠️ Arrancar por acá: estado al cierre de esta sesión (1-ago-2026, tarde/noche)
 
-Todo está **mergeado y en producción**
-(`claude/macro-usd-web-dashboard-xm5ypk`, vía PRs #2 al #10, cada uno
-verificado con el check de Vercel en verde antes de mergear, y varios
-además verificados en vivo contra `hikman-prueba.vercel.app` después
-del deploy). No queda nada pendiente de deploy. Resumen rápido (detalle
-completo en "## Corrección de datos y features nuevas" más abajo):
+Todo está **mergeado y en producción** (`claude/macro-usd-web-dashboard-xm5ypk`,
+9 commits nuevos sobre el handoff anterior — ver `git log` para los
+hashes — cada uno verificado con `npm run build` + typecheck de `/api`
+local, y la mayoría además probados en vivo contra
+`hikman-prueba.vercel.app`/Supabase real después del deploy). No queda
+nada pendiente de deploy. Resumen rápido (detalle completo en la sección
+de sesión más abajo):
 
-- **Bug real encontrado y arreglado en AUD**: filas huérfanas de un
-  intento con CPI mensual descartado hacían que la inflación mostrara
-  un dato viejo/incorrecto — limpiado y blindado para que no vuelva a
-  pasar.
-- **CNY volvió a atrasarse** (`chinadata.live`, el mismo riesgo que ya
-  advertía el handoff anterior) — corregido a mano con datos oficiales.
-- **JPY**: CPI de Tokio (adelanto del nacional) agregado y verificado.
-- **USD**: Jobless Claims (auto) + NFIB (manual) agregados a Empleo/
-  Confianza; **PCE** (headline + core, m/m y a/a) agregado a Inflación
-  — la medida de inflación que realmente target-ea la Fed — con
-  **Ingresos y Consumo Personal como subcomponentes** de la tarjeta PCE
-  m/m.
-- **EUR**: HICP m/m de Alemania y Francia automatizado vía FRED.
-- **Modal de subcomponentes, ahora en TODA la app**: el acordeón inline
-  de ISM (USD) pasó a ser un modal genérico (`SubcomponentModal.tsx` +
-  `groupByParent()`), primero solo en Crecimiento y después generalizado
-  a `SectionGrid.tsx` (usado por Inflación/Empleo/Tasas/Confianza) —
-  cualquier indicador con `parentId`, en cualquier sección, abre el
-  modal al tocarlo. Se agregaron subcomponentes manuales (precios/
-  producción/nuevas órdenes/empleo) a **todos** los PMI Manufactura Y
-  Servicios/No Manufacturero de las 9 divisas (no solo Manufactura,
-  como quedó en la primera pasada — el usuario lo notó), más PIB
-  (deflactor/demanda interna/demanda externa) en las 9, más PCE
-  (Ingresos/Consumo Personal) en USD — bastante más de 100 indicadores
-  nuevos en total. **Casi ninguno tiene dato cargado** (excepción: los
-  2 de PCE, automáticos vía FRED) — quedan con la insignia "sin datos"
-  hasta que el usuario los cargue a mano. El modal en sí se achicó
-  (`max-w-2xl` + modo `compact` de `ChartCard`) tras feedback del
-  usuario de que ocupaba demasiada pantalla.
-- **Actualizar Datos**: reordenada para que cada padre quede seguido de
-  sus subcomponentes (ya no todos los padres primero); **se sacó el
-  botón de "Sincronizar"** de todas las divisas y de Titulares
-  (sync+traducción) — reemplazado por auto-refresh vía GitHub Actions
-  (`.github/workflows/`, cada 10 min Titulares / cada 30 min divisas),
-  porque Vercel Hobby (el plan gratis de este proyecto) no permite cron
-  jobs más frecuentes que una vez por día.
-- **Score compuesto USD**: PIB agregado (Máx 2/Mín -2), Solicitudes
-  Iniciales/Continuas de Desempleo agregadas (Máx 1/Mín -1 c/u),
-  Confianza del Consumidor (CB) reducida de Máx 2 a Máx 1.
-- **Nueva sección "📈 Renta Variable"** (nav global, al lado de
-  Titulares): índice(s) + acciones influyentes por divisa, ampliada
-  después a pedido del usuario (Nasdaq + Dow Jones en USD, más AMD/
-  Alphabet/Amazon/Meta; DAX en EUR). Fuente mixta (Finnhub para USD,
-  Yahoo Finance no oficial para el resto) — ver detalle completo abajo
-  de por qué se descartó massive.com (el pedido original del usuario) y
-  cómo se decidió la alternativa.
+- **USD Empleo**: Ganancias Promedio por Hora (a/a) — completa el par
+  que solo tenía m/m — e Índice de Costo Laboral (t/t y a/a) agregados,
+  ambos automáticos vía FRED (verificado exacto contra el comunicado del
+  BLS de Q2-2026).
+- **Insignia Preliminar/Final** (`IndicatorMeta.releaseStage`): nueva,
+  visible en cada tarjeta y en Actualizar Datos. Aplicada donde la
+  fuente publica el mismo dato en dos vueltas y el dashboard sabe cuál
+  trackea (PMI Flash EUR/GBP, CPI de Tokio JPY = preliminar; S&P PMI
+  USD/JPY/AUD = final) — **a propósito NO se usa** en indicadores con
+  revisión gradual del mismo punto de la serie (PIB de cualquier divisa,
+  HICP de EUR una vez automatizado con flash→final) porque ahí el
+  estado cambia por punto, no es una propiedad fija del indicador.
+- **EUR HICP automatizado con reemplazo flash→final solo, sin
+  intervención manual**: se encontró `prc_hicp_fpd`, un dataset de
+  Eurostat que separa la vuelta flash (release=FLS) de la final
+  (release=FIN) con la tasa m/m y a/a ya calculada — reemplaza el mapeo
+  FRED viejo (que solo traía el dato confirmado con ~1 mes de rezago
+  respecto al flash). Cubre eur_cpi/_yoy, eur_core_cpi/_yoy,
+  eur_de_hicp/eur_fr_hicp (m/m Y a/a — antes el a/a de Alemania/Francia
+  era manual, ahora también automático). Mismo mecanismo de upsert por
+  fecha de PERÍODO que ya usa el resto del proyecto: cuando Eurostat
+  pasa de flash a final, pisa el mismo punto solo.
+- **EUR PIB por componente, mismo tratamiento**: se encontró que
+  `namq_10_gdp` (el mismo dataset que ya daba el nivel del PIB) tiene un
+  `unit=CON_PPCH_PRE` con la contribución al crecimiento YA calculada
+  por Eurostat — se automatizaron Consumo/Inversión/Gasto
+  Público/Exportaciones Netas, con 17 trimestres de historia (2022-2026)
+  cargados de una.
+- **Bug real de infraestructura encontrado: el cron de GitHub Actions
+  nunca disparó solo** desde que se configuró en la sesión anterior — 0
+  corridas por `schedule` en `list_workflow_runs`, solo la manual de
+  prueba. Se disparó manualmente (ya corrió bien) y se armó una **Rutina
+  de respaldo cada hora** (Claude Code Remote `create_trigger`,
+  `trig_01VigD4t2wgyxh8YCAYDqtg1`) que llama a los mismos endpoints de
+  sync como red de seguridad independiente del cron nativo — no la
+  borres sin confirmar antes que el cron de GitHub ya esté disparando
+  solo de forma consistente (`actions_list` → `list_workflow_runs` →
+  buscar `event: schedule`).
+- **University of Michigan Consumer Sentiment corregido a mano**: FRED
+  (nuestra fuente automática para `uom`) estaba ~1 mes atrasado respecto
+  a la fuente primaria (`sca.isr.umich.edu`, pública sin login) — se
+  cargó el valor confirmado (55.2, jul-2026) directo, se autocorrige
+  solo cuando FRED se ponga al día (mismo punto/fecha).
+- **Subcomponentes de PIB rediseñados en las 9 divisas**: "Demanda
+  Interna/Demanda Externa" (vacíos, ninguna fuente los publicaba
+  agregados así) reemplazados por el desglose clásico
+  **Consumo/Inversión/Gasto Público/Exportaciones Netas** + se mantiene
+  Precios (el deflactor, sin cambios) — 5 subcomponentes por divisa en
+  vez de 3. Cobertura real por divisa, ver sección de sesión para el
+  detalle y las fuentes de cada una:
+  - **USD**: automático vía FRED (BEA NIPA tabla 1.1.2), historia
+    profunda ya poblada.
+  - **EUR**: automático vía Eurostat (ver arriba), 17 trimestres.
+  - **AUD**: automático — se encontró que la ABS también tiene la
+    contribución pre-calculada (`ANA_EXP`, measure `TCH`) — 17
+    trimestres cargados.
+  - **JPY**: solo Exportaciones Netas cargado (Japón no desglosa
+    Consumo/Inversión/Gasto como contribución, solo domanda interna
+    total vs. externa) — 1 trimestre.
+  - **CNY**: Consumo/Inversión/Exportaciones Netas cargados pero
+    reparentados al **a/a** (`cny_gdp_yoy`, no `cny_gdp_qoq`) — es la
+    única base en la que la NBS publica esto, y "Consumo" ahí viene
+    combinado hogares+gobierno (por eso `cny_gdp_government` queda sin
+    dato a propósito) — 1 trimestre.
+  - **GBP, CAD, NZD, CHF**: sin fuente limpia encontrada (ONS/StatCan/
+    Stats NZ no publican una tabla de contribución; el intento propio de
+    derivarla de niveles para CAD no cerró contra el PIB real, y el feed
+    de SECO para CHF tenía una escala inconsistente) — quedan
+    manuales, igual que antes.
+- **CAD**: se agregó y luego se sacó (a pedido explícito del usuario) una
+  tarjeta de "PIB Mensual — Estimación Preliminar" — el dato de avance sí
+  existe (confirmado en el texto de "The Daily" de StatCan) pero no en la
+  tabla estructurada que usa el sync, así que quedaría manual de todos
+  modos; el usuario prefirió no tenerla.
+- **JPY**: se renombró "Confianza del Consumidor" a **"Confianza de los
+  Hogares"** (`jpy_consumer_confidence`) — es el mismo dato que
+  Investing.com traduce distinto, no un indicador nuevo.
+- **NZD**: se cargó el dato anterior de Confianza Empresarial (36.6,
+  jun-2026, ANZ Business Confidence) — antes solo tenía el actual.
 
-**Nada de esta sesión toca Supabase con SQL pendiente de correr** — los
-únicos cambios de datos fueron correcciones puntuales (AUD/CNY) ya
-pusheadas directo a producción por la propia sesión, no hace falta que
-el usuario pegue nada en el SQL Editor.
+**Nada de esta sesión toca Supabase con SQL pendiente de correr** — todos
+los cambios de datos (correcciones puntuales + backfill histórico de PIB
+por componente) ya están pusheados directo a producción vía REST, no
+hace falta que el usuario pegue nada en el SQL Editor.
 
 **Sobre los commits "Unverified" en GitHub**: el usuario recibe un aviso
 del stop hook local (`stop-hook-git-check.sh`) cada vez que un merge
@@ -145,10 +184,12 @@ van m/m junto a su a/a, no agrupadas por separado.
 - **Rama de producción real** (la que deployea Vercel, confirmado
   comparando el bundle JS servido con el hash de cada rama): `claude/macro-usd-web-dashboard-xm5ypk`
   — es también la rama HEAD por defecto del repo (`git remote show
-  origin`). **Esta sesión trabajó en `claude/handoff-documentation-review-9z8wtp`**
-  (asignada por el entorno, arrancaba sincronizada al mismo commit que
-  producción), pusheó el commit de CHF ahí primero, y el usuario dio
-  permiso explícito para pushearlo también a
+  origin`). **Esta sesión (1-ago-2026, tarde/noche) trabajó en
+  `claude/handoff-documentation-review-486n0j`** (asignada por el
+  entorno; la rama que traía el entorno originalmente,
+  `claude/handoff-documentation-review-9z8wtp` de una sesión previa, ya
+  no existe/no se usó), pusheó cada commit ahí primero y de ahí
+  directo (fast-forward, sin merge commit) a
   `claude/macro-usd-web-dashboard-xm5ypk` — al momento de escribir esto
   ambas ramas están sincronizadas al mismo commit. También pueden existir
   otras ramas `claude/handoff-*` de sesiones previas, desactualizadas — no
@@ -2261,6 +2302,369 @@ mitad del 31-jul hasta 1-ago-2026) es #2 al #10, todos verificados con
 el check de Vercel en verde y varios además probados en vivo contra
 `hikman-prueba.vercel.app`.
 
+## Sesión 1-ago-2026 (tarde/noche): preliminar/final, EUR flash→final, cron de GitHub Actions roto, subcomponentes de PIB
+
+Tercera sesión del mismo día. Arrancó con el usuario retomando el chat
+después de la sesión anterior (madrugada del 1-ago) y pidiendo cosas
+puntuales que fueron escalando a investigaciones más profundas. Sin PRs
+de por medio esta vez — se trabajó y pusheó directo a
+`claude/handoff-documentation-review-486n0j` y de ahí (fast-forward, sin
+merge commit) a `claude/macro-usd-web-dashboard-xm5ypk`, con permiso
+implícito dado el patrón ya establecido en la sesión anterior de pushear
+directo cuando el usuario pide "pushea". 9 commits, todos con
+`npm run build` + typecheck de `/api` en verde antes de pushear.
+
+### 1. USD Empleo — Ganancias Promedio por Hora (a/a) + Índice de Costo Laboral
+
+Pedido explícito del usuario. `wage_pct` (ya existente, solo m/m) se
+renombró a "Ganancias Promedio por Hora (m/m)" y se agregó
+`wage_pct_yoy` (mismo FRED `CES0500000003`, transform `pct_change_yoy`).
+Nuevo: `eci_qoq`/`eci_yoy` — Índice de Costo Laboral (compensación total,
+trabajadores civiles), la medida de costo laboral que más de cerca sigue
+la Fed. **FRED_MAPPINGS de USD no tenía el transform `pct_change_quarter`**
+(sí existía en `eur-sync.ts` para PIB de EUR, pero nunca se había portado
+al sync de USD) — se agregó. `eci_qoq` usa `ECIALLCIV` (SA, la serie que
+destaca el propio comunicado del BLS para t/t); `eci_yoy` usa
+`CIU1010000000000I` (NSA) — misma convención SA-para-t/t/NSA-para-a/a que
+CPI/PPI. Verificado contra el comunicado del BLS de Q2-2026 (31-jul-2026):
+oficial 0.9% t/t y 3.4% a/a vs. 0.89%/3.38% calculado (a/a con ~0.02pp de
+margen de redondeo, normal).
+
+### 2. Insignia Preliminar/Final (`IndicatorMeta.releaseStage`)
+
+Pedido explícito: "identificar todos los datos macro que son
+preliminares y finales, que se vea en la casilla del dato". Campo nuevo
+`releaseStage?: 'preliminar' | 'final'` en `types.ts`, badge chico (borde
++ texto, ámbar para preliminar / gris para final) en `ChartCard.tsx`
+(título de la tarjeta, funciona en compacto y en el modal de
+subcomponentes por igual) y en `Actualizar.tsx` (al lado del badge de
+fuente FRED/EUROSTAT/etc.).
+
+**Criterio aplicado** (documentado en el campo mismo, en `types.ts`): solo
+se marca cuando la fuente publica el MISMO dato en dos vueltas distintas
+y este dashboard sabe con certeza cuál de las dos está trackeando. **A
+propósito NO se usa** para indicadores con revisión gradual del mismo
+punto de serie (PIB de cualquier divisa: el último punto siempre puede
+ser preliminar y se revisa en el mismo id con el correr de los meses, no
+hay forma honesta de taggear el indicador entero como una cosa fija) —
+mismo criterio se le terminó aplicando también al HICP de EUR una vez
+que se automatizó el flash→final (ver punto 3): se le sacó el tag
+`final` que se le había puesto en un primer commit, porque dejó de ser
+una propiedad fija.
+
+Etiquetado en esta sesión (38 ids en el primer pase, después se corrigió):
+- **Preliminar**: `eur_pmi_manuf_flash`/`eur_pmi_serv_flash` + sus 8
+  subcomponentes, `gbp_pmi_manuf_flash`/`gbp_pmi_serv_flash` + sus 8
+  subcomponentes (22 ids — ya se llamaban "Flash" en el nombre, no hacía
+  falta investigar), `jpy_tokyo_cpi_yoy`/`jpy_tokyo_core_cpi_yoy` (2 ids
+  — ya documentado como "adelanto del nacional").
+- **Final**: `sp_pmi_manuf`/`sp_pmi_serv` (USD), `jpy_pmi_manuf`/
+  `jpy_pmi_serv`, `aud_pmi_manuf`/`aud_pmi_serv` (6 ids — ninguna de
+  estas tres divisas trackea la lectura flash de S&P Global por
+  separado, así que lo que se carga a mano es la final), `jpy_gdp_qoq`/
+  `jpy_gdp_yoy` (2 ids — ya documentado que se verifica contra el dato
+  revisado).
+- **Corrección real encontrada investigando el reporte de EUR (punto 3)**:
+  `eur_de_hicp_mom`/`yoy` y `eur_fr_hicp_mom`/`yoy` se habían marcado
+  `final` en el primer pase (asumiendo que como no había flash trackeado
+  aparte, lo cargado era la final) — **error**: se verificó con Destatis
+  ("Inflationsrate im Juli 2026 voraussichtlich +2,8%... resultados
+  definitivos recién el 12-ago") e INSEE ("résultats provisoires...
+  definitivos el 14-ago") que ambas oficinas publican primero una cifra
+  EXPLÍCITAMENTE preliminar (lo que se carga el día del release) y la
+  definitiva ~2 semanas después — se corrigieron los 4 a `preliminar`.
+  **Lección para cualquier caso similar**: no asumir "final" solo porque
+  no se trackea una versión "preliminar" aparte — verificar si la fuente
+  misma llama preliminar/provisoria a lo que se está cargando.
+- Al automatizar el HICP de EUR con flash→final real (punto 3), se le
+  sacó el tag a los 8 ids de EUR (`eur_cpi`/`_yoy`, `eur_core_cpi`/`_yoy`,
+  `eur_de_hicp_mom`/`_yoy`, `eur_fr_hicp_mom`/`_yoy`) — pasaron a
+  comportarse como el PIB (dinámico por punto), no una propiedad fija.
+
+### 3. EUR — investigación de "por qué no actualiza" → 3 hallazgos reales
+
+El usuario reportó que la inflación de la Eurozona/Francia no reflejaba
+el flash de julio (31-jul-2026). Investigación de tres capas:
+
+**a) La Eurozona agregada (`eur_cpi`/`_yoy`) NO estaba atrasada por
+diseño** — FRED (fuente automática de esa serie hasta este punto) solo
+republica el dato FINAL de Eurostat, con ~1 mes de rezago respecto al
+flash (confirmado: FRED tenía junio confirmado el 17-jul, no tenía nada
+de julio). Julio recién iba a estar disponible vía FRED a mediados de
+agosto. Esto se resolvió de raíz automatizando con Eurostat directo (ver
+más abajo), no hacía falta esperar a FRED.
+
+**b) Francia (`eur_fr_hicp_mom`/`_yoy`) SÍ estaba genuinamente atrasada**
+— el flash de julio de INSEE (31-jul-2026, HICP m/m +0.6%/a/a +2.4%,
+"résultats provisoires") no se había cargado, a diferencia de Alemania
+que sí tenía su flash del mismo día ya cargado por una sesión anterior.
+Se cargó a mano en ese momento (después reemplazado por el sync
+automático, ver punto 4).
+
+**c) Bug de datos real encontrado**: `eur_fr_hicp_yoy` tenía un punto
+guardado (3.0%, fechado `2026-07-16`) que **no coincidía con ningún
+comunicado real de INSEE** para ningún mes cercano (junio real ~2.0%,
+julio flash ~2.4%) — se borró y se recargaron los puntos correctos.
+**Causa raíz relacionada, encontrada más tarde (punto 4)**: varias cargas
+manuales de esta sesión y de sesiones anteriores usaban la fecha de
+PUBLICACIÓN en vez de la fecha de PERÍODO para el campo `date` de
+`indicator_overrides` — rompe el mecanismo de "el próximo sync pisa este
+mismo punto" porque el sync automático siempre usa `YYYY-MM-01` (fecha de
+período). Se encontraron y corrigieron **5 puntos con este problema**:
+`eur_cpi_yoy` (17-jul), `eur_core_cpi_yoy` (17-jul), `eur_de_hicp_mom`/
+`_yoy` (30-jul), `eur_fr_hicp_mom`/`_yoy` (los que se acababan de cargar
+a mano en el punto b, 31-jul). **Lección para cualquier carga manual
+futura, en cualquier divisa**: el campo `date` de `indicator_overrides`
+tiene que ser SIEMPRE la fecha del período de referencia (primer día del
+mes/trimestre), nunca la fecha en la que se cargó o se publicó el dato —
+si no, un punto "fantasma" con fecha más reciente que el período real
+puede quedar mostrándose como "Actual" indefinidamente, y además rompe
+la lógica de reemplazo automático flash→final.
+
+### 4. EUR HICP — automatización real vía `prc_hicp_fpd` (Eurostat)
+
+El usuario preguntó explícitamente si había forma de que el dato
+preliminar apareciera enseguida y se reemplazara solo por el final
+cuando saliera. Investigación: Eurostat tiene un dataset dedicado a
+exactamente esto, **`prc_hicp_fpd`** ("HICP — first released data"), con
+una dimensión `release` que separa **FLS** (flash, ~1 semana después de
+terminado el mes) de **FIN** (final/revisado, ~2-3 semanas después del
+flash) — y la tasa m/m/a/a YA CALCULADA por Eurostat (no hay que derivar
+de un índice, evitando el sesgo de ~0.1pp que ya excluía el a/a del
+mapeo automático viejo).
+
+`api/eur-sync.ts` → `fetchHicpFpd()`: pide `M.{unit}.{coicop}.FIN+FLS.{geo}`
+(unit=RCH_M/RCH_A, coicop=TOTAL/TOT_X_NRG_FOOD para core), arma un mapa
+`período → valor` recorriendo primero FLS y pisando con FIN si también
+está disponible para ese período, y guarda con fecha de PERÍODO
+(`YYYY-MM-01`). Como el upsert es por `(indicator_id, date)`, la corrida
+siguiente pisa el flash con el final automáticamente en la misma fila,
+sin intervención manual — **verificado con datos reales, no solo en
+teoría**: `eur_cpi_yoy` de junio-2026 mostraba 2.8% (flash) antes del
+primer sync con esta fuente, y pasó a 2.7% (el FINAL, revisado a la
+baja) apenas se corrió — mientras julio-2026 se pobló con 2.9% (el flash
+recién salido el 31-jul). Reemplaza el mapeo FRED viejo para
+`eur_cpi`/`_yoy`, `eur_core_cpi`/`_yoy`, `eur_de_hicp_mom`/`_yoy`,
+`eur_fr_hicp_mom`/`_yoy` — estos dos últimos **dejan de ser manuales en
+el a/a** (antes solo el m/m estaba automatizado vía FRED, el a/a se
+había descartado por el mismo sesgo de derivar de un índice).
+
+Geo/coicop verificados: `EA20` = "Euro area" (el código que usa
+Eurostat en sus comunicados de flash, no `EA19`/`EA21`/`EA`), `DE`/`FR`
+directo. `TOT_X_NRG_FOOD` = "Overall index excluding energy, food,
+alcohol and tobacco", el código correcto para "Core CPI".
+
+**Gotcha real de la API SDMX de Eurostat**: pedir con parámetros de
+query string sueltos (`?geo=EA20&unit=...`) y `lastTimePeriod=N` a veces
+**ignora el filtro** y devuelve el dataset completo (70+ MB, timeout) —
+la forma confiable es el formato de key posicional en el path
+(`/data/{dataset}/{freq}.{unit}.{item}.{geo}?format=JSON&startPeriod=...`),
+mismo patrón que ya se usaba para `prc_hicp_fpd`. Si se agrega otra
+consulta a la API de Eurostat en el futuro, usar SIEMPRE el formato de
+path, nunca query-string suelto.
+
+### 5. EUR — PIB por componente, automatización vía `namq_10_gdp`
+
+Directamente relacionado al punto 8 (rediseño de subcomponentes de PIB):
+una vez cargados a mano 68 puntos históricos para EUR (punto 8), el
+usuario notó que el PIB general (`eur_gdp_qoq`, vía FRED, ya tenía
+Q2-2026) pero los subcomponentes seguían en Q1 — Eurostat publica el
+headline flash mucho más rápido que el detalle por componente (~5-7
+semanas de rezago, la "estimación regular"), así que sin automatizar
+esto iba a repetirse cada trimestre. Se encontró que **el mismo dataset
+`namq_10_gdp`** que ya daba el nivel del PIB (vía FRED, serie
+`CLVMNACSCAB1GQEA19`) tiene, dentro de Eurostat directo, un
+`unit=CON_PPCH_PRE` ("contribution, percentage point change, previous
+period") con la contribución YA calculada — no hay que derivarla de
+niveles (a diferencia de lo que se intentó sin éxito para CAD, ver punto
+8).
+
+`fetchNamqContribution(naItem)`: pide `Q.CON_PPCH_PRE.SCA.{naItem}.EA20`.
+Items usados: `P31_S14_S15` (Consumo, hogares), `P3_S13` (Gobierno),
+`P51G` (Inversión/GFCF), `P6`+`P7` (Exportaciones Netas = exportaciones +
+importaciones — **ojo**: `P7` de este dataset YA viene con el signo
+correcto, negativo cuando las importaciones suben, así que se SUMAN los
+dos, no se resta). Verificado Q1-2026: 0.12+0.13-0.07-0.30 ≈ -0.2%
+(coincide con el PIB real de Eurostat). Corrida real en producción, 0
+errores.
+
+### 6. Bug real de infraestructura: el cron de GitHub Actions nunca disparó solo
+
+Mientras se investigaba el punto 3, el usuario preguntó explícitamente
+si el problema tenía que ver con haber sacado el botón manual de sync
+(sesión anterior). Se verificó con la API de GitHub
+(`actions_list` → `list_workflow_runs`): **ambos workflows
+(`sync-titulares.yml` cada 10min, `sync-currencies.yml` cada 30min)
+tenían exactamente 1 corrida total cada uno** — la manual de prueba
+disparada al mergear, ~00:38 UTC del 1-ago. Para cuando se detectó
+(~02:07 UTC, 1h29min después), deberían haber disparado ~9 veces
+(titulares) y ~3 veces (divisas) por `schedule` — cero lo hicieron. El
+YAML no tiene ningún error de sintaxis (`cron: '*/10 * * * *'` y
+`'*/30 * * * *'` son válidos) — es un comportamiento conocido pero no
+bien documentado de GitHub: workflows programados recién creados pueden
+tardar (a veces horas) en "despertar" del lado del scheduler de GitHub,
+sin garantía de cuánto.
+
+**Mitigación aplicada**: se disparó manualmente ambos workflows de nuevo
+(ya corrieron bien la segunda vez) y se armó una **Rutina de respaldo**
+(`mcp__Claude_Code_Remote__create_trigger`, cron `0 * * * *`,
+`create_new_session_on_fire: true`) — id `trig_01VigD4t2wgyxh8YCAYDqtg1`,
+nombre "Backup sync HIKMAN (Titulares + Divisas)" — que llama a los
+mismos 11 endpoints (`headlines-sync`, `translate-headlines`, `fred-sync`,
+`eur-sync`, `gbp-sync`, `cad-sync`, `aud-sync`, `nzd-sync`, `jpy-sync`,
+`chf-sync`, `cny-sync`) cada hora como red de seguridad independiente
+del cron nativo, con instrucciones de avisar solo si hay errores
+repetidos, y de sugerir borrarse sola si en algún momento se confirma
+que el cron de GitHub ya está disparando solo de forma consistente. **No
+se llegó a confirmar en esta sesión si el cron nativo arrancó a andar
+solo más tarde** — la próxima sesión debería chequear
+`list_workflow_runs` con `event: schedule` antes de asumir que sigue
+roto o que ya se arregló.
+
+### 7. University of Michigan Consumer Sentiment (`uom`) — corregido a mano
+
+El usuario reportó que el dato de sentimiento del consumidor (31-jul,
+que él pensaba preliminar) no actualizaba. Investigación: **el dato del
+31-jul en realidad era el FINAL de julio (55.2)**, no preliminar — el
+preliminar de julio había salido antes, a mediados de mes (54.4); el
+próximo dato real es el preliminar de AGOSTO, recién el 14-ago (se le
+aclaró el malentendido al usuario, lo aceptó). El problema real: **FRED
+(fuente de `uom`) todavía no había absorbido el 55.2** — verificado
+directo contra la API de FRED, la serie `UMCSENT` seguía en junio (49.5)
+con `last_updated` de antes del 31-jul. No es un bug de esta app, es un
+rezago real del lado de FRED. Se encontró que la propia Universidad de
+Michigan publica el dato en su página pública (`sca.isr.umich.edu`, sin
+login) apenas sale — se cargó 55.2 a mano para no dejar la tarjeta
+desactualizada mientras se espera a FRED. **No se automatizó esa fuente**:
+su portal de datos estructurados (`data.sca.isr.umich.edu`) pide login
+para la serie descargable, y encima esa subpágina mostraba un número
+distinto (49.5) al de la homepage pública (55.2) — inconsistente incluso
+dentro del propio sitio de la universidad, no vale la pena scrapear.
+
+### 8. Subcomponentes de PIB — rediseño completo en las 9 divisas + backfill histórico
+
+Pedido en dos partes: primero "revisá los subcomponentes del PIB de cada
+economía", después (al preguntar qué reemplazo quería) "la opción 2 y
+precios" — reemplazar "Demanda Interna/Demanda Externa" (agregados en la
+sesión anterior, vacíos, ninguna fuente los publicaba así) por el
+desglose clásico C+I+G+NX (Consumo/Inversión/Gasto Público/Exportaciones
+Netas), manteniendo Precios (el deflactor, sin tocar). Después el
+usuario pidió además backfill histórico ("desde principios de 2026")
+para que quedara un registro real, no solo el próximo trimestre que se
+cargue a mano — eso llevó a auditar fuente por fuente cuáles países
+publican una CONTRIBUCIÓN pre-calculada (lo único confiable de cargar)
+vs. cuáles no.
+
+**Cambio estructural** (`src/data/indicators*.ts`, las 9 divisas):
+`{prefix}_gdp_domestic_demand`/`{prefix}_gdp_external_demand` → 4 ids
+nuevos `{prefix}_gdp_consumption`/`_investment`/`_government`/
+`_net_exports`, mismo `parentId` que antes (el PIB principal de esa
+divisa). **Bug propio encontrado antes de commitear**: el script de
+reemplazo (Python, regex) dejaba `parentId: None,` (typo directo de
+Python, no de los datos) en los 32 bloques nuevos de las 8 divisas
+no-USD — se corrigió con `sed` antes de que llegara a un commit.
+
+**Cobertura real lograda por divisa** (la lección grande de esta parte:
+"¿el país publica una fuente de contribución YA calculada, o solo tasas
+de crecimiento sueltas por componente?" — la respuesta varía mucho y no
+se puede asumir sin chequear caso por caso):
+
+- **USD**: automático desde el primer commit — BEA publica esto directo
+  como "Contributions to percent change in real GDP" (NIPA tabla
+  1.1.2), ya en FRED: `DPCERY2Q224SBEA` (Consumo), `A006RY2Q224SBEA`
+  (Inversión), `A822RY2Q224SBEA` (Gobierno), `A019RY2Q224SBEA`
+  (Exportaciones Netas). Verificado Q2-2026: suman 1.50pp, exacto contra
+  `gdp_qoq` (1.5%) ya cargado.
+- **EUR**: automático, ver punto 5 arriba. 17 trimestres (2022-Q1 a
+  2026-Q1) cargados de una vía la misma query que se automatizó después.
+- **AUD**: automático — la ABS TAMBIÉN tiene la contribución
+  pre-calculada, dataflow `ANA_EXP`, `MEASURE=TCH` ("Contributions to
+  Growth - Chain volume measures") — no se automatizó en el sync (quedó
+  como carga histórica única, no wireado a `aud-sync.ts` todavía, a
+  diferencia de EUR) pero se cargaron 17 trimestres (2022-Q1 a 2026-Q1)
+  verificados. **Detalle de mapeo** (dimensión `SECTOR` del dataflow):
+  Consumo = `FCE.PHS` (hogares); Gasto Público = `FCE.GGS` (consumo de
+  gobierno) + `GFC.GGS` (inversión de gobierno, sumados — mismo criterio
+  que USD, que combina consumo e inversión pública en un solo bucket);
+  Inversión = `GFC.PSS` (inversión privada) + `IST.SSS` (cambio en
+  inventarios); Exportaciones Netas = `XGS.SSS` + `MGS.SSS`. Verificado
+  Q1-2026: 0.3+0.7+0.1-0.8 = 0.3%, exacto contra el PIB real (el primer
+  intento, sin separar el gasto de gobierno en consumo+inversión, daba
+  0.2% — 0.1pp de diferencia real, no redondeo, por eso se separó por
+  sector).
+- **JPY**: solo Exportaciones Netas (0.3pp, Q1-2026) — el Cabinet Office
+  japonés (ESRI) **no desglosa** Consumo/Inversión/Gasto como
+  contribución en puntos porcentuales, solo publica demanda interna
+  total vs. demanda externa como series de "寄与度" (contribución) — y
+  encima esas series de e-Stat Dashboard están discontinuadas desde
+  2025-Q3 (base vieja, sin reemplazo encontrado). El de Exportaciones
+  Netas se sacó de Trading Economics (que sí trackea esa serie del
+  Cabinet Office) porque el PDF oficial (`esri.cao.go.jp`) no se pudo
+  parsear — ver nota de PDF más abajo.
+- **CNY**: Consumo/Inversión/Exportaciones Netas cargados (Q1-2026:
+  2.4pp/1.9pp/0.8pp ≈ 5.0% a/a, exacto) pero **reparentados a
+  `cny_gdp_yoy`, no `cny_gdp_qoq`** — la NBS solo publica esta
+  contribución para el crecimiento INTERANUAL, nunca trimestral. Además
+  "Consumo" en la convención china (`Final Consumption Expenditure`) ya
+  viene combinado hogares+gobierno sin desglosar — por eso
+  `cny_gdp_government` queda sin dato a propósito (no es una carga
+  pendiente, es un límite real de cómo China publica sus cuentas
+  nacionales). Q2-2026 se encontró pero en formato "% de participación"
+  (ambiguo, no puntos porcentuales directos) — no se cargó para no
+  arriesgar una conversión mal hecha.
+- **GBP, CAD, NZD, CHF**: sin nada cargado, siguen "sin datos" como
+  antes de esta sesión. Investigado y descartado por motivos distintos
+  en cada caso:
+  - **GBP** (ONS): el bulletin de "GDP quarterly national accounts" da
+    tasas de crecimiento POR componente (ej. "household consumption
+    increased 0.6%") pero nunca la contribución en puntos porcentuales
+    en el texto — esa cifra vive solo en un gráfico (Figure 6) sin datos
+    tabulares accesibles vía scraping razonable.
+  - **CAD** (StatCan): se buscó en el catálogo completo de cubos
+    (`getAllCubesListLite`, 8215 cubos) — **solo existen tablas de
+    contribución ANUALES** (36100128/131/132/135), ninguna trimestral.
+    Se intentó derivar la contribución trimestral desde los niveles
+    reales (tabla 36100123, SAAR) con la fórmula estándar
+    `100×(X_t-X_{t-1})/GDP_{t-1}` — el cálculo dio -0.3% para el PIB de
+    Q1-2026 cuando el comunicado real de StatCan dice explícitamente
+    "real GDP was unchanged... 0.0%" — **no cerró, así que no se cargó
+    nada** en vez de arriesgar un número que no se puede confiar. Queda
+    sin resolver: no se identificó por qué la derivación desde niveles
+    no coincide (podría ser una confusión entre GDP por industria vs.
+    por gasto, dos series distintas de StatCan que en teoría deberían
+    coincidir pero no necesariamente en cada trimestre puntual — no
+    investigado a fondo por tiempo).
+  - **CHF** (SECO): el feed CSV ya usado (`scheduler.swissdatas.ch/
+    scheduled/ch-seco-gdp.csv`) SÍ tiene un `type=gc_q` ("growth
+    contribution quarterly") que en teoría es justo lo que hace falta —
+    pero las filas de comercio exterior (`exp`/`imp`/`trade_balance`/
+    `v_net`/`demand_dom`) salían con una escala completamente
+    inconsistente con el resto (valores de -3 a +6 cuando el PIB total
+    del trimestre fue +0.4%) — no se investigó por qué (¿otra base,
+    otra unidad, otro denominador?) y no se cargó nada por el mismo
+    criterio que CAD.
+  - **NZD** (Stats NZ): mismo patrón que GBP, solo tasas de crecimiento
+    sueltas encontradas, no contribución en pp.
+
+**Nota sobre extracción de PDFs en este sandbox**: se intentó leer el
+resumen oficial del Cabinet Office de Japón (PDF) para buscar la
+contribución completa — `WebFetch` no puede leer contenido binario de
+PDF (solo HTML convertido a texto), y las librerías Python instalables
+en este entorno (`pypdf`, `pdfminer.six`) fallan por un problema de
+entorno con el módulo `cryptography`/`_cffi_backend` (no relacionado al
+proyecto, un problema del sandbox). Si hace falta leer un PDF de nuevo,
+no perder tiempo con estas librerías acá — usar `WebSearch`/`WebFetch`
+sobre versiones HTML del mismo contenido, o pedirle al usuario el texto
+si existe un espejo en HTML.
+
+**Gaps conocidos nuevos por esta sección** (ver también la lista general
+más abajo): `cny_gdp_government` sin dato a propósito (límite real de
+fuente, no pendiente); GBP/CAD/NZD/CHF sin ningún subcomponente de PIB
+cargado (ni siquiera 1 trimestre) — si se repite el pedido de backfill,
+empezar por buscar si StatCan/ONS/Stats NZ/SECO sacaron alguna vez una
+tabla de contribución trimestral nueva antes de re-intentar la
+derivación manual desde niveles (que ya falló una vez para CAD).
+
 ## Gaps conocidos (no ocultar, mencionar si el usuario pregunta)
 
 - BCE: faltan ~16 gobernadores nacionales del Grupo 2 en Banqueros.
@@ -2401,11 +2805,28 @@ el check de Vercel en verde y varios además probados en vivo contra
   revisar `api/equities-quotes.ts` primero (ver detalle en "Nueva
   sección Renta Variable" arriba).
 - **GitHub Actions (`sync-titulares.yml`/`sync-currencies.yml`) es el
-  único mecanismo de refresco automático** desde que se sacaron los
-  botones manuales (sección 11) — si GitHub tiene una interrupción de
-  servicio o el repo cambia de rama default, el refresco se corta en
-  silencio (no hay alerta configurada). Revisar la pestaña "Actions"
-  del repo si los datos parecen no actualizarse solos.
+  mecanismo de refresco automático principal** desde que se sacaron los
+  botones manuales (sección 11) — **actualización 1-ago-2026 (sesión
+  tarde/noche): se confirmó que el cron NO disparó solo durante al menos
+  la primera hora y media después de crearse** (0 corridas por
+  `schedule` en `list_workflow_runs`, comportamiento conocido pero no
+  garantizado de GitHub con workflows recién creados). Se armó una
+  Rutina de respaldo cada hora (`trig_01VigD4t2wgyxh8YCAYDqtg1`, ver
+  sección de sesión punto 6) que llama a los mismos endpoints
+  independientemente del cron nativo — **cualquier sesión nueva debería
+  chequear con `list_workflow_runs` (`event: schedule`) si el cron ya
+  arrancó a andar solo**; si sí, avisar al usuario que la Rutina de
+  respaldo ya no hace falta y ofrecer borrarla con `delete_trigger`.
+- `cny_gdp_government` no tiene dato a propósito, no por carga pendiente
+  — la NBS no desglosa gasto de gobierno del consumo privado en su
+  "Final Consumption Expenditure" (ver sección de sesión punto 8).
+- **GBP, CAD, NZD, CHF no tienen NINGÚN subcomponente de PIB cargado**
+  (ni un solo trimestre) — ninguna de las 4 fuentes oficiales ya usadas
+  en este proyecto publica una tabla de contribución al crecimiento por
+  componente lista para usar; el intento de derivarla desde niveles
+  reales para CAD no cerró contra el PIB oficial (dio -0.3% vs. el 0.0%
+  real) y no se cargó nada. Ver sección de sesión punto 8 para el
+  detalle completo de qué se investigó en cada una antes de descartarla.
 
 ## Cómo verificar cosas (comandos que funcionaron esta sesión)
 
@@ -2433,12 +2854,37 @@ curl -s "https://hikman-prueba.vercel.app/api/jpy-sync" -X POST --max-time 45
 curl -s "https://hikman-prueba.vercel.app/api/chf-sync" -X POST --max-time 30
 curl -s "https://hikman-prueba.vercel.app/api/cny-sync" -X POST --max-time 45
 
+# Eurostat SDMX: SIEMPRE usar el formato de key posicional en el path, nunca
+# query-string suelto con lastTimePeriod (ignora el filtro y devuelve el
+# dataset completo, 70+MB, timeout) — formato:
+# /data/{dataset}/{freq}.{unit/otras dims}.{item}.{geo}?format=JSON&startPeriod=...
+
+# Eurostat prc_hicp_fpd (HICP flash/final ya calculado) — geo=EA20/DE/FR,
+# coicop=TOTAL (headline) o TOT_X_NRG_FOOD (core), unit=RCH_M/RCH_A,
+# release=FIN+FLS juntos (FIN tiene prioridad si existe para el período)
+curl -s "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_fpd/M.RCH_A.TOTAL.FIN+FLS.EA20?format=JSON&startPeriod=2026-01" -A "Mozilla/5.0"
+
+# Eurostat namq_10_gdp (PIB por componente, contribución ya calculada) —
+# unit=CON_PPCH_PRE, na_item: P31_S14_S15=Consumo hogares, P3_S13=Gobierno,
+# P51G=Inversión/GFCF, P6=Exportaciones, P7=Importaciones (ya con signo
+# correcto — sumar P6+P7 para Exportaciones Netas, no restar)
+curl -s "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/namq_10_gdp/Q.CON_PPCH_PRE.SCA.P31_S14_S15.EA20?format=JSON&startPeriod=2025-Q1" -A "Mozilla/5.0"
+
 # ABS Data API: estructura de dimensiones de un dataflow (orden del key + codelists)
 curl -s "https://data.api.abs.gov.au/rest/datastructure/ABS/LF?format=json" -A "Mozilla/5.0"
 # Valores válidos por dimensión (marginal, no garantiza la combinación exacta)
 curl -s "https://data.api.abs.gov.au/rest/availableconstraint/LF?format=json" -A "Mozilla/5.0"
 # Traer datos de una serie con key completo (orden: ver datastructure)
 curl -s "https://data.api.abs.gov.au/rest/data/LF/M13.3.1599.20.AUS.M?format=jsondata&startPeriod=2026-01" -A "Mozilla/5.0"
+
+# ABS ANA_EXP (PIB por gasto, contribución al crecimiento ya calculada) —
+# dataflow distinto de ANA_AGG (que solo tiene agregados, sin desglose por
+# gasto). MEASURE=TCH ("Contributions to Growth"), DATA_ITEM: FCE=consumo
+# (con SECTOR=PHS hogares / GGS gobierno), GFC=inversión fija (SECTOR=PSS
+# privada / GGS gobierno — sumar ambas a Gasto Público, no dejarlas todas
+# juntas bajo Inversión, o el total no cierra), IST=inventarios, XGS/MGS=
+# exportaciones/importaciones (sumar para Exportaciones Netas)
+curl -s "https://data.api.abs.gov.au/rest/data/ANA_EXP/TCH.FCE.PHS.20.AUS.Q?format=jsondata&startPeriod=2022-Q1" -A "Mozilla/5.0"
 
 # RBA cash rate (CSV público, tabla F1.1, serie FIRMMCRT)
 curl -s "https://www.rba.gov.au/statistics/tables/csv/f1.1-data.csv" -A "Mozilla/5.0"
