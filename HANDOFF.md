@@ -3142,3 +3142,63 @@ apenas salga (normalmente 1-5 días después del flash); cargar julio de
 publiquen (primeros días hábiles de agosto); investigar y cargar
 `chf_pmi_serv` (procure.ch Services) desde cero, igual que se hizo acá
 con el resto.
+
+### Duplicados de PMI headline (Excel vs backfill)
+
+El usuario avisó (con capturas) que en AUD aparecían dos puntos en julio
+con el mismo valor (53.0) en fechas distintas — 1° de julio y 24 de
+julio. Investigado a fondo, "revisa todos" — el problema era sistémico,
+no solo de AUD.
+
+**Causa raíz**: `import_excel_2026-07-31.sql` (sesión 31-jul-2026) ya
+había cargado overrides para varias de estas mismas series, pero con la
+FECHA DE PUBLICACIÓN real del dato (ej. `2026-07-24` para el flash de
+AUD, `2026-06-30` para JPY) en vez de la fecha de PERÍODO "1° del mes"
+que usa el resto del dashboard (`ism_manuf`, `eur_pmi_manuf_flash`, y el
+backfill de esta sesión). Como `mergeSeries` combina base +
+overrides por fecha exacta, dos fechas distintas para el mismo mes
+generan dos puntos visibles en el gráfico en vez de reemplazarse.
+
+**Verificación mes por mes contra la fuente**, comparando el override
+viejo (Excel) contra el valor cargado esta sesión (backfill):
+
+| Serie | Override viejo (fecha real) | Backfill (1° del mes) | Diagnóstico |
+|---|---|---|---|
+| `aud_pmi_manuf` | 2026-07-24 = 51.7 | 2026-07-01 = 51.7 | Duplicado puro (mismo valor) |
+| `aud_pmi_serv` | 2026-07-24 = 53.0 | 2026-07-01 = 53.0 | Duplicado puro |
+| `jpy_pmi_manuf` | 2026-06-30 = 54.8 | 2026-06-01 = 54.8 | Duplicado puro |
+| `jpy_pmi_serv` | 2026-07-03 = 52.2 | 2026-06-01 = 52.2 | Es el dato de JUNIO (fecha de publicación 3-jul) mal fechado como si fuera julio — peor que duplicado, "roba" el casillero de julio |
+| `chf_pmi_manuf` | 2026-07-01 = 54.3 | 2026-06-01 = 54.3 | Igual que arriba: es junio, pero la fecha 2026-07-01 SÍ coincide con la convención real de julio de este dashboard — sin corregir, julio se ve con un dato que en realidad no salió |
+| `cad_pmi_manuf` | 2026-06-01 = 52.9 | 2026-06-01 = 53.0, 2026-05-01 = 52.9 | **Crítico**: 52.9 es en realidad MAYO (verificado: S&P Global/TradingEconomics confirman mayo=52.9, junio=53.0), pero el override quedó fechado 2026-06-01 — la MISMA fecha exacta que usa el backfill para junio. Como los overrides pisan a la base en la misma fecha, esta fila estaba OCULTANDO el 53.0 correcto de junio en producción. |
+| `cad_pmi_serv` | 2026-05-05 = 49.2 | 2026-04-01 = 49.2, 2026-05-01 = 50.6 | 49.2 es ABRIL (fecha de publicación 5-may), mal fechado como si fuera mayo — queda pegado visualmente al punto real de mayo |
+| `sp_pmi_manuf` | 2026-06-23 = 55.7 | 2026-06-01 = 53.9 | Es el FLASH de junio, ya superado por el final. Verificado: "US S&P Global manufacturing PMI final for June 53.9 vs 55.7 prior" (investingLive/TradingView) — la revisión de -1.8pp es real, no error, pero el flash queda obsoleto una vez cargado el final |
+| `sp_pmi_serv` | 2026-06-23 = 51.3 | 2026-06-01 = 51.2 | Mismo caso, revisión mínima |
+
+**Bonus, resuelto de paso**: el hueco que había quedado en
+`nzd_pmi_manuf` mayo-2026 (dejado vacío la sesión pasada por una
+discrepancia sin resolver entre fuentes, 49.9 vs. "51.3" mal citado en
+un artículo) se pudo cerrar — BusinessNZ confirma directo: "New Zealand
+Manufacturing Surges as Business NZ PMI Leaps to 59.7 in June... up from
+49.9 in May" (fx.co). Cargado `nzd_pmi_manuf` 2026-05-01 = 49.9.
+
+**Fix aplicado**: `supabase/migration_2026-08-01_pmi_dedup.sql` — borra
+las 10 filas de override viejas/mal fechadas de arriba (correr en
+Supabase > SQL Editor). El dato correcto de cada mes ya está en el
+código (`historical-series.json`), así que después del DELETE cada mes
+vuelve a mostrar un solo punto.
+
+**Sin resolver, NO tocado**: quedan 2 filas sueltas —
+`nzd_pmi_manuf` 2026-06-29 = 50.3 y `nzd_pmi_serv` 2026-06-29 = 50.2 —
+que no coinciden con ningún valor verificado de mayo, junio ni julio
+para esas series (se descartó específicamente que sean el dato real de
+junio: PMI confirmado 59.7, PSI confirmado 50.6). Podrían ser un error
+de tipeo del Excel original o algún dato que no se identificó — hay que
+preguntarle al usuario qué representaban antes de decidir si se borran o
+se corrigen.
+
+**Lección para las próximas cargas**: cuando se backfillea una serie que
+YA tiene datos en `indicator_overrides` (Excel, o cargas manuales
+previas), hay que revisar la tabla real de Supabase ANTES de escribir en
+`historical-series.json` — no alcanza con mirar el archivo base, porque
+los overrides pueden estar en fechas distintas para el mismo mes y
+generar duplicados silenciosos que no se detectan con un diff del JSON.
