@@ -395,8 +395,9 @@ export const CNY_INDICATORS: IndicatorMeta[] = [
     source: 'National Bureau of Statistics',
     sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
     goodDirection: 'up',
-    description: 'Contribución del consumo privado al crecimiento del PIB de China. Carga manual.',
-    parentId: 'cny_gdp_qoq',
+    description:
+      'Contribución del consumo (Final Consumption Expenditure) al crecimiento del PIB de China, en puntos porcentuales — la NBS reporta esta cifra combinada (hogares + gobierno juntos, sin desglosar) y referida al a/a, no al t/t. Verificado Q1-2026: 2.4pp + Inversión 1.9pp + Exp. Netas 0.8pp ≈ 5.0% a/a (coincide con el PIB a/a real).',
+    parentId: 'cny_gdp_yoy',
   },
   {
     id: 'cny_gdp_investment',
@@ -410,8 +411,9 @@ export const CNY_INDICATORS: IndicatorMeta[] = [
     source: 'National Bureau of Statistics',
     sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
     goodDirection: 'up',
-    description: 'Contribución de la inversión (formación bruta de capital) al crecimiento del PIB de China. Carga manual.',
-    parentId: 'cny_gdp_qoq',
+    description:
+      'Contribución de la formación bruta de capital (Gross Capital Formation) al crecimiento del PIB de China, en puntos porcentuales, referida al a/a (ver PIB — Consumo).',
+    parentId: 'cny_gdp_yoy',
   },
   {
     id: 'cny_gdp_government',
@@ -425,8 +427,9 @@ export const CNY_INDICATORS: IndicatorMeta[] = [
     source: 'National Bureau of Statistics',
     sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
     goodDirection: 'up',
-    description: 'Contribución del gasto público al crecimiento del PIB de China. Carga manual.',
-    parentId: 'cny_gdp_qoq',
+    description:
+      'La NBS NO publica el gasto público separado del consumo privado — "Final Consumption Expenditure" ya viene combinado (ver PIB — Consumo). Queda sin dato a propósito, no por falta de carga.',
+    parentId: 'cny_gdp_yoy',
   },
   {
     id: 'cny_gdp_net_exports',
@@ -440,8 +443,9 @@ export const CNY_INDICATORS: IndicatorMeta[] = [
     source: 'National Bureau of Statistics',
     sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
     goodDirection: 'up',
-    description: 'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de China. Carga manual.',
-    parentId: 'cny_gdp_qoq',
+    description:
+      'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de China, en puntos porcentuales, referida al a/a (ver PIB — Consumo).',
+    parentId: 'cny_gdp_yoy',
   },
   {
     id: 'cny_gdp_yoy',
