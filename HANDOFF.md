@@ -3143,6 +3143,61 @@ publiquen (primeros días hábiles de agosto); investigar y cargar
 `chf_pmi_serv` (procure.ch Services) desde cero, igual que se hizo acá
 con el resto.
 
+### PMI headline — backfill de todo 2025 (12 meses) en 6 economías
+
+Pedido explícito de seguir extendiendo el histórico ("los otros PMIs de
+todas las economías excluyendo los ISM del dólar, ¿podés añadirle más
+históricos?"). Antes de arrancar se confirmó que **EUR y GBP PMI Flash ya
+tenían histórico completo desde 2008** (222/221 puntos) — no hacía falta
+tocarlos. Las 6 series que solo tenían desde enero-2026 se extendieron
+con los 12 meses de 2025 completos (144 puntos nuevos): `sp_pmi_manuf`/
+`serv` (S&P Global USD, distinto de ISM), `jpy_pmi_manuf`/`serv`,
+`aud_pmi_manuf`/`serv`, `cad_pmi_manuf`/`serv`, `nzd_pmi_manuf`/`serv`,
+`chf_pmi_manuf`. **`chf_pmi_serv` (procure.ch Servicios) se cargó por
+primera vez** — nunca había tenido ningún dato, ahora tiene los 12 meses
+de 2025 desde fuente primaria (bulletins oficiales UBS/procure.ch en
+alemán, no un agregador).
+
+**Hallazgo importante del agente de investigación, aplicado a los datos
+de 2025**: varios agregadores automáticos (MQL5, Trading Economics,
+myfxbook) a veces muestran el valor FLASH en vez del FINAL para los
+reportes S&P Global que publican las dos vueltas (EE.UU., Japón,
+Australia — Canadá/Nueva Zelanda/Suiza no tienen flash, esos quedan más
+confiables tal cual). El agente cruzó cada mes sospechoso contra
+prensa/comunicado fechado y cargó el valor FINAL correcto. Ejemplos:
+marzo-2025 SPGI-US final=50.2 (el flash que muestran los agregadores es
+49.8); julio-2025 final=49.8 (flash=49.5); varios meses de Japón y
+Australia con el mismo patrón — detalle mes a mes en el output del
+agente si hace falta revisar.
+
+**Riesgo sin resolver, marcado para la próxima sesión**: como este mismo
+patrón (agregador = flash, no final) apareció en 2025, es razonable
+sospechar que el backfill de enero-junio 2026 de estas mismas 3 series
+(`sp_pmi_manuf`/`serv`, `jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`,
+cargado en una sesión anterior) podría tener el mismo problema en algún
+mes. Se hizo un chequeo puntual: marzo-2026 de `sp_pmi_manuf` se
+verificó contra fuente y coincide exacto (52.3, correcto). Los chequeos
+de enero-2026 Japón y marzo-2026 Australia salieron contaminados con
+artículos de 2025 mal indexados por el buscador (mismo problema de
+indexación que ya había pasado antes) y no sirvieron para confirmar ni
+refutar nada — no se pudo verificar esos dos puntualmente. Si el usuario
+quiere, valdría la pena una pasada dedicada re-verificando enero-junio
+2026 de estas 3 series contra fuente primaria antes de confiar 100% en
+esos meses.
+
+**3 discrepancias reales entre fuentes, resueltas con criterio (no
+inventadas, están documentadas en el output del agente si hace falta
+reabrir la discusión)**:
+- `sp_pmi_serv` diciembre-2025: 52.5 (agregador) vs. 52.9 (prensa citando
+  el comunicado) — se usó 52.9.
+- `aud_pmi_manuf` mayo-2025: 50.7 (una fuente) vs. 51.0 (dos fuentes
+  independientes, incluido el propio comunicado de junio de S&P Global
+  citando mayo como comparación) — se usó 51.0 por mayoría de fuentes.
+- `nzd_pmi_manuf` abril-2025: 53.9 (publicación original) vs. 53.3
+  (revisión citada en el release de mayo) — se usó 53.3, la revisión más
+  reciente (BusinessNZ revisa el ajuste estacional mes a mes, es
+  comportamiento normal, no un error).
+
 ### Duplicados de PMI headline (Excel vs backfill)
 
 El usuario avisó (con capturas) que en AUD aparecían dos puntos en julio
