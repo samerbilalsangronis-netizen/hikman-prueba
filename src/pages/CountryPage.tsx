@@ -20,7 +20,7 @@ interface CountryPageProps {
 }
 
 export function CountryPage({ country, title }: CountryPageProps) {
-  const { getSeries, forecasts } = useMacroData();
+  const { getSeries, forecasts, getReleaseStage } = useMacroData();
   const { currency } = useCurrency();
   const items = indicatorsByCountry(country, currency);
   const sections = SECTION_ORDER.filter((section) => items.some((i) => i.section === section));
@@ -50,7 +50,14 @@ export function CountryPage({ country, title }: CountryPageProps) {
               {items
                 .filter((meta) => meta.section === section)
                 .map((meta) => (
-                  <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />
+                  <ChartCard
+                    key={meta.id}
+                    meta={meta}
+                    points={getSeries(meta.id)}
+                    months={24}
+                    forecast={forecasts[meta.id]}
+                    releaseStage={getReleaseStage(meta.id) ?? meta.releaseStage}
+                  />
                 ))}
             </div>
           </div>

@@ -5,6 +5,12 @@ create table if not exists indicator_overrides (
   indicator_id text not null,
   date date not null,
   value double precision not null,
+  -- Etapa de esta lectura puntual cuando la fuente publica el mismo dato en
+  -- dos vueltas (ej. PMI Flash/Final, PIB preliminar/revisado). NULL cuando
+  -- no aplica o no se especificó. Se guarda por punto (no por indicador)
+  -- porque el mismo id alterna preliminar/final mes a mes según el más
+  -- reciente cargado — ver IndicatorMeta.releaseStage en src/types.ts.
+  stage text check (stage in ('preliminar', 'final')),
   updated_at timestamptz not null default now(),
   primary key (indicator_id, date)
 );

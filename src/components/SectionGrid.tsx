@@ -8,7 +8,7 @@ import { groupByParent } from '../lib/indicatorGroups';
 import type { Section } from '../types';
 
 export function SectionGrid({ section, months }: { section: Section; months?: number }) {
-  const { getSeries, forecasts } = useMacroData();
+  const { getSeries, forecasts, getReleaseStage } = useMacroData();
   const { currency } = useCurrency();
   const [openParentId, setOpenParentId] = useState<string | null>(null);
 
@@ -25,6 +25,7 @@ export function SectionGrid({ section, months }: { section: Section; months?: nu
             points={getSeries(parent.id)}
             months={months}
             forecast={forecasts[parent.id]}
+            releaseStage={getReleaseStage(parent.id) ?? parent.releaseStage}
             subcomponentsControl={children.length > 0 ? { onOpen: () => setOpenParentId(parent.id), childCount: children.length } : undefined}
           />
         ))}
@@ -36,6 +37,7 @@ export function SectionGrid({ section, months }: { section: Section; months?: nu
           children={openGroup.children}
           getSeries={getSeries}
           forecasts={forecasts}
+          getReleaseStage={getReleaseStage}
           onClose={() => setOpenParentId(null)}
         />
       )}

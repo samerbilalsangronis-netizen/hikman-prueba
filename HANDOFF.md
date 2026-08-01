@@ -2992,3 +2992,96 @@ igual no cargan en este sandbox — no es un bug real, ver nota de USD/EUR).
   (toda la fuente `chinadata.live`, no solo CPI/PPI). Revisar TODOS los
   indicadores automáticos de esa divisa contra la fuente antes de asumir
   que la corrección es acotada a lo que el usuario mencionó.
+
+## Sesión 1-ago-2026 (cont.): etapa preliminar/final dinámica por punto, backfill de PMI headline
+
+Continuación de la sesión anterior en el mismo chat. El usuario aclaró dos
+cosas sobre lo hecho antes:
+
+1. **PMI subcomponentes**: confirmado que no hay forma gratis de conseguir
+   el desglose numérico (ver sección "Sesión 1-ago-2026 (tarde/noche)" más
+   arriba, punto de investigación de PMI) — el usuario aceptó esto y pidió
+   en cambio conseguir el **dato general (headline)** de PMI para TODAS las
+   economías, aclarando que para USD son dos reportes distintos: ISM
+   (`ism_manuf`/`ism_serv`) y S&P Global (`sp_pmi_manuf`/`sp_pmi_serv`).
+
+2. **Preliminar/Final tiene que ser dinámico, no una etiqueta fija**: el
+   pedido explícito fue que el mismo casillero/id siga la secuencia
+   Preliminar → Final → Preliminar → Final… — cuando sale el dato flash de
+   un mes se carga y la tarjeta muestra "Preliminar"; cuando 1-2 semanas
+   después sale el final del MISMO mes, cargarlo debe **reemplazar el punto
+   de ese mes** (no agregar uno nuevo) y la tarjeta debe pasar a mostrar
+   "Final", hasta que llegue el flash del mes siguiente.
+
+### Por qué el campo `IndicatorMeta.releaseStage` original no alcanzaba
+
+Antes de este cambio, `releaseStage` era una propiedad **fija por
+indicador** (hardcodeada en `indicatorsEur.ts`/`indicatorsGbp.ts`/etc.) —
+`eur_pmi_manuf_flash` siempre mostraba "Preliminar" aunque el usuario ya
+hubiera cargado la revisión final de ese mes, y no existía ningún id
+"final" separado para cargar esa revisión — no había dónde ponerla. El
+propio comentario en `types.ts` ya admitía el problema ("ahí el
+preliminar/final cambia con cada punto de la serie, no es una propiedad
+fija del indicador") pero nunca se había implementado.
+
+**Dato clave que ya estaba resuelto sin saberlo**: `addPoint(id, date,
+value)` ya hace `supabase.from('indicator_overrides').upsert({indicator_id,
+date, value})`, y la tabla tiene `primary key (indicator_id, date)` — o
+sea que cargar un valor con la MISMA fecha que uno ya cargado **ya
+reemplazaba el valor en el lugar** (mismo casillero en el gráfico e
+histórico). Lo único que faltaba era que la etiqueta preliminar/final
+acompañara ese reemplazo en vez de quedar fija.
+
+### Implementación
+
+- **`supabase/schema.sql`**: columna nueva `stage text check (stage in
+  ('preliminar','final'))` en `indicator_overrides` (nullable — no rompe
+  filas viejas). Migración aparte para la base ya viva:
+  `supabase/migration_2026-08-01_release_stage.sql` — hay que correrla en
+  Supabase > SQL Editor (el `create table if not exists` de schema.sql no
+  toca tablas que ya existen).
+- **`MacroDataContext.tsx`**: se agregó un `StageMap` (`id -> fecha ->
+  etapa`) paralelo al `SeriesMap` existente — a propósito NO se tocó el
+  tipo `SeriesPoint` (sigue siendo la tupla `[fecha, valor]`, muchos
+  archivos la destructuran así). `addPoint` ahora acepta un 4° argumento
+  opcional `stage?: 'preliminar' | 'final'`; `getReleaseStage(id)` resuelve
+  la etapa del ÚLTIMO punto de la serie mergeada (base histórico +
+  overrides), devolviendo `undefined` si ese punto no tiene etapa
+  registrada (dato del seed histórico, o cargado antes de este cambio) —
+  en ese caso el llamador cae a `meta.releaseStage` como default fijo
+  (así los indicadores viejos que nunca reciban una carga con etapa nueva
+  siguen mostrando algo razonable).
+- **`ChartCard.tsx`**: nueva prop `releaseStage` (resuelta por el padre,
+  no se lee el context adentro de la tarjeta — a propósito, para no romper
+  el `memo`/`areEqual` que evita que Recharts reinicie la animación del
+  gráfico en cada re-render ajeno). `areEqual` ahora también compara
+  `releaseStage`.
+- **4 puntos de entrada de `ChartCard`** (`CountryPage.tsx`,
+  `Dashboard.tsx`, `SectionGrid.tsx`, y `SubcomponentModal.tsx` vía prop
+  nueva `getReleaseStage`) pasan `getReleaseStage(meta.id) ??
+  meta.releaseStage`.
+- **`Actualizar.tsx`**: la insignia ahora usa `currentStage` (dinámico) en
+  vez de `meta.releaseStage`. Al lado del input de fecha/valor, si
+  `meta.releaseStage` está seteado (o sea, este indicador participa del
+  ciclo preliminar/final) aparece un `<select>` Preliminar/Final — sugiere
+  por defecto lo opuesto a la etapa actual (si el último cargado fue
+  preliminar, sugiere final, y viceversa) pero el usuario lo puede
+  cambiar. Al guardar, `handleSave` le pasa la etapa elegida a `addPoint`.
+
+### Qué falta para que esto sea útil en la práctica
+
+El campo `meta.releaseStage` estático en `indicatorsEur.ts`/`Gbp.ts`/
+`Jpy.ts`/etc. sigue como estaba (`eur_pmi_manuf_flash` = 'preliminar' fijo,
+`jpy_pmi_manuf` = 'final' fijo) — **no hacía falta tocarlo**, solo actúa
+como default para cuando todavía no se cargó ningún punto con etapa
+explícita. La consecuencia práctica: la próxima vez que se cargue el PMI
+Flash de julio de EUR/GBP hay que usar el selector y marcarlo
+"Preliminar" (aunque ya se cargue en el mismo id `eur_pmi_manuf_flash`),
+y cuando salga el final 1-2 semanas después, cargarlo con la MISMA fecha
+del mes (ej. `2026-07-01`) y marcarlo "Final" — ahí sí reemplaza el punto
+y la tarjeta cambia sola.
+
+### PMI headline — backfill Ene-Jul 2026 por divisa
+
+*(completar después de que vuelvan los resultados del agente de
+investigación en background — pendiente al cierre de esta sesión)*

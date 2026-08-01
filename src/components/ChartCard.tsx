@@ -64,6 +64,11 @@ interface ChartCardProps {
   points: SeriesPoint[];
   months?: number;
   forecast?: number;
+  // Etapa (preliminar/final) del último punto realmente cargado, resuelta
+  // por el padre vía getReleaseStage(meta.id) — cae a meta.releaseStage si
+  // el punto más reciente no tiene etapa propia registrada. Se pasa como
+  // prop (no se lee el context acá adentro) para no romper el memo de abajo.
+  releaseStage?: 'preliminar' | 'final';
   // Si el indicador tiene subcomponentes, tocar la tarjeta abre un modal con
   // el detalle (SubcomponentModal) en vez de expandir algo inline — ver
   // Crecimiento.tsx. childCount solo se usa para el badge "N subcomponentes".
@@ -74,7 +79,8 @@ interface ChartCardProps {
   compact?: boolean;
 }
 
-function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsControl, compact = false }: ChartCardProps) {
+function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, subcomponentsControl, compact = false }: ChartCardProps) {
+  const stage = releaseStage ?? meta.releaseStage;
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
   // Clave de contenido (no de referencia): points siempre es un arreglo nuevo
@@ -110,7 +116,7 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
           <div>
             <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
-              {meta.releaseStage && <ReleaseStageBadge stage={meta.releaseStage} />}
+              {stage && <ReleaseStageBadge stage={stage} />}
             </h3>
             {!compact && (
               <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -133,7 +139,7 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
           <div>
             <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
-              {meta.releaseStage && <ReleaseStageBadge stage={meta.releaseStage} />}
+              {stage && <ReleaseStageBadge stage={stage} />}
             </h3>
             {!compact && (
               <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -296,6 +302,7 @@ function areEqual(prev: ChartCardProps, next: ChartCardProps): boolean {
     prev.meta.id === next.meta.id &&
     prev.months === next.months &&
     prev.forecast === next.forecast &&
+    prev.releaseStage === next.releaseStage &&
     prev.points.length === next.points.length &&
     samePoint(prev.points[prev.points.length - 1], next.points[next.points.length - 1]) &&
     samePoint(prev.points[prev.points.length - 2], next.points[next.points.length - 2]) &&

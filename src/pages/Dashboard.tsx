@@ -7,7 +7,7 @@ import { getFreshness } from '../lib/freshness';
 import { INDICATORS } from '../data/indicators';
 
 export function Dashboard() {
-  const { getSeries, scoreRows, updateScoreValoracion, forecasts } = useMacroData();
+  const { getSeries, scoreRows, updateScoreValoracion, forecasts, getReleaseStage } = useMacroData();
   const { currency } = useCurrency();
 
   const currencyIndicators = INDICATORS.filter((m) => (m.currency ?? 'USD') === currency);
@@ -47,7 +47,14 @@ export function Dashboard() {
                 .filter((meta) => !meta.parentId)
                 .slice(0, 3)
                 .map((meta) => (
-                  <ChartCard key={meta.id} meta={meta} points={getSeries(meta.id)} months={24} forecast={forecasts[meta.id]} />
+                  <ChartCard
+                    key={meta.id}
+                    meta={meta}
+                    points={getSeries(meta.id)}
+                    months={24}
+                    forecast={forecasts[meta.id]}
+                    releaseStage={getReleaseStage(meta.id) ?? meta.releaseStage}
+                  />
                 ))}
             </div>
           </div>

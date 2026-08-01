@@ -42,7 +42,7 @@ const CNY_AUTO_COVERED = new Set(CNY_AUTO_INDICATOR_IDS);
 
 function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
-  const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast } = useMacroData();
+  const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast, getReleaseStage } = useMacroData();
   const points = getSeries(id);
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
@@ -53,6 +53,17 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
   const [saving, setSaving] = useState(false);
   const [forecastInput, setForecastInput] = useState('');
   const [savingForecast, setSavingForecast] = useState(false);
+
+  // Etapa del último punto realmente cargado (si se especificó una) — cae a
+  // la etapa fija del indicador para los que todavía no cargaron nada con
+  // este campo. Ver IndicatorMeta.releaseStage en types.ts.
+  const currentStage = getReleaseStage(id) ?? meta.releaseStage;
+  // Para el próximo punto a cargar, arrancamos sugiriendo lo opuesto al
+  // último (preliminar → final → preliminar → …), que es la secuencia que
+  // siguen los reportes que trackean ambas vueltas.
+  const [stageInput, setStageInput] = useState<'preliminar' | 'final'>(
+    currentStage === 'preliminar' ? 'final' : 'preliminar',
+  );
 
   const isPercentFormat = meta.format === 'pct' || meta.format === 'pct1';
   const isFred =
@@ -72,9 +83,10 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
     if (Number.isNaN(raw)) return;
     const stored = isPercentFormat ? raw / 100 : raw;
     setSaving(true);
-    await addPoint(id, date, stored);
+    await addPoint(id, date, stored, meta.releaseStage ? stageInput : undefined);
     setSaving(false);
     setValue('');
+    if (meta.releaseStage) setStageInput(stageInput === 'preliminar' ? 'final' : 'preliminar');
   }
 
   async function handleSaveForecast() {
@@ -144,20 +156,20 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
                               : 'FRED'}
             </span>
           )}
-          {meta.releaseStage && (
+          {currentStage && (
             <span
               className="rounded px-1 py-0.5 text-[10px] font-semibold uppercase"
               style={{
-                color: meta.releaseStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)',
-                border: `1px solid ${meta.releaseStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)'}`,
+                color: currentStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)',
+                border: `1px solid ${currentStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)'}`,
               }}
               title={
-                meta.releaseStage === 'preliminar'
+                currentStage === 'preliminar'
                   ? 'Lectura preliminar/adelantada — la fuente publica una revisión posterior de este mismo dato.'
                   : 'Lectura final/revisada — la fuente publicó antes una versión preliminar de este mismo dato.'
               }
             >
-              {meta.releaseStage === 'preliminar' ? 'Preliminar' : 'Final'}
+              {currentStage === 'preliminar' ? 'Preliminar' : 'Final'}
             </span>
           )}
         </div>
@@ -219,6 +231,18 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
                 className="w-20 rounded-md px-2 py-1 text-sm tabular-nums"
                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
+              {meta.releaseStage && (
+                <select
+                  value={stageInput}
+                  onChange={(e) => setStageInput(e.target.value as 'preliminar' | 'final')}
+                  className="rounded-md px-1 py-1 text-[11px]"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  title="Etapa de este dato — al guardar, si ya existe un punto para esta misma fecha se reemplaza (mismo casillero), y la insignia de la tarjeta pasa a mostrar esta etapa."
+                >
+                  <option value="preliminar">Preliminar</option>
+                  <option value="final">Final</option>
+                </select>
+              )}
             </div>
           </td>
           <td className="py-2.5 text-right">

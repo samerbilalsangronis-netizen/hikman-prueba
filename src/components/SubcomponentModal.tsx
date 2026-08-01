@@ -7,10 +7,11 @@ interface SubcomponentModalProps {
   children: IndicatorMeta[];
   getSeries: (id: string) => SeriesPoint[];
   forecasts: Record<string, number>;
+  getReleaseStage: (id: string) => 'preliminar' | 'final' | undefined;
   onClose: () => void;
 }
 
-export function SubcomponentModal({ parent, children, getSeries, forecasts, onClose }: SubcomponentModalProps) {
+export function SubcomponentModal({ parent, children, getSeries, forecasts, getReleaseStage, onClose }: SubcomponentModalProps) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -52,7 +53,15 @@ export function SubcomponentModal({ parent, children, getSeries, forecasts, onCl
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {children.map((child) => (
-            <ChartCard key={child.id} meta={child} points={getSeries(child.id)} months={36} forecast={forecasts[child.id]} compact />
+            <ChartCard
+              key={child.id}
+              meta={child}
+              points={getSeries(child.id)}
+              months={36}
+              forecast={forecasts[child.id]}
+              releaseStage={getReleaseStage(child.id) ?? child.releaseStage}
+              compact
+            />
           ))}
         </div>
       </div>

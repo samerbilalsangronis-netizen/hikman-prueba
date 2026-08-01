@@ -38,12 +38,14 @@ import type {
 } from '../types';
 
 type SeriesMap = Record<string, SeriesPoint[]>;
+type StageMap = Record<string, Record<string, 'preliminar' | 'final'>>; // id -> date -> stage
 type ForecastMap = Record<string, number>;
 type FomcWatchMap = Record<string, FomcProbabilities>;
 type BankerNotesMap = Record<string, BankerNote>;
 type BiasMap = Record<Currency, CurrencyBias>;
 
 const OVERRIDES_KEY = 'macro-dashboard:overrides:v1';
+const POINT_STAGES_KEY = 'macro-dashboard:point-stages:v1';
 const SCORE_KEY = 'macro-dashboard:score:v1';
 const FORECASTS_KEY = 'macro-dashboard:forecasts:v1';
 const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
@@ -71,6 +73,15 @@ function loadLocalOverrides(): SeriesMap {
   try {
     const raw = localStorage.getItem(OVERRIDES_KEY);
     return raw ? (JSON.parse(raw) as SeriesMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadLocalPointStages(): StageMap {
+  try {
+    const raw = localStorage.getItem(POINT_STAGES_KEY);
+    return raw ? (JSON.parse(raw) as StageMap) : {};
   } catch {
     return {};
   }
@@ -181,8 +192,14 @@ async function fetchAllRows<T>(
 
 interface MacroDataContextValue {
   getSeries: (id: string) => SeriesPoint[];
-  addPoint: (id: string, date: string, value: number) => Promise<void>;
+  addPoint: (id: string, date: string, value: number, stage?: 'preliminar' | 'final') => Promise<void>;
   removeLastPoint: (id: string) => Promise<void>;
+  /** Etapa (preliminar/final) del último punto cargado a mano para este id,
+   * si se especificó una al cargarlo. `undefined` si el último punto no
+   * tiene etapa registrada (dato del seed histórico, o cargado antes de que
+   * existiera este campo) — en ese caso el llamador debe usar
+   * `IndicatorMeta.releaseStage` como valor por defecto. */
+  getReleaseStage: (id: string) => 'preliminar' | 'final' | undefined;
   scoreRows: ScoreRow[];
   updateScoreValoracion: (id: string, valoracion: number) => Promise<void>;
   forecasts: ForecastMap;
@@ -222,6 +239,7 @@ const MacroDataContext = createContext<MacroDataContextValue | null>(null);
 
 export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [overrides, setOverrides] = useState<SeriesMap>({});
+  const [pointStages, setPointStages] = useState<StageMap>({});
   const [scoreRows, setScoreRows] = useState<ScoreRow[]>(SCORE_SEED);
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
@@ -237,6 +255,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!supabaseEnabled || !supabase) {
       setOverrides(loadLocalOverrides());
+      setPointStages(loadLocalPointStages());
       setScoreRows(loadLocalScore());
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
@@ -251,8 +270,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
 
     const client = supabase;
     const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await Promise.all([
-      fetchAllRows<{ indicator_id: string; date: string; value: number }>(async (from, to) =>
-        client.from('indicator_overrides').select('indicator_id, date, value').range(from, to),
+      fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null }>(async (from, to) =>
+        client.from('indicator_overrides').select('indicator_id, date, value, stage').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
@@ -287,10 +306,13 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
 
     {
       const map: SeriesMap = {};
+      const stages: StageMap = {};
       for (const row of pointsRows) {
         (map[row.indicator_id] ??= []).push([row.date, row.value]);
+        if (row.stage) (stages[row.indicator_id] ??= {})[row.date] = row.stage;
       }
       setOverrides(map);
+      setPointStages(stages);
     }
 
     if (!scoreRes.error && scoreRes.data && scoreRes.data.length > 0) {
@@ -479,13 +501,21 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     [base, overrides],
   );
 
-  const addPoint = useCallback(async (id: string, date: string, value: number) => {
+  const addPoint = useCallback(async (id: string, date: string, value: number, stage?: 'preliminar' | 'final') => {
     if (supabaseEnabled && supabase) {
-      await supabase.from('indicator_overrides').upsert({ indicator_id: id, date, value });
+      await supabase.from('indicator_overrides').upsert({ indicator_id: id, date, value, stage: stage ?? null });
     }
     setOverrides((prev) => {
       const next = { ...prev, [id]: [...(prev[id] ?? []).filter(([d]) => d !== date), [date, value] as SeriesPoint] };
       if (!supabaseEnabled) localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPointStages((prev) => {
+      const forId = { ...(prev[id] ?? {}) };
+      if (stage) forId[date] = stage;
+      else delete forId[date];
+      const next = { ...prev, [id]: forId };
+      if (!supabaseEnabled) localStorage.setItem(POINT_STAGES_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
@@ -502,9 +532,26 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       } else {
         localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
       }
+      setPointStages((prevStages) => {
+        const forId = { ...(prevStages[id] ?? {}) };
+        delete forId[removedDate];
+        const nextStages = { ...prevStages, [id]: forId };
+        if (!supabaseEnabled) localStorage.setItem(POINT_STAGES_KEY, JSON.stringify(nextStages));
+        return nextStages;
+      });
       return next;
     });
   }, []);
+
+  const getReleaseStage = useCallback(
+    (id: string): 'preliminar' | 'final' | undefined => {
+      const points = mergeSeries(base[id] ?? [], overrides[id] ?? []);
+      const last = points[points.length - 1];
+      if (!last) return undefined;
+      return pointStages[id]?.[last[0]];
+    },
+    [base, overrides, pointStages],
+  );
 
   const updateScoreValoracion = useCallback(async (id: string, valoracion: number) => {
     if (supabaseEnabled && supabase) {
@@ -930,6 +977,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       getSeries,
       addPoint,
       removeLastPoint,
+      getReleaseStage,
       scoreRows,
       updateScoreValoracion,
       forecasts,
@@ -968,6 +1016,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       getSeries,
       addPoint,
       removeLastPoint,
+      getReleaseStage,
       scoreRows,
       updateScoreValoracion,
       forecasts,
