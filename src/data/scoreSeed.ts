@@ -18,5 +18,15 @@ export const SCORE_SEED: ScoreRow[] = [
   { id: 'retail_sales', label: 'Retail Sales', valoracion: 0, weight: 'Máx(2) / Mín(-2)' },
   { id: 'core_retail_sales', label: 'Core Retail Sales', valoracion: 0, weight: 'Informativo' },
   { id: 'uom', label: 'Sentimiento U. Michigan', valoracion: -1, weight: 'Máx(2) / Mín(-2)' },
-  { id: 'cb', label: 'Confianza Consumidor (CB)', valoracion: 0, weight: 'Máx(2) / Mín(-2)' },
+  // Reducido de Máx(2)/Mín(-2) a Máx(1)/Mín(-1) a pedido del usuario
+  // (31-jul-2026) — mismo patrón ya usado en CAD/AUD para "Confianza
+  // Empresarial", el <select> sigue permitiendo -2..2 (ver ScorePanel.tsx),
+  // es una autolimitación del analista, no una restricción de código.
+  { id: 'cb', label: 'Confianza Consumidor (CB)', valoracion: 0, weight: 'Máx(1) / Mín(-1)' },
+  // PIB y Solicitudes de Desempleo agregados al score a pedido del usuario
+  // (31-jul-2026) — valoración inicial en 0 (neutral), a ajustar a mano
+  // desde el score compuesto cuando el usuario tenga un juicio formado.
+  { id: 'gdp_qoq', label: 'PIB', valoracion: 0, weight: 'Máx(2) / Mín(-2)' },
+  { id: 'initial_claims', label: 'Solicitudes Iniciales de Desempleo', valoracion: 0, weight: 'Máx(1) / Mín(-1)' },
+  { id: 'continuing_claims', label: 'Solicitudes Continuas de Desempleo', valoracion: 0, weight: 'Máx(1) / Mín(-1)' },
 ];

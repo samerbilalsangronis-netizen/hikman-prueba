@@ -141,59 +141,8 @@ function ManualHeadlineForm() {
 }
 
 export function Titulares() {
-  const { headlines, toggleHeadlinePin, deleteHeadline, setHeadlineBiasCurrency, refresh } = useMacroData();
+  const { headlines, toggleHeadlinePin, deleteHeadline, setHeadlineBiasCurrency } = useMacroData();
   const [filter, setFilter] = useState<ImpactLevel | 'todos'>('todos');
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ found: number; errors: string[] } | null>(null);
-  const [translating, setTranslating] = useState(false);
-  const [translateResult, setTranslateResult] = useState<{ found: number; translated: number; errors: string[] } | null>(null);
-
-  async function handleSync() {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await fetch('/api/headlines-sync', { method: 'POST' });
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) throw new Error('no-api');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      await refresh();
-      setSyncResult({
-        found: json.found ?? 0,
-        errors: (json.errors ?? []).map((e: { fuente: string; error: string }) => `${e.fuente}: ${e.error}`),
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message === 'no-api'
-          ? 'No se pudo contactar /api/headlines-sync. Esta función solo funciona una vez que el sitio está desplegado en Vercel con las variables de entorno configuradas (no funciona en "npm run dev" local).'
-          : (err as Error).message;
-      setSyncResult({ found: 0, errors: [message] });
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function handleTranslatePending() {
-    setTranslating(true);
-    setTranslateResult(null);
-    try {
-      const res = await fetch('/api/translate-headlines', { method: 'POST' });
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) throw new Error('no-api');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      await refresh();
-      setTranslateResult({ found: json.found ?? 0, translated: json.translated ?? 0, errors: json.errors ?? [] });
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message === 'no-api'
-          ? 'No se pudo contactar /api/translate-headlines. Esta función solo funciona una vez que el sitio está desplegado en Vercel (no funciona en "npm run dev" local).'
-          : (err as Error).message;
-      setTranslateResult({ found: 0, translated: 0, errors: [message] });
-    } finally {
-      setTranslating(false);
-    }
-  }
 
   const filtered = useMemo(() => {
     const list = filter === 'todos' ? headlines : headlines.filter((h) => h.impact === filter);
@@ -212,53 +161,14 @@ export function Titulares() {
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
           Solo titulares que afectan a las divisas del G10 + CNY, rendimientos de bonos o renta variable mayor —
           todo lo demás se filtra antes de llegar acá. Fijá un titular para que aparezca en la cinta corrediza del
-          Panel de Control.
+          Panel de Control. Se sincronizan y traducen solos cada 10 minutos (GitHub Actions).
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'var(--series-1)' }}
-          >
-            {syncing ? 'Sincronizando…' : '⟳ Sincronizar (Finnhub)'}
-          </button>
-          <button
-            onClick={handleTranslatePending}
-            disabled={translating}
-            className="rounded-md px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-            title="Traduce los titulares ya cargados que todavía no tienen traducción (ej. de antes de que existiera esta función)"
-          >
-            {translating ? 'Traduciendo…' : '🌐 Traducir pendientes'}
-          </button>
           <ManualHeadlineForm />
         </div>
-        {syncResult && (
-          <div className="text-xs" style={{ color: syncResult.errors.length > 0 ? 'var(--delta-bad)' : 'var(--delta-good)' }}>
-            {syncResult.found > 0 && <div>{syncResult.found} titulares encontrados y sincronizados.</div>}
-            {syncResult.errors.map((e, i) => (
-              <div key={i}>{e}</div>
-            ))}
-          </div>
-        )}
-        {translateResult && (
-          <div className="text-xs" style={{ color: translateResult.errors.length > 0 ? 'var(--delta-bad)' : 'var(--delta-good)' }}>
-            {translateResult.found === 0 && translateResult.errors.length === 0 && <div>No había titulares pendientes de traducir.</div>}
-            {translateResult.found > 0 && (
-              <div>
-                {translateResult.translated} de {translateResult.found} titulares traducidos.
-                {translateResult.found === 200 && ' Puede que haya más pendientes — volvé a tocar el botón.'}
-              </div>
-            )}
-            {translateResult.errors.map((e, i) => (
-              <div key={i}>{e}</div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -281,7 +191,7 @@ export function Titulares() {
       <div className="flex flex-col gap-2">
         {filtered.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Sin titulares todavía. Sincronizá o agregá uno manualmente.
+            Sin titulares todavía. Esperá al próximo sync automático (cada 10 min) o agregá uno manualmente.
           </p>
         ) : (
           filtered.map((h) => (

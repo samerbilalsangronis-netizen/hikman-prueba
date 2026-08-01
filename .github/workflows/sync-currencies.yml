@@ -1,0 +1,44 @@
+name: Sincronizar Divisas
+
+# Reemplaza al botón manual "⟳ Sincronizar con..." de Actualizar.tsx
+# (removido a pedido del usuario, 31-jul-2026) — Vercel Hobby (plan gratis
+# de este proyecto) no permite cron jobs más frecuentes que una vez por
+# día, así que la automatización corre acá en vez de en Vercel. Cada 30
+# minutos, todas las divisas — cada paso es independiente
+# (continue-on-error) para que si una fuente falla no bloquee al resto.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: USD (FRED)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/fred-sync
+      - name: EUR (FRED + Eurostat)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/eur-sync
+      - name: GBP (BoE)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/gbp-sync
+      - name: CAD (StatCan + BoC)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/cad-sync
+      - name: AUD (ABS + RBA)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/aud-sync
+      - name: NZD (Stats NZ)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/nzd-sync
+      - name: JPY (e-Stat + BOJ)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/jpy-sync
+      - name: CHF (SNB + SECO + KOF)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/chf-sync
+      - name: CNY (NBS/GACC vía chinadata.live)
+        continue-on-error: true
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/cny-sync
