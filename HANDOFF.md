@@ -3274,7 +3274,35 @@ está vacío, todo es override manual), el fix es un `UPDATE` de la fecha en
 vez de un `DELETE` — `supabase/migration_2026-08-01_ism_subcomponents.sql`.
 De paso quedó registrado que `ism_manuf_supplier_deliveries`,
 `ism_manuf_inventories` e `ism_serv_business_activity` nunca se cargaron
-(ni junio ni ningún mes) — pendiente si el usuario los quiere completos.
+(ni junio ni ningún mes) — el usuario pidió completarlos con histórico.
+
+**Cargados nov-2025 a jun-2026** (8 meses cada uno), verificado mes a mes
+contra los comunicados de ISM en prnewswire.com:
+
+| Mes | Supplier Deliveries (Manuf.) | Inventories (Manuf.) | Business Activity (Serv.) |
+|---|---|---|---|
+| Nov-2025 | 49.3 | 48.9 | 54.5 |
+| Dic-2025 | 50.8 | 45.2 | 56.0 |
+| Ene-2026 | 54.4 | 47.6 | 57.4 |
+| Feb-2026 | 55.1 | 48.8 | 59.9 |
+| Mar-2026 | 58.9 | 47.1 | 53.9 |
+| Abr-2026 | 60.6 | 49.0 | 55.9 |
+| May-2026 | 60.6 | 49.9 | 57.7 |
+| Jun-2026 | 57.4 | 51.4 | 55.4 |
+
+Cargado directo por REST a `indicator_overrides` con la `anon key`
+pública del bundle (la política RLS del proyecto es "public read/write
+for all", la misma que usa la app desde el navegador — no hizo falta que
+el usuario corra SQL a mano esta vez). Nota menor: Abril y Mayo de
+Supplier Deliveries dieron el mismo valor exacto (60.6) en dos fuentes
+independientes — no es error de carga, dos búsquedas distintas
+coincidieron en el mismo número para los dos meses (diffusion index sin
+cambio mes a mes, ocurre). Dos discrepancias chicas encontradas y
+resueltas a favor del comunicado del propio mes (no el que lo cita como
+comparación en el mes siguiente, que a veces trae una revisión menor):
+Inventories dic-2025 (45.2 directo del reporte de diciembre vs. 45.7
+citado en el de enero) y Business Activity dic-2025 (56.0 directo del
+reporte de diciembre vs. 55.2 citado en el de enero).
 
 **IMPORTANTE — sin auditar todavía**: el desfasaje se verificó y
 confirmó SOLO para nov-2025 a jun-2026 (8 meses). No se revisó el resto
