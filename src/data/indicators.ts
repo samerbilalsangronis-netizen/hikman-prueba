@@ -490,6 +490,41 @@ const USD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Variación mensual del índice de precios PCE — la medida de inflación que target-ea la Fed (no el CPI).',
   },
+  // Ingresos y Consumo Personal: mismo comunicado mensual del BEA
+  // ("Personal Income and Outlays") que publica el índice de precios PCE
+  // — a pedido del usuario, subcomponentes de la cifra m/m. A diferencia
+  // de PCEPI (índice de precios), estas son series de nivel nominal
+  // ($ miles de millones, SAAR) — se deriva el m/m del nivel. Verificado
+  // contra junio-2026: Consumo Personal 0.295% calculado vs 0.3% oficial
+  // reportado en prensa (coincide).
+  {
+    id: 'personal_income',
+    label: 'Ingresos Personales (m/m)',
+    shortLabel: 'Ingresos Pers.',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'Bureau of Economic Analysis (FRED: PI)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PI',
+    goodDirection: 'up',
+    description: 'Variación mensual de los ingresos personales nominales. Subcomponente de PCE.',
+    parentId: 'pce',
+  },
+  {
+    id: 'personal_spending',
+    label: 'Consumo Personal (m/m)',
+    shortLabel: 'Consumo Pers.',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'Bureau of Economic Analysis (FRED: PCE)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PCE',
+    goodDirection: 'up',
+    description: 'Variación mensual del gasto en consumo personal nominal. Subcomponente de PCE. Verificado: 0.30% para junio-2026, coincide con lo reportado.',
+    parentId: 'pce',
+  },
   {
     id: 'pce_yoy',
     label: 'PCE Interanual (a/a)',
