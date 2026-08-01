@@ -18,6 +18,6 @@ export const JPY_SCORE_SEED: ScoreRow[] = [
   { id: 'jpy_pmi_serv', label: 'PMI de Servicios', valoracion: 0, weight: 'Máx(2) / Mín(-2)', currency: 'JPY' },
   { id: 'jpy_retail_sales', label: 'Ventas Minoristas', valoracion: 1, weight: 'Máx(2) / Mín(-2)', currency: 'JPY' },
   { id: 'jpy_business_confidence', label: 'Confianza Empresarial', valoracion: 1, weight: 'Máx(1) / Mín(-1)', currency: 'JPY' },
-  { id: 'jpy_consumer_confidence', label: 'Confianza del Consumidor', valoracion: -1, weight: 'Máx(2) / Mín(-2)', currency: 'JPY' },
+  { id: 'jpy_consumer_confidence', label: 'Confianza de los Hogares', valoracion: -1, weight: 'Máx(2) / Mín(-2)', currency: 'JPY' },
   { id: 'jpy_gdp_yoy', label: 'PIB', valoracion: 0, weight: 'Máx(3) / Mín(-3)', currency: 'JPY' },
 ];

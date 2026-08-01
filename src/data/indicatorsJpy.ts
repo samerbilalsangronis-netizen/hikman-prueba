@@ -263,8 +263,8 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'jpy_consumer_confidence',
-    label: 'Confianza del Consumidor',
-    shortLabel: 'Conf. Consumidor',
+    label: 'Confianza de los Hogares',
+    shortLabel: 'Conf. Hogares',
     section: 'confianza',
     format: 'index',
     frequency: 'monthly',
@@ -273,7 +273,8 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     source: 'Gabinete de Japón (Consumer Confidence Survey)',
     sourceUrl: 'https://www.esri.cao.go.jp/jp/stat/shouhi/shouhi.html',
     goodDirection: 'up',
-    description: 'Índice de confianza del consumidor del Gabinete de Japón. Sin URL de descarga estable encontrada — carga manual.',
+    description:
+      'Índice de confianza del consumidor del Gabinete de Japón (encuesta a ~5.000 hogares) — algunos agregadores (ej. Investing.com) la traducen como "Household Confidence" en vez de "Consumer Confidence", mismo dato. Sin URL de descarga estable encontrada — carga manual.',
   },
   // Crecimiento — PMI van acá (actividad, no confianza pura).
   {
