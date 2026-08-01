@@ -169,7 +169,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
       </td>
       {isFred ? (
         <td className="py-2.5 text-xs" style={{ color: 'var(--text-muted)' }} colSpan={2}>
-          Se actualiza automático con el botón de sincronización — no requiere carga manual.
+          Se sincroniza solo cada 30 minutos (GitHub Actions) — no requiere carga manual.
         </td>
       ) : (
         <>
@@ -301,75 +301,9 @@ function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
 }
 
 export function Actualizar() {
-  const { resetOverrides, exportJson, syncMode, refresh } = useMacroData();
+  const { resetOverrides, exportJson, syncMode } = useMacroData();
   const { currency } = useCurrency();
   const sections = ['tasas', 'inflacion', 'empleo', 'confianza', 'crecimiento'] as const;
-  const [fredSyncing, setFredSyncing] = useState(false);
-  const [fredResult, setFredResult] = useState<{ updated: number; errors: string[] } | null>(null);
-
-  const syncEndpoint =
-    currency === 'EUR'
-      ? '/api/eur-sync'
-      : currency === 'GBP'
-        ? '/api/gbp-sync'
-        : currency === 'CAD'
-          ? '/api/cad-sync'
-          : currency === 'AUD'
-            ? '/api/aud-sync'
-            : currency === 'NZD'
-              ? '/api/nzd-sync'
-              : currency === 'JPY'
-                ? '/api/jpy-sync'
-                : currency === 'CHF'
-                  ? '/api/chf-sync'
-                  : currency === 'CNY'
-                    ? '/api/cny-sync'
-                    : '/api/fred-sync';
-  const syncLabel =
-    currency === 'EUR'
-      ? 'Sincronizar con FRED + Eurostat'
-      : currency === 'GBP'
-        ? 'Sincronizar con BoE'
-        : currency === 'CAD'
-          ? 'Sincronizar con StatCan + BoC'
-          : currency === 'AUD'
-            ? 'Sincronizar con ABS + RBA'
-            : currency === 'NZD'
-              ? 'Sincronizar con Stats NZ'
-              : currency === 'JPY'
-                ? 'Sincronizar con e-Stat + BOJ'
-                : currency === 'CHF'
-                  ? 'Sincronizar con SNB + SECO + KOF'
-                  : currency === 'CNY'
-                    ? 'Sincronizar con NBS/GACC (chinadata.live)'
-                    : 'Sincronizar con FRED';
-
-  async function handleFredSync() {
-    setFredSyncing(true);
-    setFredResult(null);
-    try {
-      const res = await fetch(syncEndpoint, { method: 'POST' });
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('no-api');
-      }
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      await refresh();
-      setFredResult({
-        updated: json.updated?.length ?? 0,
-        errors: (json.errors ?? []).map((e: { indicatorId: string; error: string }) => `${e.indicatorId}: ${e.error}`),
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message === 'no-api'
-          ? `No se pudo contactar ${syncEndpoint}. Esta función solo funciona una vez que el sitio está desplegado en Vercel con las variables de entorno configuradas (no funciona en “npm run dev” local).`
-          : (err as Error).message;
-      setFredResult({ updated: 0, errors: [message] });
-    } finally {
-      setFredSyncing(false);
-    }
-  }
 
   function handleExport() {
     const blob = new Blob([exportJson()], { type: 'application/json' });
@@ -401,7 +335,9 @@ export function Actualizar() {
           {syncMode === 'cloud' ? (
             <>
               Agrega el último dato publicado de cada indicador. Se guarda en la base de datos (Supabase) al
-              instante y se sincroniza en todos los dispositivos.
+              instante y se sincroniza en todos los dispositivos. Los indicadores automáticos (insignia con la
+              fuente) ya no requieren tocar nada — un workflow de GitHub Actions los sincroniza solo cada 30
+              minutos.
             </>
           ) : (
             <>
@@ -415,14 +351,6 @@ export function Actualizar() {
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleFredSync}
-            disabled={fredSyncing}
-            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'var(--series-1)' }}
-          >
-            {fredSyncing ? 'Sincronizando…' : `⟳ ${syncLabel}`}
-          </button>
           <button
             onClick={handleExport}
             className="rounded-md px-4 py-2 text-sm font-semibold text-white"
@@ -438,14 +366,6 @@ export function Actualizar() {
             Borrar cambios locales
           </button>
         </div>
-        {fredResult && (
-          <div className="text-xs" style={{ color: fredResult.errors.length > 0 ? 'var(--delta-bad)' : 'var(--delta-good)' }}>
-            {fredResult.updated > 0 && <div>{fredResult.updated} indicadores actualizados.</div>}
-            {fredResult.errors.map((e, i) => (
-              <div key={i}>{e}</div>
-            ))}
-          </div>
-        )}
       </div>
 
       {sections.map((section) => {

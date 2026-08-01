@@ -1,0 +1,21 @@
+name: Sincronizar Titulares
+
+# Reemplaza al botón manual "⟳ Sincronizar (Finnhub)" / "🌐 Traducir
+# pendientes" de Titulares.tsx (removidos a pedido del usuario, 31-jul-2026)
+# — Vercel Hobby (plan gratis de este proyecto) no permite cron jobs más
+# frecuentes que una vez por día, así que la automatización corre acá en
+# vez de en Vercel. Cada 10 minutos: trae titulares nuevos de Finnhub y
+# traduce los que falten.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar titulares (Finnhub)
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/headlines-sync
+      - name: Traducir titulares pendientes
+        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/translate-headlines
