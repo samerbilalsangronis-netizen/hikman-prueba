@@ -102,6 +102,48 @@ async function fetchHicpFpd(mapping: HicpFpdMapping): Promise<Observation[]> {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Subcomponentes del PIB por el lado del gasto — Eurostat namq_10_gdp con
+// unit=CON_PPCH_PRE ("contribution, percentage point change, previous
+// period") YA trae la contribución calculada por Eurostat, dentro del
+// mismo dataset que ya se usaba para los niveles (namq_10_exi solo tenía
+// niveles, no contribución — CON_PPCH_PRE vive en namq_10_gdp). Igual que
+// HICP: se guarda con la fecha del PERÍODO, así que quedar desactualizado
+// respecto al headline (que sí se sincroniza rápido vía FRED) se corrige
+// solo apenas Eurostat publique el detalle trimestral (~5-7 semanas
+// después del flash, la "estimación regular"). Verificado 1-ago-2026:
+// Q1-2026 Consumo +0.12pp + Gobierno +0.13pp + Inversión -0.07pp +
+// Exp.Netas (P6+P7) -0.30pp ≈ -0.2% (coincide con el PIB real).
+const NAMQ_GDP_BASE = 'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/namq_10_gdp';
+
+const QUARTER_TO_MONTH: Record<string, string> = { Q1: '01', Q2: '04', Q3: '07', Q4: '10' };
+
+async function fetchNamqContribution(naItem: string): Promise<Observation[]> {
+  const url = `${NAMQ_GDP_BASE}/Q.CON_PPCH_PRE.SCA.${naItem}.EA20?format=JSON`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) throw new Error(`Eurostat namq_10_gdp ${naItem}: HTTP ${res.status}`);
+  const json = (await res.json()) as JsonStatDataset;
+  const timeIndex = json.dimension.time.category.index;
+  const timeByPos = new Map(Object.entries(timeIndex).map(([k, v]) => [v, k]));
+  const out: Observation[] = [];
+  for (const [key, value] of Object.entries(json.value)) {
+    const period = timeByPos.get(Number(key)); // "2026-Q1"
+    if (period === undefined) continue;
+    const [year, quarter] = period.split('-');
+    out.push({ date: `${year}-${QUARTER_TO_MONTH[quarter]}-01`, value: value / 100 });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function sumSeries(a: Observation[], b: Observation[]): Observation[] {
+  const byDate = new Map(b.map((o) => [o.date, o.value]));
+  const out: Observation[] = [];
+  for (const oa of a) {
+    const ob = byDate.get(oa.date);
+    if (ob !== undefined) out.push({ date: oa.date, value: oa.value + ob });
+  }
+  return out;
+}
+
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 const FETCH_LIMIT = 60;
 const BACKFILL_LIMIT = 36;
@@ -243,6 +285,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       errors.push({ indicatorId: mapping.indicatorId, error: (err as Error).message });
     }
+  }
+
+  const NAMQ_MAPPINGS: { indicatorId: string; naItem: string }[] = [
+    { indicatorId: 'eur_gdp_consumption', naItem: 'P31_S14_S15' },
+    { indicatorId: 'eur_gdp_government', naItem: 'P3_S13' },
+    { indicatorId: 'eur_gdp_investment', naItem: 'P51G' },
+  ];
+  for (const mapping of NAMQ_MAPPINGS) {
+    try {
+      const series = (await fetchNamqContribution(mapping.naItem)).slice(-BACKFILL_LIMIT);
+      if (series.length === 0) continue;
+      const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: mapping.indicatorId, date: latest.date, value: latest.value, points: series.length });
+    } catch (err) {
+      errors.push({ indicatorId: mapping.indicatorId, error: (err as Error).message });
+    }
+  }
+  // Exportaciones Netas = contribución de exportaciones (P6) + contribución
+  // de importaciones (P7) — P7 ya viene con el signo correcto (negativo
+  // cuando las importaciones suben), no hay que restar.
+  try {
+    const [xgs, mgs] = await Promise.all([fetchNamqContribution('P6'), fetchNamqContribution('P7')]);
+    const series = sumSeries(xgs, mgs).slice(-BACKFILL_LIMIT);
+    if (series.length > 0) {
+      const rows = series.map((p) => ({ indicator_id: 'eur_gdp_net_exports', date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: 'eur_gdp_net_exports', date: latest.date, value: latest.value, points: series.length });
+    }
+  } catch (err) {
+    errors.push({ indicatorId: 'eur_gdp_net_exports', error: (err as Error).message });
   }
 
   try {

@@ -12,6 +12,7 @@ import {
   EUR_FRED_MAPPINGS,
   EUR_EUROSTAT_INDICATOR_ID,
   EUR_HICP_FPD_INDICATOR_IDS,
+  EUR_NAMQ_GDP_INDICATOR_IDS,
   GBP_BOE_INDICATOR_ID,
   GBP_TRADE_BALANCE_INDICATOR_ID,
   CAD_AUTO_INDICATOR_IDS,
@@ -28,8 +29,9 @@ const EUR_AUTO_COVERED = new Set([
   ...EUR_FRED_MAPPINGS.map((m) => m.indicatorId),
   EUR_EUROSTAT_INDICATOR_ID,
   ...EUR_HICP_FPD_INDICATOR_IDS,
+  ...EUR_NAMQ_GDP_INDICATOR_IDS,
 ]);
-const EUR_HICP_FPD_COVERED = new Set(EUR_HICP_FPD_INDICATOR_IDS);
+const EUR_HICP_FPD_COVERED = new Set([...EUR_HICP_FPD_INDICATOR_IDS, ...EUR_NAMQ_GDP_INDICATOR_IDS]);
 const GBP_AUTO_COVERED = new Set([GBP_BOE_INDICATOR_ID, GBP_TRADE_BALANCE_INDICATOR_ID]);
 const CAD_AUTO_COVERED = new Set(CAD_AUTO_INDICATOR_IDS);
 const AUD_AUTO_COVERED = new Set(AUD_AUTO_INDICATOR_IDS);
@@ -101,7 +103,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
               style={{ color: 'var(--series-1)', border: '1px solid var(--border)' }}
               title={
                 EUR_HICP_FPD_COVERED.has(id)
-                  ? 'Se sincroniza automáticamente desde Eurostat (prc_hicp_fpd) — muestra el dato flash apenas sale y lo reemplaza por el final en la misma fecha cuando Eurostat lo publica, sin intervención manual'
+                  ? 'Se sincroniza automáticamente desde Eurostat'
                   : id === EUR_EUROSTAT_INDICATOR_ID
                     ? 'Se sincroniza automáticamente desde Eurostat'
                     : id === GBP_BOE_INDICATOR_ID

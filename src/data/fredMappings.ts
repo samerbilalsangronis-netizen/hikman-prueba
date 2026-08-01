@@ -127,6 +127,13 @@ export const EUR_HICP_FPD_INDICATOR_IDS = [
   'eur_fr_hicp_yoy',
 ];
 
+// Subcomponentes del PIB por el lado del gasto (Consumo/Gasto Público/
+// Inversión/Exportaciones Netas) — Eurostat namq_10_gdp, unit=CON_PPCH_PRE
+// ("contribution, percentage point change, previous period"), YA calculada
+// por Eurostat. Mismo dataset que ya se usaba para el nivel del PIB
+// (eur_gdp_qoq/yoy arriba), solo con otro unit/na_item — ver api/eur-sync.ts.
+export const EUR_NAMQ_GDP_INDICATOR_IDS = ['eur_gdp_consumption', 'eur_gdp_government', 'eur_gdp_investment', 'eur_gdp_net_exports'];
+
 // GBP — a diferencia de USD/EUR, casi todo queda manual (ver indicatorsGbp.ts:
 // la API de ONS está congelada/desactualizada). La Bank Rate se sincroniza
 // vía el IADB del BoE (no FRED); la Balanza Comercial sí está disponible en
