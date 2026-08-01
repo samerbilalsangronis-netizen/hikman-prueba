@@ -197,6 +197,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description:
       'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes). Verificado: 1.71% calculado para junio-2026, coincide con lo reportado (1.70%).',
+    releaseStage: 'preliminar',
   },
   {
     id: 'jpy_tokyo_core_cpi_yoy',
@@ -212,6 +213,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description:
       'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía"). Verificado contra junio-2026: 1.72% calculado vs 1.6% oficial — ~0.1pp de margen de imprecisión por ser derivado del índice del Dashboard en vez de la tasa oficial ya calculada (mismo tipo de margen que cny_cpi_yoy, documentado y esperado, no un bug si no coincide exacto con otra fuente).',
+    releaseStage: 'preliminar',
   },
   // Empleo
   {
@@ -287,6 +289,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI manufacturero de Japón. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+    releaseStage: 'final',
   },
   // Subcomponentes del PMI (a pedido del usuario, mismo patrón en todas las
   // divisas): precios, producción, nuevas órdenes, empleo.
@@ -363,6 +366,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI de servicios de Japón. Sin API pública — carga manual.',
+    releaseStage: 'final',
   },
   {
     id: 'jpy_pmi_serv_new_orders',
@@ -467,6 +471,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'Crecimiento del PIB real, variación trimestral SIN anualizar (Japón también publica una versión anualizada — no se usa acá para mantener la misma convención que el resto de las divisas no-USD). Verificado: +0.5% para el primer trimestre de 2026, coincide exacto con el dato oficial revisado.',
+    releaseStage: 'final',
   },
   {
     id: 'jpy_gdp_deflator',
@@ -527,6 +532,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'PIB real respecto al mismo trimestre del año anterior — la cifra de "PIB" usada en el score. Se deriva del nivel (Japón no publica esta tasa como serie directa). Verificado: +0.32% calculado para el primer trimestre de 2026.',
+    releaseStage: 'final',
   },
   {
     id: 'jpy_trade_balance',

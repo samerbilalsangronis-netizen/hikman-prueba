@@ -17,6 +17,26 @@ import { formatDate, formatMonth, formatValue } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from './FreshnessBadge';
 
+function ReleaseStageBadge({ stage }: { stage: NonNullable<IndicatorMeta['releaseStage']> }) {
+  const cfg =
+    stage === 'preliminar'
+      ? { label: 'Preliminar', color: 'var(--status-warning)' }
+      : { label: 'Final', color: 'var(--text-muted)' };
+  return (
+    <span
+      className="inline-flex items-center rounded px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide"
+      style={{ color: cfg.color, border: `1px solid ${cfg.color}` }}
+      title={
+        stage === 'preliminar'
+          ? 'Lectura preliminar/adelantada — la fuente publica una revisión posterior de este mismo dato.'
+          : 'Lectura final/revisada — la fuente publicó antes una versión preliminar de este mismo dato.'
+      }
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
 function ChartTooltip({
   active,
   payload,
@@ -88,8 +108,9 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
           className="-m-1 flex w-full items-start justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-[var(--surface-2)]"
         >
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
+              {meta.releaseStage && <ReleaseStageBadge stage={meta.releaseStage} />}
             </h3>
             {!compact && (
               <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -110,8 +131,9 @@ function ChartCardInner({ meta, points, months = 36, forecast, subcomponentsCont
       ) : (
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
+              {meta.releaseStage && <ReleaseStageBadge stage={meta.releaseStage} />}
             </h3>
             {!compact && (
               <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>

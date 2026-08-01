@@ -132,6 +132,22 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
                               : 'FRED'}
             </span>
           )}
+          {meta.releaseStage && (
+            <span
+              className="rounded px-1 py-0.5 text-[10px] font-semibold uppercase"
+              style={{
+                color: meta.releaseStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)',
+                border: `1px solid ${meta.releaseStage === 'preliminar' ? 'var(--status-warning)' : 'var(--text-muted)'}`,
+              }}
+              title={
+                meta.releaseStage === 'preliminar'
+                  ? 'Lectura preliminar/adelantada — la fuente publica una revisión posterior de este mismo dato.'
+                  : 'Lectura final/revisada — la fuente publicó antes una versión preliminar de este mismo dato.'
+              }
+            >
+              {meta.releaseStage === 'preliminar' ? 'Preliminar' : 'Final'}
+            </span>
+          )}
         </div>
         <div className="mt-0.5">
           <FreshnessBadge freshness={freshness} />

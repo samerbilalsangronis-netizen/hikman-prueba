@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // necesita su propia copia autocontenida. Si cambias el mapeo, actualiza
 // también src/data/fredMappings.ts (se usa ahí solo para mostrar la
 // insignia "FRED" en la UI).
-type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'pct_change_yoy' | 'diff_x1000';
+type FredTransform = 'level_pct' | 'level' | 'level_div1000' | 'pct_change' | 'pct_change_yoy' | 'pct_change_quarter' | 'diff_x1000';
 
 interface FredMapping {
   indicatorId: string;
@@ -50,6 +50,15 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
+  { indicatorId: 'wage_pct_yoy', seriesId: 'CES0500000003', transform: 'pct_change_yoy' },
+  // ECI: t/t usa la serie ajustada estacionalmente (SA, ECIALLCIV, la que
+  // destaca el propio comunicado del BLS para la variación trimestral); a/a
+  // usa la serie sin ajustar (NSA, CIU1010000000000I) — misma convención
+  // SA/NSA que CPI/PPI. Verificado contra el comunicado del BLS de Q2-2026
+  // (31-jul-2026): 0.9% t/t y 3.4% a/a para compensación total, trabajadores
+  // civiles — ambos coinciden (a/a con ~0.02pp de margen de redondeo).
+  { indicatorId: 'eci_qoq', seriesId: 'ECIALLCIV', transform: 'pct_change_quarter' },
+  { indicatorId: 'eci_yoy', seriesId: 'CIU1010000000000I', transform: 'pct_change_yoy' },
   { indicatorId: 'jolts', seriesId: 'JTSJOL', transform: 'level_div1000' },
   { indicatorId: 'initial_claims', seriesId: 'ICSA', transform: 'level' },
   { indicatorId: 'continuing_claims', seriesId: 'CCSA', transform: 'level' },
@@ -138,6 +147,8 @@ function computeSeries(transform: FredTransform, obs: Observation[]): Observatio
       return obs.map((o) => ({ date: o.date, value: o.value / 1000 }));
     case 'pct_change':
       return pctChangeByMonth(obs, 1);
+    case 'pct_change_quarter':
+      return pctChangeByMonth(obs, 3);
     case 'pct_change_yoy':
       return pctChangeByMonth(obs, 12);
     case 'diff_x1000': {

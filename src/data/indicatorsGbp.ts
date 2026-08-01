@@ -175,6 +175,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI manufacturero preliminar del Reino Unido. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+    releaseStage: 'preliminar',
   },
   // Subcomponentes del PMI Flash (a pedido del usuario, mismo patrón en
   // todas las divisas): precios, producción, nuevas órdenes, empleo.
@@ -192,6 +193,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash. Carga manual.',
     parentId: 'gbp_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_manuf_flash_production',
@@ -207,6 +209,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash. Carga manual.',
     parentId: 'gbp_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_manuf_flash_employment',
@@ -222,6 +225,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash. Carga manual.',
     parentId: 'gbp_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_manuf_flash_prices',
@@ -237,6 +241,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Subcomponente del PMI Manufactura Flash. Presión de precios en insumos. Carga manual.',
     parentId: 'gbp_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_serv_flash',
@@ -251,6 +256,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI de servicios preliminar del Reino Unido. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_serv_flash_new_orders',
@@ -266,6 +272,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash. Carga manual.',
     parentId: 'gbp_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_serv_flash_business_activity',
@@ -281,6 +288,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash. Carga manual.',
     parentId: 'gbp_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_serv_flash_employment',
@@ -296,6 +304,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash. Carga manual.',
     parentId: 'gbp_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_pmi_serv_flash_prices',
@@ -311,6 +320,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Subcomponente del PMI Servicios Flash. Presión de precios en insumos. Carga manual.',
     parentId: 'gbp_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'gbp_retail_sales',

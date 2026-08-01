@@ -30,6 +30,16 @@ export interface IndicatorMeta {
    * en vez de en las secciones agregadas (Inflación/Crecimiento/etc. de esa
    * divisa quedan solo con datos a nivel Eurozona). */
   country?: 'DE' | 'FR';
+  /** Si la fuente publica este indicador en más de una vuelta (ej. PMI
+   * Flash vs. PMI Final, HICP flash estimate vs. la cifra detallada/final
+   * de Eurostat), marca cuál de las dos está trackeando este id — se
+   * muestra como insignia en la tarjeta. Ausente = la fuente solo publica
+   * una vez (no aplica la distinción), o no se pudo determinar con
+   * confianza cuál vuelta es — NO usar para revisiones graduales del mismo
+   * dato (ej. PIB que se revisa en el mismo id con el correr de los meses,
+   * como EE.UU./JPY) — ahí el "preliminar/final" cambia con cada punto de
+   * la serie, no es una propiedad fija del indicador. */
+  releaseStage?: 'preliminar' | 'final';
 }
 
 export interface ScoreRow {

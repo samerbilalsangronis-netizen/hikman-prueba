@@ -73,6 +73,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/CP0000EZ19M086NEST',
     goodDirection: 'neutral',
     description: 'Variación mensual del HICP (Índice Armonizado de Precios al Consumidor) de la Eurozona — el "CPI" oficial de la zona euro.',
+    releaseStage: 'final',
   },
   {
     id: 'eur_cpi_yoy',
@@ -88,6 +89,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description:
       'Variación del HICP respecto al mismo mes del año anterior — la cifra "titular" de inflación del BCE. Carga manual: derivarla del índice de FRED (redondeado a 2 decimales) desvía ~0.1pp del dato final oficial al componerse sobre 12 meses, y el dataset de Eurostat con la tasa ya calculada está discontinuado desde feb-2026.',
+    releaseStage: 'final',
   },
   {
     id: 'eur_core_cpi',
@@ -102,6 +104,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/TOTNRGFOODEA20MI15XM',
     goodDirection: 'neutral',
     description: 'HICP subyacente, excluye energía, alimentos, alcohol y tabaco.',
+    releaseStage: 'final',
   },
   {
     id: 'eur_core_cpi_yoy',
@@ -116,6 +119,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_manr/default/table',
     goodDirection: 'neutral',
     description: 'HICP subyacente respecto al mismo mes del año anterior. Carga manual (ver CPI Interanual).',
+    releaseStage: 'final',
   },
   // Empleo
   {
@@ -177,6 +181,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI manufacturero preliminar de la Eurozona. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+    releaseStage: 'preliminar',
   },
   // Subcomponentes del PMI (a pedido del usuario, mismo patrón en todas
   // las divisas): precios, producción, nuevas órdenes, empleo.
@@ -194,6 +199,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_manuf_flash_production',
@@ -209,6 +215,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_manuf_flash_employment',
@@ -224,6 +231,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Manufactura Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_manuf_flash_prices',
@@ -239,6 +247,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Subcomponente del PMI Manufactura Flash de la Eurozona. Presión de precios en insumos. Carga manual.',
     parentId: 'eur_pmi_manuf_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_serv_flash',
@@ -253,6 +262,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI de servicios preliminar de la Eurozona. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_serv_flash_new_orders',
@@ -268,6 +278,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_serv_flash_business_activity',
@@ -283,6 +294,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_serv_flash_employment',
@@ -298,6 +310,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Subcomponente del PMI Servicios Flash de la Eurozona. Carga manual.',
     parentId: 'eur_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_pmi_serv_flash_prices',
@@ -313,6 +326,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Subcomponente del PMI Servicios Flash de la Eurozona. Presión de precios en insumos. Carga manual.',
     parentId: 'eur_pmi_serv_flash',
+    releaseStage: 'preliminar',
   },
   {
     id: 'eur_consumer_confidence',
@@ -542,6 +556,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     country: 'DE',
     description:
       'HICP alemán (metodología armonizada UE) interanual — comparable directo con el HICP de otros países de la Eurozona. El m/m ya se automatizó (ver eur_de_hicp_mom) pero el a/a queda manual: derivarlo del índice de FRED dio 2.35% vs el 2.4% oficial de junio-2026 (Destatis) — el mismo ~0.1pp de sesgo por el que eur_cpi_yoy tampoco se automatiza a nivel Eurozona, ver fredMappings.ts.',
+    releaseStage: 'final',
   },
   {
     id: 'eur_de_hicp_mom',
@@ -558,6 +573,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     country: 'DE',
     description:
       'HICP alemán mensual, derivado del índice de nivel — mismo patrón que eur_cpi (m/m automático, a/a queda manual por el sesgo de ~0.1pp al derivar la tasa interanual, ver eur_de_hicp_yoy).',
+    releaseStage: 'final',
   },
   {
     id: 'eur_de_retail_sales',
@@ -809,6 +825,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     country: 'FR',
     description:
       'HICP francés (metodología armonizada UE) interanual. El m/m ya se automatizó (ver eur_fr_hicp_mom) pero el a/a queda manual: derivarlo del índice de FRED dio 2.02% vs el 2.0% oficial de junio-2026 (INSEE) — muy ajustado, pero mismo criterio de precaución que eur_cpi_yoy/eur_de_hicp_yoy, ver fredMappings.ts.',
+    releaseStage: 'final',
   },
   {
     id: 'eur_fr_hicp_mom',
@@ -824,6 +841,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     country: 'FR',
     description: 'HICP francés mensual, derivado del índice de nivel — mismo patrón que eur_cpi (m/m automático, a/a manual).',
+    releaseStage: 'final',
   },
   {
     id: 'eur_fr_pmi_manuf',
