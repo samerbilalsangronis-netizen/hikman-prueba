@@ -273,7 +273,10 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI manufacturero de Australia. >50 = expansión, <50 = contracción. Sin API pública — carga manual.',
-    releaseStage: 'final',
+    // Valor por defecto — el mes en curso suele ser el flash hasta que se
+    // reemplaza por la final ~1 semana después (el selector Preliminar/
+    // Final en Actualizar.tsx pisa esto por punto).
+    releaseStage: 'preliminar',
   },
   // Subcomponentes del PMI (a pedido del usuario, mismo patrón en todas las
   // divisas): precios, producción, nuevas órdenes, empleo.
@@ -350,7 +353,7 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI de servicios de Australia. Sin API pública — carga manual.',
-    releaseStage: 'final',
+    releaseStage: 'preliminar',
   },
   {
     id: 'aud_pmi_serv_new_orders',

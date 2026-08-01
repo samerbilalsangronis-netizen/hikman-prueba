@@ -194,7 +194,10 @@ const USD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI manufacturero de S&P Global (ex-Markit). Distinto del ISM: otra muestra y metodología — no tienen por qué coincidir.',
-    releaseStage: 'final',
+    // Valor por defecto — el último punto cargado (mes en curso) suele ser
+    // el flash hasta que se reemplaza por la final ~1 semana después. Ver
+    // Actualizar.tsx: el selector Preliminar/Final por punto pisa esto.
+    releaseStage: 'preliminar',
   },
   {
     id: 'sp_pmi_serv',
@@ -208,7 +211,7 @@ const USD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
     goodDirection: 'up',
     description: 'PMI de servicios de S&P Global (ex-Markit).',
-    releaseStage: 'final',
+    releaseStage: 'preliminar',
   },
   // Subcomponentes del PMI Servicios (a pedido del usuario, mismo patrón
   // que ISM y el resto de las divisas): nuevas órdenes, actividad de

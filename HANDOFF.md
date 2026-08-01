@@ -3083,5 +3083,62 @@ y la tarjeta cambia sola.
 
 ### PMI headline — backfill Ene-Jul 2026 por divisa
 
-*(completar después de que vuelvan los resultados del agente de
-investigación en background — pendiente al cierre de esta sesión)*
+Pedido explícito: ya que los subcomponentes de PMI no tienen fuente
+gratis (ver investigación en la sección anterior), conseguir al menos el
+dato general (headline) de todas las economías, aclarando que USD trackea
+DOS reportes de PMI separados: ISM (`ism_manuf`/`ism_serv`, ya estaba
+completo Ene-Jul 2026, no hacía falta nada) y S&P Global
+(`sp_pmi_manuf`/`sp_pmi_serv`, estaba vacío).
+
+**Series que estaban completamente vacías y se cargaron de cero** (Ene-Jun
+2026 = dato final/revisado, verificado contra al menos 2 fuentes
+independientes cruzando prensa especializada — Reuters/FXStreet/
+investingLive/TradingEconomics — contra el comunicado de S&P Global; julio
+2026 = SOLO el flash, porque a la fecha de corte 1-ago-2026 el final
+todavía no se había publicado en ninguna de las 6 economías con reporte
+de dos vueltas):
+
+- `sp_pmi_manuf`/`sp_pmi_serv` (S&P Global US, distinto de ISM)
+- `jpy_pmi_manuf`/`jpy_pmi_serv` (au Jibun Bank Japan)
+- `aud_pmi_manuf`/`aud_pmi_serv` (Judo Bank Australia)
+- `cad_pmi_manuf`/`cad_pmi_serv` (S&P Global Canada — Ene-Jun únicamente,
+  julio no encontrado en ninguna fuente a la fecha de corte; Canadá NO
+  tiene reporte flash, solo una publicación mensual, así que no hay nada
+  "preliminar" pendiente acá, simplemente el dato de julio todavía no
+  salió)
+- `nzd_pmi_manuf`/`nzd_pmi_serv` (BusinessNZ PMI/PSI, metodología propia
+  distinta de S&P Global — igual que Canadá, publicación única sin flash)
+- `chf_pmi_manuf` (procure.ch, publicación única sin flash; **Suiza
+  también tiene un reporte de Servicios de procure.ch pero no se cargó
+  todavía** — se confirmó que existe, falta la investigación mes a mes)
+
+**releaseStage cambiado de `'final'` a `'preliminar'` (default estático)**
+para `sp_pmi_manuf`/`serv`, `jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`
+— porque el último punto cargado (julio) es genuinamente el flash, y con
+el cambio de la sección anterior este default estático es justamente lo
+que se usa hasta que alguien cargue el final de julio con el selector
+nuevo en Actualizar Datos (ese sí va a marcar el punto como 'final' y va
+a pisar este default). `cad_pmi_*`/`nzd_pmi_*`/`chf_pmi_manuf` NO tienen
+`releaseStage` — a propósito, esas tres economías no tienen reporte flash
+(una sola publicación mensual), no es que falte taggearlas.
+
+**Datos NO cargados por no estar verificados con confianza suficiente**
+(el agente de investigación los encontró pero marcó como sospechosos —
+se prefirió dejar el hueco en la serie antes que cargar un número que
+podía estar mal):
+- `nzd_pmi_manuf` mayo-2026: dos fuentes se contradicen fuerte (49.9 vs.
+  "up sharply from 51.3 in May" citado en el release de junio) — no se
+  pudo reconciliar. La serie salta de abril a junio.
+- `nzd_pmi_serv` julio-2026: un resultado de búsqueda daba "48.9, sexta
+  contracción consecutiva", matemáticamente imposible si junio (50.6) fue
+  expansión — probablemente contenido de otro período mal indexado por el
+  buscador. No cargado.
+
+**Pendiente para la próxima sesión**: cargar el FINAL de julio (vía el
+selector Preliminar/Final de Actualizar Datos, misma fecha `2026-07-01`)
+para `sp_pmi_manuf`/`serv`, `jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`
+apenas salga (normalmente 1-5 días después del flash); cargar julio de
+`cad_pmi_manuf`/`serv`, `nzd_pmi_manuf`/`serv`, `chf_pmi_manuf` apenas
+publiquen (primeros días hábiles de agosto); investigar y cargar
+`chf_pmi_serv` (procure.ch Services) desde cero, igual que se hizo acá
+con el resto.
