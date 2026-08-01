@@ -470,6 +470,65 @@ const USD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'CPI subyacente respecto al mismo mes del año anterior.',
   },
+  // PCE — el índice de inflación que realmente sigue la Fed para su
+  // objetivo del 2% (no el CPI). FRED tiene una sola serie por medida
+  // (ya ajustada por estacionalidad), a diferencia del CPI que usa una
+  // serie SA para m/m y otra NSA para a/a — acá se deriva m/m y a/a del
+  // mismo índice. Verificado contra junio-2026: headline a/a 3.67%
+  // calculado vs 3.7% oficial, core m/m 0.13% vs 0.1%, core a/a 3.29% vs
+  // 3.3% — coincide en las 3 (BEA, vía prensa).
+  {
+    id: 'pce',
+    label: 'PCE (Gasto en Consumo Personal, m/m)',
+    shortLabel: 'PCE',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'Bureau of Economic Analysis (FRED: PCEPI)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PCEPI',
+    goodDirection: 'neutral',
+    description: 'Variación mensual del índice de precios PCE — la medida de inflación que target-ea la Fed (no el CPI).',
+  },
+  {
+    id: 'pce_yoy',
+    label: 'PCE Interanual (a/a)',
+    shortLabel: 'PCE a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    source: 'Bureau of Economic Analysis (FRED: PCEPI)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PCEPI',
+    goodDirection: 'neutral',
+    description: 'PCE respecto al mismo mes del año anterior.',
+  },
+  {
+    id: 'core_pce',
+    label: 'Core PCE (m/m)',
+    shortLabel: 'Core PCE',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'Bureau of Economic Analysis (FRED: PCEPILFE)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PCEPILFE',
+    goodDirection: 'neutral',
+    description: 'PCE subyacente (excluye alimentos y energía) — la medida de inflación subyacente favorita de la Fed.',
+  },
+  {
+    id: 'core_pce_yoy',
+    label: 'Core PCE Interanual (a/a)',
+    shortLabel: 'Core PCE a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    source: 'Bureau of Economic Analysis (FRED: PCEPILFE)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/PCEPILFE',
+    goodDirection: 'neutral',
+    description: 'Core PCE respecto al mismo mes del año anterior.',
+  },
   {
     id: 'ppi',
     label: 'PPI (Precios al Productor, m/m)',
