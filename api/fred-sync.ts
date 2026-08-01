@@ -71,6 +71,12 @@ const FRED_MAPPINGS: FredMapping[] = [
   // daba 5.25%/1.63%, con SA da 6.88%/1.67%, que es lo que coincide con la
   // fuente oficial. Cada agencia tiene su propia convención, no es universal.
   { indicatorId: 'gdp_deflator', seriesId: 'A191RI1Q225SBEA', transform: 'level_pct' },
+  // Contribución al % de cambio del PIB real (NIPA tabla 1.1.2, BEA) — ya
+  // viene en puntos porcentuales, no hace falta derivar de un índice.
+  { indicatorId: 'gdp_consumption', seriesId: 'DPCERY2Q224SBEA', transform: 'level_pct' },
+  { indicatorId: 'gdp_investment', seriesId: 'A006RY2Q224SBEA', transform: 'level_pct' },
+  { indicatorId: 'gdp_government', seriesId: 'A822RY2Q224SBEA', transform: 'level_pct' },
+  { indicatorId: 'gdp_net_exports', seriesId: 'A019RY2Q224SBEA', transform: 'level_pct' },
   { indicatorId: 'retail_sales', seriesId: 'RSAFS', transform: 'pct_change' },
   { indicatorId: 'retail_sales_yoy', seriesId: 'RSAFS', transform: 'pct_change_yoy' },
   { indicatorId: 'core_retail_sales', seriesId: 'RSFSXMV', transform: 'pct_change' },

@@ -401,6 +401,32 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Canadá, como el Reino Unido, publica una estimación de PIB mensual (no solo trimestral).',
   },
+  // Advance estimate: el mismo día que StatCan confirma el PIB del mes M-2
+  // (arriba, cad_gdp_mom, desde la tabla estructurada 36-10-0434-01),
+  // "The Daily" incluye en el TEXTO del comunicado una "Advance information"
+  // con la estimación preliminar del mes M-1 — no está en la tabla WDS, solo
+  // en la prosa del release, así que no se puede automatizar con el mismo
+  // mecanismo (no hay endpoint estructurado para esto). Verificado en el
+  // comunicado del 31-jul-2026: "Advance information indicates that real
+  // GDP increased 0.2% in June... this estimate will be updated on August
+  // 28, 2026" — se actualiza a mano cada mes hasta encontrar una fuente
+  // estructurada mejor.
+  {
+    id: 'cad_gdp_mom_advance',
+    label: 'PIB Mensual — Estimación Preliminar',
+    shortLabel: 'PIB m/m (Avance)',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CAD',
+    source: 'Statistics Canada ("Advance information", The Daily)',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260731/dq260731a-eng.htm',
+    goodDirection: 'up',
+    description:
+      'Estimación de avance del PIB mensual del mes más reciente, publicada en el texto del comunicado de StatCan el mismo día que se confirma el PIB del mes anterior (cad_gdp_mom) — no está en la tabla estructurada, solo en la prosa del release. Se confirma/revisa ~4 semanas después. Carga manual.',
+    releaseStage: 'preliminar',
+  },
   {
     id: 'cad_gdp_deflator',
     label: 'Deflactor del PIB',
@@ -417,9 +443,9 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     parentId: 'cad_gdp_mom',
   },
   {
-    id: 'cad_gdp_domestic_demand',
-    label: 'PIB — Demanda Interna',
-    shortLabel: 'Demanda Interna',
+    id: 'cad_gdp_consumption',
+    label: 'PIB — Consumo',
+    shortLabel: 'Consumo',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'monthly',
@@ -428,13 +454,13 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
-    description: 'Contribución de la demanda interna al crecimiento del PIB de Canadá. Carga manual.',
+    description: 'Contribución del consumo privado al crecimiento del PIB de Canadá. Carga manual.',
     parentId: 'cad_gdp_mom',
   },
   {
-    id: 'cad_gdp_external_demand',
-    label: 'PIB — Demanda Externa',
-    shortLabel: 'Demanda Externa',
+    id: 'cad_gdp_investment',
+    label: 'PIB — Inversión',
+    shortLabel: 'Inversión',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'monthly',
@@ -443,7 +469,37 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
-    description: 'Contribución del comercio neto al crecimiento del PIB de Canadá. Carga manual.',
+    description: 'Contribución de la inversión (formación bruta de capital) al crecimiento del PIB de Canadá. Carga manual.',
+    parentId: 'cad_gdp_mom',
+  },
+  {
+    id: 'cad_gdp_government',
+    label: 'PIB — Gasto Público',
+    shortLabel: 'Gasto Público',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CAD',
+    source: 'Statistics Canada',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
+    goodDirection: 'up',
+    description: 'Contribución del gasto público al crecimiento del PIB de Canadá. Carga manual.',
+    parentId: 'cad_gdp_mom',
+  },
+  {
+    id: 'cad_gdp_net_exports',
+    label: 'PIB — Exportaciones Netas',
+    shortLabel: 'Export. Netas',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CAD',
+    source: 'Statistics Canada',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
+    goodDirection: 'up',
+    description: 'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de Canadá. Carga manual.',
     parentId: 'cad_gdp_mom',
   },
   {
