@@ -45,6 +45,8 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'pce_yoy', seriesId: 'PCEPI', transform: 'pct_change_yoy' },
   { indicatorId: 'core_pce', seriesId: 'PCEPILFE', transform: 'pct_change' },
   { indicatorId: 'core_pce_yoy', seriesId: 'PCEPILFE', transform: 'pct_change_yoy' },
+  { indicatorId: 'personal_income', seriesId: 'PI', transform: 'pct_change' },
+  { indicatorId: 'personal_spending', seriesId: 'PCE', transform: 'pct_change' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },

@@ -1,18 +1,8 @@
-import { useState } from 'react';
-import { indicatorsBySection } from '../data/indicators';
-import { useMacroData } from '../data/MacroDataContext';
 import { useCurrency } from '../data/CurrencyContext';
-import { ChartCard } from '../components/ChartCard';
-import { SubcomponentModal } from '../components/SubcomponentModal';
-import { groupByParent } from '../lib/indicatorGroups';
+import { SectionGrid } from '../components/SectionGrid';
 
 export function Crecimiento() {
-  const { getSeries, forecasts } = useMacroData();
   const { currency } = useCurrency();
-  const [openParentId, setOpenParentId] = useState<string | null>(null);
-
-  const groups = groupByParent(indicatorsBySection('crecimiento', currency));
-  const openGroup = groups.find((g) => g.parent.id === openParentId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,29 +30,7 @@ export function Crecimiento() {
                           : 'PIB, PMI (ISM y S&P Global), ventas minoristas, producción industrial, balanza comercial y encuestas regionales — el pulso de la actividad económica real, más allá de precios y empleo.'}
         </p>
       </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {groups.map(({ parent, children }) => (
-          <ChartCard
-            key={parent.id}
-            meta={parent}
-            points={getSeries(parent.id)}
-            months={36}
-            forecast={forecasts[parent.id]}
-            subcomponentsControl={children.length > 0 ? { onOpen: () => setOpenParentId(parent.id), childCount: children.length } : undefined}
-          />
-        ))}
-      </div>
-
-      {openGroup && (
-        <SubcomponentModal
-          parent={openGroup.parent}
-          children={openGroup.children}
-          getSeries={getSeries}
-          forecasts={forecasts}
-          onClose={() => setOpenParentId(null)}
-        />
-      )}
+      <SectionGrid section="crecimiento" months={36} />
     </div>
   );
 }
