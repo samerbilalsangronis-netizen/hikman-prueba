@@ -269,6 +269,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     }
 
     const client = supabase;
+    // Sin try/finally acá, un error de red (sin conexión, firewall/extensión
+    // bloqueando supabase.co) tira el Promise.all y corta la función antes
+    // de llegar al setLoading(false) de más abajo — el usuario se queda
+    // viendo "Cargando…" para siempre en vez de degradar con lo que haya.
+    try {
     const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value, stage').range(from, to),
@@ -483,7 +488,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    setLoading(false);
+    } catch (error) {
+      console.error('Error al sincronizar con Supabase:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

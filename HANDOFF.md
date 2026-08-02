@@ -3198,6 +3198,27 @@ reabrir la discusión)**:
   reciente (BusinessNZ revisa el ajuste estacional mes a mes, es
   comportamiento normal, no un error).
 
+### Bug: "Cargando…" se podía quedar trabado para siempre
+
+El usuario preguntó por qué a veces la app le aparece "Sincronizado
+(Supabase)" y en otro dispositivo/usuario aparece "Cargando…". Causa:
+`syncMode` (`Layout.tsx`) depende de `supabaseEnabled`, que se fija en
+build time según `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` — es igual
+para TODOS los que visitan el mismo deploy, no puede diferir por
+usuario. Lo que sí varía por usuario es la RED: `MacroDataContext.tsx`
+hacía el `Promise.all(...)` con todas las consultas a Supabase SIN
+try/catch — si una sola falla por error de red (sin conexión, firewall
+corporativo/escolar bloqueando `supabase.co`, alguna extensión de
+privacidad bloqueando requests de terceros), el `Promise.all` entero
+rechaza, la función corta ahí mismo, y el `setLoading(false)` del final
+nunca se ejecuta — el badge se queda en "Cargando…" para siempre en vez
+de degradar a algo usable. Fix: todo el bloque de Supabase ahora está en
+`try { ... } catch (error) { console.error(...) } finally {
+setLoading(false) }` — si falla, loguea el error en consola y el badge
+deja de estar trabado (aunque en ese caso los datos que se ven son solo
+la base local `historical-series.json`, sin overrides ni lo demás,
+hasta que la próxima carga de página tenga mejor conexión).
+
 ### GBP PMI Manufactura junio-2026 tenía el flash, no el final
 
 El usuario avisó "el dato de junio de PMI manufacturero de la libra no
