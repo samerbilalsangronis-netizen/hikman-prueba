@@ -33,12 +33,13 @@ abajo):
   el final con la misma fecha que el preliminar reemplaza el punto y
   cambia el badge solo.
 - **Bug real de datos encontrado y corregido: ISM (USD) estaba corrido
-  un mes** en `historical-series.json` desde antes de esta sesión (el
-  valor de cada mes guardado bajo la fecha del mes siguiente, más
-  manuf/serv cruzados en el punto más reciente) — corregido nov-2025 a
-  jun-2026 contra los comunicados oficiales de ISM. **Sin auditar el
-  resto del histórico** (arranca en 2015) — si se nota algo raro en ISM
-  viejo, es candidato al mismo bug.
+  un mes** en `historical-series.json` (el valor de cada mes guardado
+  bajo la fecha del mes siguiente, más manuf/serv cruzados en el punto
+  más reciente) — corregido primero nov-2025 a jun-2026 contra los
+  comunicados oficiales de ISM, y **en la continuación de esta misma
+  sesión se confirmó y corrigió el mismo bug en TODA la serie desde
+  2015-01** (ver "Sesión 2-ago-2026 (cont. 2)" más abajo) — ya en
+  producción.
 - **Varios duplicados de fecha en PMI** (choque entre fecha de
   publicación real vs. la convención "1° del mes" del resto del
   dashboard) encontrados y limpiados en Supabase — EUR/GBP/AUD/JPY/CHF/
@@ -3761,13 +3762,40 @@ que abr/may-2020 y sep/oct-2025 quedaron en el valor correcto post-fix.
 **No se tocó Supabase** — `ism_manuf`/`ism_serv` no tienen ninguna fila
 en `indicator_overrides` (se confirmó por REST antes de arrancar), todo
 el histórico vive en `historical-series.json`, que es lo que se
-corrigió. El commit de este fix queda en la rama de esta sesión
-(`claude/lee-handoff-graphify-vs548t`) — **pendiente el mismo paso de
-siempre antes de que esto llegue a producción**: build/typecheck en
-verde (ya hecho) y permiso explícito del usuario para pushear a
-`claude/macro-usd-web-dashboard-xm5ypk`.
+corrigió.
+
+**Actualización — ya en producción**: el usuario pidió explícitamente
+"PUSHEALO A PRODUCCION" el mismo día. Se hizo fast-forward limpio de
+`claude/lee-handoff-graphify-vs548t` (commit `36611b0`) a
+`claude/macro-usd-web-dashboard-xm5ypk` — ambas ramas quedaron
+sincronizadas al mismo commit, Vercel respondió 200 tras el push. No
+queda ningún paso pendiente de este fix.
 
 **Nota para la próxima sesión**: este fix cambia el gráfico histórico
 completo de ISM Manufactura/Servicios (11+ años) — si el usuario nota
 algo que antes "se veía distinto" en el histórico viejo de estas dos
 series, es el efecto esperado de esta corrección, no un bug nuevo.
+
+**De paso, el usuario preguntó cómo sigue la carga manual de ISM**: sin
+cambios — ISM nunca tuvo API, se sigue cargando por "Actualizar Datos"
+como siempre, y eso escribe únicamente en Supabase
+(`indicator_overrides`, upsert por `indicator_id`+`date`) — el archivo
+`historical-series.json` que se corrigió acá NO se vuelve a tocar por
+una carga mensual normal, solo se editó esta vez porque era un error
+del dato histórico ya sembrado en el código. Recordatorio ya
+documentado en el proyecto pero vale repetirlo: cargar siempre con la
+fecha de PERÍODO (`2026-07-01`), no la fecha de publicación.
+
+**Además, se corrió `/graphify update .` sobre el repo** para que el
+grafo de conocimiento (`graphify-out/`) refleje los cambios de esta
+sesión (HANDOFF.md actualizado, componentes `.tsx` nuevos de la cinta/
+calendario/mobile, el fix de `historical-series.json`) — 689 nodos/1254
+edges/36 comunidades (antes 619/1144/36). Las 36 fotos de banqueros/
+logos se dejaron sin re-procesar a pedido explícito del usuario (no
+cambiaron visualmente y ya estaban en el grafo del build original) —
+quedan marcadas como pendientes en el manifest de graphify para un
+próximo `--update` si en algún momento se quiere completar. Pusheado a
+la rama de esta sesión junto con un ajuste de `.gitignore` para que los
+archivos de trabajo temporales de graphify (`.graphify_*`) no disparen
+el stop hook de "hay cambios sin commitear" mientras el pipeline está
+corriendo.
