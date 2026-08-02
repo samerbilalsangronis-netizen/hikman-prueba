@@ -1,7 +1,9 @@
-# graphify (machine-specific / regenerable)
+# graphify (machine-specific / regenerable, or pipeline scratch state
+# cleaned up automatically by the skill's own Step 9 on a normal run)
 graphify-out/cache/
 graphify-out/.graphify_python
 graphify-out/.graphify_root
+graphify-out/.graphify_*
 
 # Logs
 logs
