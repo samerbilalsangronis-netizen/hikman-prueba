@@ -12,8 +12,14 @@
       "output_tokens": 0,
       "files": 125,
       "note": "incremental: added 36 image nodes (banker photos + brand assets)"
+    },
+    {
+      "date": "2026-08-02T18:19:54.536728+00:00",
+      "input_tokens": 223082,
+      "output_tokens": 0,
+      "files": 45
     }
   ],
-  "total_input_tokens": 0,
+  "total_input_tokens": 223082,
   "total_output_tokens": 0
 }

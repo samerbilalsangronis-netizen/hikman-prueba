@@ -75,9 +75,9 @@
     "semantic_hash": "417a1cd6da538d1e71086fdd52842850"
   },
   "src/components/ChartCard.tsx": {
-    "mtime": 1785636795.472635,
-    "ast_hash": "0d2d63b4fe999996418e81fff960070e",
-    "semantic_hash": "0d2d63b4fe999996418e81fff960070e"
+    "mtime": 1785691471.0159478,
+    "ast_hash": "1aa7c181cecf0e4dd3a09528518d9306",
+    "semantic_hash": "1aa7c181cecf0e4dd3a09528518d9306"
   },
   "src/components/CurrencyBiasCard.tsx": {
     "mtime": 1785636795.472635,
@@ -105,14 +105,14 @@
     "semantic_hash": "61af97c74e41d168b33abebabd46da8d"
   },
   "src/components/Layout.tsx": {
-    "mtime": 1785636795.472635,
-    "ast_hash": "8e300d1fe8e38a33b55fbb575afe8e59",
-    "semantic_hash": "8e300d1fe8e38a33b55fbb575afe8e59"
+    "mtime": 1785691471.0159478,
+    "ast_hash": "11b8cc087c58bce5fa46a1b1f0d88637",
+    "semantic_hash": "11b8cc087c58bce5fa46a1b1f0d88637"
   },
   "src/components/MarqueeTicker.tsx": {
-    "mtime": 1785636795.472635,
-    "ast_hash": "5f573f705c369c6911db694ef94896dc",
-    "semantic_hash": "5f573f705c369c6911db694ef94896dc"
+    "mtime": 1785691471.0159478,
+    "ast_hash": "e2dc86718702df5d238cfbe72251f78c",
+    "semantic_hash": "e2dc86718702df5d238cfbe72251f78c"
   },
   "src/components/ScorePanel.tsx": {
     "mtime": 1785292036.8165715,
@@ -160,9 +160,9 @@
     "semantic_hash": "0c19130637070612e561008b9ab7b83a"
   },
   "src/data/historical-series.json": {
-    "mtime": 1785636795.496635,
-    "ast_hash": "12950229789ead4246e56fffdb48bec0",
-    "semantic_hash": "12950229789ead4246e56fffdb48bec0"
+    "mtime": 1785692540.7160113,
+    "ast_hash": "5ff0f2663bef04702ad1cd555d2891ca",
+    "semantic_hash": "5ff0f2663bef04702ad1cd555d2891ca"
   },
   "src/data/indicators.ts": {
     "mtime": 1785636795.496635,
@@ -430,18 +430,33 @@
     "semantic_hash": "78813c37762444287030d89b74f652d2"
   },
   "HANDOFF.md": {
-    "mtime": 1785636795.456635,
-    "ast_hash": "61b6e2834f265461bfe780d859601c89",
-    "semantic_hash": "61b6e2834f265461bfe780d859601c89"
+    "mtime": 1785692641.8000174,
+    "ast_hash": "f7dfae7df9cc356a96cd87017965bf8b",
+    "semantic_hash": "f7dfae7df9cc356a96cd87017965bf8b"
   },
   "README.md": {
-    "mtime": 1785292036.7749362,
-    "ast_hash": "a49d8a9f291809759787b771b811af8e",
-    "semantic_hash": "a49d8a9f291809759787b771b811af8e"
+    "mtime": 1785691470.9799478,
+    "ast_hash": "7b3834573dd53729747504f098316854",
+    "semantic_hash": "7b3834573dd53729747504f098316854"
   },
   "index.html": {
     "mtime": 1785636795.460635,
     "ast_hash": "19fe03e777073982e64a6b8cd45b0a04",
     "semantic_hash": "19fe03e777073982e64a6b8cd45b0a04"
+  },
+  ".claude/hooks/session-start.sh": {
+    "mtime": 1785691470.9775774,
+    "ast_hash": "8de20581f9114771f5eb14e2031a4932",
+    "semantic_hash": "8de20581f9114771f5eb14e2031a4932"
+  },
+  ".claude/settings.json": {
+    "mtime": 1785691470.9775774,
+    "ast_hash": "3850be437051ab4f71f6bcc13d97fbaa",
+    "semantic_hash": "3850be437051ab4f71f6bcc13d97fbaa"
+  },
+  "src/components/ReleaseScheduleTab.tsx": {
+    "mtime": 1785691471.0159478,
+    "ast_hash": "31f9e5a4aa386cb48f9a4fda89fa00ba",
+    "semantic_hash": "31f9e5a4aa386cb48f9a4fda89fa00ba"
   }
 }
