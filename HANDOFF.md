@@ -1,24 +1,86 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: 1-ago-2026, actualizado al cierre de una TERCERA
-sesión el mismo día (las dos anteriores: 31-jul corrección/verificación
-de datos en las 9 divisas + features nuevas; 1-ago madrugada modal de
-subcomponentes generalizado, Renta Variable, Score USD, auto-refresh sin
-botones, PCE). Esta sesión arrancó respondiendo dudas del usuario sobre
-lo que se había mergeado horas antes y terminó siendo otra tanda larga:
-preliminar/final, automatización real de EUR (HICP y PIB por
-componente), un bug real de infraestructura (el cron de GitHub Actions
-nunca había disparado solo), y un rediseño de los subcomponentes de PIB
-en las 9 divisas con backfill histórico. Pega este archivo completo (o
-pedile a Claude que lo lea desde el repo) al abrir el chat nuevo — está
-pensado para ser autocontenido. El documento es largo y crece
+Fecha de este resumen: **2-ago-2026**, actualizado al cierre de la
+sesión de ese día (la continuación directa de la tanda larga del
+1-ago tarde/noche — mismo chat, sin cortar). Pega este archivo completo
+(o pedile a Claude que lo lea desde el repo) al abrir el chat nuevo —
+está pensado para ser autocontenido. El documento es largo y crece
 cronológicamente (sesión por sesión, sin borrar nada viejo) — si solo
 hace falta agarrar viaje rápido, leer esta sección y la de
-"## Sesión 1-ago-2026 (tarde/noche): preliminar/final, EUR flash→final,
-cron de GitHub Actions roto, subcomponentes de PIB" más abajo alcanza;
-el resto queda como referencia histórica por divisa.
+**"## Sesión 2-ago-2026: ..."** más abajo (la más nueva) alcanza; el
+resto queda como referencia histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de esta sesión (1-ago-2026, tarde/noche)
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 2-ago-2026
+
+Todo mergeado y en producción (`claude/macro-usd-web-dashboard-xm5ypk`).
+Resumen de lo que se hizo esta sesión (detalle completo en las
+secciones "PMI headline", "Bug: Cargando…" y "Sesión 2-ago-2026" más
+abajo):
+
+- **PMI headline con historial real**: se investigó y descartó que los
+  subcomponentes de PMI (Nuevas Órdenes/Producción/Empleo/Precios)
+  tengan fuente gratis fuera de ISM/NBS China — el resto (S&P Global,
+  BusinessNZ, procure.ch) solo publica el headline gratis. Se cargó el
+  **headline completo de 2025 (12 meses) + 2026 hasta la fecha** en las
+  8 economías: EUR/GBP (ya tenían desde 2008, no hacía falta nada),
+  S&P Global USD (distinto de ISM), Japón, Australia, Canadá, Nueva
+  Zelanda, Suiza (Manufactura Y Servicios — Servicios de Suiza nunca
+  había tenido dato, se cargó de cero).
+- **Insignia Preliminar/Final ahora es dinámica por punto** (antes era
+  fija por indicador): columna `stage` nueva en `indicator_overrides`
+  de Supabase, selector Preliminar/Final en Actualizar Datos, la
+  tarjeta muestra la etapa del último punto realmente cargado. Cargar
+  el final con la misma fecha que el preliminar reemplaza el punto y
+  cambia el badge solo.
+- **Bug real de datos encontrado y corregido: ISM (USD) estaba corrido
+  un mes** en `historical-series.json` desde antes de esta sesión (el
+  valor de cada mes guardado bajo la fecha del mes siguiente, más
+  manuf/serv cruzados en el punto más reciente) — corregido nov-2025 a
+  jun-2026 contra los comunicados oficiales de ISM. **Sin auditar el
+  resto del histórico** (arranca en 2015) — si se nota algo raro en ISM
+  viejo, es candidato al mismo bug.
+- **Varios duplicados de fecha en PMI** (choque entre fecha de
+  publicación real vs. la convención "1° del mes" del resto del
+  dashboard) encontrados y limpiados en Supabase — EUR/GBP/AUD/JPY/CHF/
+  CAD/S&P Global US. Uno de ellos (`cad_pmi_manuf`) estaba tapando el
+  dato correcto de junio en producción.
+- **Auditoría flash-vs-final completa** de enero-junio 2026 en S&P
+  Global US/Japón/Australia (36 valores) — 1 error real encontrado y
+  corregido (AUD Servicios marzo, 46.6→46.3). GBP Manufactura/Servicios
+  de junio también tenían el flash cargado en vez del final —
+  corregido.
+- **Bug real: "Cargando…" se podía quedar trabado para siempre** si el
+  pedido a Supabase fallaba o se colgaba sin resolver ni rechazar
+  (firewall/proxy que descarta paquetes en silencio) — ahora hay un
+  timeout de 30s + un 4° estado de badge "Sin conexión (reintentar)",
+  clickeable para reintentar sin recargar la página.
+- **Cinta de titulares fijados interactiva**: se pausa con el mouse
+  encima, se puede arrastrar con click (antes era una animación CSS
+  que no paraba nunca).
+- **Pestaña nueva "📅 Cuándo se publican"**: hover/foco muestra el
+  patrón habitual de publicación por tipo de indicador (CPI, PMI con y
+  sin flash, empleo, crecimiento, bancos centrales). Solo desktop.
+- **2 bugs de mobile corregidos**: el texto "USD" del header quedaba
+  tapado detrás de las pastillas de divisa; el badge "N subcomponentes"
+  se cortaba contra el borde de las tarjetas con subcomponentes.
+
+**Pendiente explícito para la próxima sesión**:
+- Auditar el histórico de ISM anterior a nov-2025 (posible mismo bug
+  de corrimiento de fecha, sin confirmar).
+- Cargar el FINAL de julio-2026 (vía Actualizar Datos) para
+  `sp_pmi_manuf`/`serv`, `jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`
+  apenas salga; cargar julio de `cad_pmi_manuf`/`serv`,
+  `nzd_pmi_manuf`/`serv`, `chf_pmi_manuf` apenas publiquen.
+- 2 filas de `nzd_pmi_manuf`/`nzd_pmi_serv` (fecha 2026-06-29, valores
+  50.3/50.2) sin identificar — preguntarle al usuario qué representaban
+  antes de tocarlas.
+
+Para agarrar viaje rápido con la sesión anterior (1-ago tarde/noche —
+preliminar/final original, automatización de EUR, cron de GitHub
+Actions, subcomponentes de PIB), la sección de abajo sigue siendo
+válida como estaba:
+
+## Estado al cierre de la sesión anterior (1-ago-2026, tarde/noche)
 
 Todo está **mergeado y en producción** (`claude/macro-usd-web-dashboard-xm5ypk`,
 9 commits nuevos sobre el handoff anterior — ver `git log` para los
