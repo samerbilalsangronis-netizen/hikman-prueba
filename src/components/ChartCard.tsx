@@ -111,10 +111,10 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
       {subcomponentsControl ? (
         <button
           onClick={subcomponentsControl.onOpen}
-          className="-m-1 flex w-full items-start justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-[var(--surface-2)]"
+          className="-m-1 flex w-full flex-wrap items-start justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-[var(--surface-2)]"
         >
-          <div>
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <div className="min-w-0">
+            <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
               {stage && <ReleaseStageBadge stage={stage} />}
             </h3>
@@ -135,9 +135,9 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
           </div>
         </button>
       ) : (
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {meta.label}
               {stage && <ReleaseStageBadge stage={stage} />}
             </h3>

@@ -3444,3 +3444,128 @@ grande, que no se hizo en esta sesión. Si el usuario nota algo raro en
 ISM antes de nov-2025 (por ejemplo comparando el gráfico contra
 tradingeconomics.com/united-states/ism-manufacturing-pmi), es candidato
 a ser el mismo bug.
+
+## Sesión 2-ago-2026: cinta interactiva, calendario de publicación, bugs mobile
+
+Tres pedidos en un mismo mensaje.
+
+### 1. MarqueeTicker interactivo con el mouse
+
+Pedido explícito: "la cinta corrediza en el panel de control LA DE
+TITULARES FIJADOS quiero que se interactiva con el mouse". Antes era una
+animación CSS pura (`@keyframes marquee-scroll` + `transform:
+translateX`) — imposible de leer o clickear un titular mientras se
+movía sola.
+
+Reescrito `MarqueeTicker.tsx` de punta a punta: el auto-scroll ahora es
+un loop de `requestAnimationFrame` que mueve `scrollLeft` del
+contenedor (no una animación CSS de `transform`), lo que permite que
+conviva con interacción real:
+- **Se pausa sola con el mouse encima** (`onMouseEnter`/`onMouseLeave`
+  → estado `isHovered`, el loop de rAF no avanza `scrollLeft` mientras
+  esté en `true`).
+- **Se puede arrastrar con click + mover** (`onPointerDown/Move/Up`,
+  con `setPointerCapture` para que el drag no se corte si el mouse sale
+  del elemento) — el módulo manual sobre `scrollWidth/2` deja arrastrar
+  hacia atrás del origen sin trabarse en `scrollLeft=0`.
+- Después de soltar un drag, 1.5s de respiro antes de retomar el
+  auto-scroll (si no, pelea contra el gesto que recién soltaste).
+- Si fue un drag real (`moved=true`), se cancela el click del link de
+  abajo al soltar — si no, arrastrar sobre un titular lo abriría en una
+  pestaña nueva sin querer.
+- Contenido duplicado ×2 igual que antes (loop sin salto), pero ahora
+  el "reinicio" es `scrollLeft -= halfWidth` en vez de `translateX(0)`.
+- CSS: `.marquee-track`/`@keyframes marquee-scroll` (ya no se usan) se
+  reemplazaron por `.marquee-scroll-container` — solo oculta la
+  scrollbar nativa (`scrollbar-width: none` + `::-webkit-scrollbar {
+  display: none }`), el resto lo maneja JS.
+- Respeta `prefers-reduced-motion` (si está activo, ni arranca el rAF —
+  el usuario todavía puede arrastrar a mano, pero no hay auto-scroll).
+
+### 2. Pestaña "Cuándo se publican" (calendario de referencia)
+
+Pedido explícito con dos ejemplos concretos: "CPI se publica la tercera
+semana del mes" y "PMIs preliminar 3era semana del mes y una o dos
+semanas más el final". Nuevo componente `ReleaseScheduleTab.tsx` —
+no navega a ningún lado, al pasar el mouse (o con foco por teclado,
+`group-focus-within` para accesibilidad) muestra un panel con el patrón
+habitual de publicación por tipo de indicador (Inflación, PMI, Empleo,
+Crecimiento, Bancos centrales) — generalizado a partir de todo lo que se
+investigó esta sesión sobre ISM/S&P Global/BusinessNZ/procure.ch/NBS.
+Aclarado en el propio texto que es "patrón habitual, no fecha exacta"
+para no sobre-prometer precisión por país.
+
+**Por qué no quedó dentro de la fila de pestañas de navegación** (el
+lugar más obvio, "una pestaña" literal): esa fila (`<nav
+className="... overflow-x-auto ...">` en `Layout.tsx`) tiene
+`overflow-x: auto` — por la spec de CSS Overflow, fijar overflow-x sin
+fijar overflow-y explícito hace que el overflow-y computado TAMBIÉN
+pase a ser `auto` (no quedaba `visible`). Un dropdown `position:
+absolute` que cuelga hacia abajo de un hijo de ese `<nav>` se hubiera
+cortado por ese overflow-y implícito — casi invisible, muy difícil de
+debuggear después. Se puso en cambio en la fila de arriba del header
+(al lado del badge de sync y el botón de tema), que no tiene overflow
+restringido. Oculto en mobile (`hidden sm:block`) porque hover no
+existe igual en touch — mostrarlo ahí solo iba a generar un botón sin
+uso claro y sumar más presión al header ya apretado en mobile.
+
+### 3. Bugs de mobile
+
+Pedido: "revisa la version mobil, tiene un par de bugs en las letras,
+has que se vea bien". Sin acceso a un navegador real del usuario —
+Playwright en este sandbox no tiene salida directa a internet (ver
+nota de `pw_check.mjs` más abajo), así que se probó levantando `npm run
+dev` local y apuntando Playwright a `localhost` (eso sí funciona, no
+sale del sandbox). Capturas en viewport iPhone 13 (390px) + una en
+1400px para el hover de la pestaña nueva.
+
+**Bug 1 — header: "USD" tapado detrás de las pastillas de divisa.**
+La fila del header (`logo + {currency} + subtítulo` a la izquierda,
+`pastillas + badge sync + botón tema` a la derecha) es un
+`flex justify-between` sin wrap ni manejo de overflow — en 390px las 9
+pastillas de divisa por sí solas ya no entran, y sin `overflow-x-auto`
+ni `min-w-0` en los contenedores, el texto "USD" del lado izquierdo
+quedaba literalmente por detrás de las pastillas en vez de que el
+layout se ajustara. Fix: `{currency}` ahora oculto en mobile (`hidden
+sm:inline` — igual que ya estaba el subtítulo; total, la pastilla
+activa en el selector ya indica cuál es la divisa elegida), pastillas
+envueltas en su propio `overflow-x-auto` con `shrink-0
+whitespace-nowrap` en cada botón, y `min-w-0` en el contenedor derecho
+para que pueda comprimirse en vez de desbordar.
+
+**Bug 2 — tarjetas con subcomponentes: el badge "N subcomponentes" se
+corta.** En `ChartCard.tsx`, la fila `título+descripción` /
+`badges (frescura + N subcomponentes)` es un `flex items-start
+justify-between` sin `flex-wrap` y sin `min-w-0` en el div del título.
+Con el ancho angosto de mobile, el div del título no podía encogerse
+más allá de su palabra más larga (`min-width: auto` por defecto en
+flex), la fila total superaba el ancho disponible, y como el div de
+badges tiene `shrink-0` (no se achica), el resultado era que el badge
+"N subcomponentes ⤢" se cortaba visualmente contra el borde de la
+tarjeta/pantalla — y de paso el título quedaba forzado a una columna
+angosta, generando un hueco vertical enorme donde la descripción
+envolvía en 6+ líneas cortas. Fix: `flex-wrap` en la fila +
+`min-w-0` en el div del título — ahora en mobile los badges caen
+prolijo a una segunda línea debajo del título en vez de desbordar.
+Aplicado a las dos variantes (con y sin `subcomponentsControl`).
+
+**Descartado como bug real, era comportamiento esperado**: la tabla de
+Actualizar Datos "se corta" a la derecha en mobile — tiene
+`overflow-x-auto` propio y de hecho SÍ scrollea (confirmado con
+`el.scrollWidth > el.clientWidth` vía Playwright), solo que no tiene
+ninguna pista visual de que hay más columnas para el costado. Se dejó
+así — no es lo que el usuario reportó ("bugs en las letras"), y
+agregarle una sombra/degradé de "hay más para el costado" es un pulido
+aparte, no un bug.
+
+**Nota técnica para la próxima sesión — Playwright sin salida a
+internet en este sandbox**: `chromium.launch()` con la config default
+tira `net::ERR_CONNECTION_RESET` contra CUALQUIER sitio externo (se
+probó contra `example.com` también, mismo error) — ni pasándole
+`proxy: { server: process.env.HTTPS_PROXY }` explícito se pudo hacer
+andar. `curl` sí sale bien solo (recoge `HTTPS_PROXY` automático). Para
+poder inspeccionar el sitio real con un navegador en esta sesión, hubo
+que usar `curl` para bajar el bundle JS servido en producción y
+`grep`/leer el contenido a mano (funcionó bien para confirmar si un fix
+ya estaba deployado) — Playwright solo sirvió apuntado a `localhost`
+(servidor local, no sale del sandbox).

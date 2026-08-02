@@ -4,6 +4,7 @@ import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
 import { indicatorsByCountry, indicatorsBySection } from '../data/indicators';
 import { bankersForCurrency } from '../data/centralBankers';
+import { ReleaseScheduleTab } from './ReleaseScheduleTab';
 import type { Currency } from '../types';
 
 // Data-driven: una divisa sin indicadores en una sección (ej. CNY, que
@@ -83,23 +84,23 @@ export function Layout() {
         className="sticky top-0 z-10 backdrop-blur"
         style={{ background: 'color-mix(in srgb, var(--page) 85%, transparent)', borderBottom: '1px solid var(--border)' }}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto" />
-            <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+          <div className="flex shrink-0 items-center gap-2.5">
+            <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto shrink-0" />
+            <span className="hidden text-lg font-bold sm:inline" style={{ color: 'var(--text-primary)' }}>
               {currency}
             </span>
             <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
               Seguimiento Macro Fundamental
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex max-w-full overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
               {CURRENCIES.map((c) => (
                 <button
                   key={c}
                   onClick={() => setCurrency(c)}
-                  className="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+                  className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors"
                   style={{
                     background: currency === c ? 'var(--series-1)' : 'transparent',
                     color: currency === c ? '#fff' : 'var(--text-secondary)',
@@ -134,9 +135,10 @@ export function Layout() {
               />
               {loading ? 'Cargando…' : syncError ? 'Sin conexión (reintentar)' : syncMode === 'cloud' ? 'Sincronizado (Supabase)' : 'Guardado local'}
             </button>
+            <ReleaseScheduleTab />
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="rounded-full px-3 py-1 text-xs font-medium"
+              className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
               style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >
               {theme === 'dark' ? '☀ Claro' : '● Oscuro'}

@@ -108,21 +108,12 @@ body {
   color: white;
 }
 
-@keyframes marquee-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
+/* MarqueeTicker: scrollLeft manejado por JS (rAF), no por animación CSS —
+   se pausa con hover y se puede arrastrar. Solo hace falta ocultar la
+   scrollbar nativa para que se vea como cinta, no como un div con scroll. */
+.marquee-scroll-container::-webkit-scrollbar {
+  display: none;
 }
-
-.marquee-track {
-  animation: marquee-scroll linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none;
-  }
+.marquee-scroll-container {
+  scrollbar-width: none;
 }
