@@ -1,25 +1,29 @@
-# USD Macro — Seguimiento Fundamental
+# HIKMAN ENDÓGENO — Dashboard Macro Multi-Divisa
 
-Dashboard web de seguimiento macroeconómico del dólar estadounidense, construido a partir de un
-Excel de análisis fundamental. Reemplaza las hojas y gráficos del Excel con tarjetas interactivas
-que muestran, para cada indicador, su último valor, su variación y una **insignia de frescura**
-(al día / revisar / desactualizado) para que nunca vuelva a pasar desapercibido que un dato lleva
-meses o años sin actualizarse.
+Dashboard web de seguimiento macroeconómico para **9 divisas** (USD, EUR, GBP, CAD, AUD, NZD,
+JPY, CHF, CNY), construido originalmente a partir de un Excel de análisis fundamental de USD y
+extendido divisa por divisa siguiendo el mismo patrón: indicadores + score compuesto + insignia
+de frescura (al día / revisar / desactualizado) + insignia preliminar/final para indicadores que
+publican el mismo dato en dos vueltas.
 
-Primera pieza de un panel macro más grande: el plan es sumar más adelante EUR, GBP, NZD, AUD,
-CHF, JPY y CAD siguiendo el mismo patrón (indicadores + score + frescura) una vez que el USD esté
-sólido.
+## Secciones
 
-## Secciones (v1 — núcleo)
-
-- **Resumen** — score compuesto USD (valoración manual −2/+2 por indicador) + indicadores clave.
-- **Tasas y Fed** — tasa de referencia, bono del Tesoro a 10 años, M2, balance de la Fed, PIB.
-- **Inflación** — CPI, Core CPI, PPI, Core PPI.
-- **Empleo** — NFP, tasa de desempleo, salarios, JOLTS, ADP.
-- **ISM / Sentimiento** — PMI Manufactura y Servicios.
-- **Actualizar Datos** — panel para cargar manualmente el último dato de cada indicador (como en
-  el Excel, pero versionado), botón para sincronizar automáticamente desde FRED, y exportar el
-  dataset combinado a JSON.
+- **Panel de Control** (`/panel-control`) — sesgo compuesto por divisa (Currency Bias), ticker de
+  titulares y feed de noticias traducidas.
+- **Resumen** (`/`) — score compuesto por divisa (valoración manual −2/+2 por indicador) + indicadores clave.
+- **Tasas y Fed** (`/tasas`) — tasa de referencia del banco central, bonos, balance, agregados monetarios.
+- **Inflación** (`/inflacion`) — CPI, Core CPI, PPI, Core PPI (o equivalentes locales por divisa).
+- **Empleo** (`/empleo`) — nómina no agrícola, desempleo, salarios, JOLTS, ADP (según disponibilidad por divisa).
+- **Confianza / Sentimiento** (`/confianza`) — PMI Manufactura y Servicios, encuestas de confianza.
+- **Crecimiento** (`/crecimiento`) — PIB y desglose por componente (Consumo/Inversión/Gasto
+  Público/Exportaciones Netas) donde la fuente lo publica automatizado.
+- **Alemania / Francia** (`/alemania`, `/francia`) — desglose de indicadores clave de las dos
+  mayores economías de la eurozona.
+- **Banqueros** (`/banqueros`) — perfiles de los responsables de política monetaria de los 9 bancos centrales.
+- **Titulares** (`/titulares`) — noticias de mercado relevantes por divisa, traducidas automáticamente.
+- **Renta Variable** (`/renta-variable`) — cotizaciones de referencia por divisa.
+- **Actualizar Datos** (`/actualizar`) — panel para cargar manualmente el último dato de un
+  indicador (para las fuentes sin API pública) y exportar el dataset combinado a JSON.
 
 ## Desarrollo
 
@@ -32,28 +36,37 @@ npm run preview  # sirve el build de dist/
 
 ## Datos y persistencia
 
-Los datos históricos viven en `src/data/historical-series.json` (extraídos del Excel original,
-fuentes: FRED, BLS, ISM). Los metadatos de cada indicador (etiqueta, unidad, frecuencia esperada,
-fuente) están en `src/data/indicators.ts`.
+Los datos históricos por divisa viven en `src/data/` (indicadores, score, banqueros, equities).
+Las ediciones hechas desde "Actualizar Datos" se guardan en **Supabase** si el proyecto tiene
+configuradas `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (ver `supabase/schema.sql` para las
+tablas). Sin esas variables, la app funciona igual pero guarda todo en `localStorage` del navegador.
 
-Las ediciones hechas desde "Actualizar Datos" (nuevos puntos y valoraciones del score) se guardan
-en **Supabase** si el proyecto tiene configuradas `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
-(ver `supabase/schema.sql` para las tablas). Sin esas variables, la app funciona igual pero guarda
-todo en `localStorage` del navegador.
+## Sincronización automática
 
-## Sincronización automática con FRED
+Cada divisa tiene su propia función serverless de sincronización (`api/<divisa>-sync.ts`) que trae
+los últimos datos directo de la fuente oficial correspondiente (FRED, Eurostat, BoE, StatCan/BoC,
+ABS/RBA, Stats NZ, e-Stat/BOJ, SNB/SECO/KOF, chinadata.live) y los guarda en Supabase. El mapeo de
+series por divisa está en `src/data/fredMappings.ts` y en cada `api/<divisa>-sync.ts`.
 
-El botón "Sincronizar con FRED" en `Actualizar Datos` llama a la función serverless
-`api/fred-sync.ts`, que trae el último dato de cada indicador cubierto directamente desde la API
-de [FRED](https://fred.stlouisfed.org/) (Reserva Federal de St. Louis) y lo guarda en Supabase. El
-mapeo de series está en `src/data/fredMappings.ts`. Cubre: tasa de la Fed, bono a 10 años, M2,
-balance de la Fed, PIB, CPI, Core CPI, PPI, Core PPI, NFP, desempleo, salarios y JOLTS. ISM,
-Michigan, Conference Board y ADP no tienen API pública gratuita, así que se siguen cargando a mano.
+**Ya no hay botón manual de sincronización.** Vercel Hobby (plan gratis) no permite cron jobs más
+frecuentes que una vez al día, así que la automatización corre vía **GitHub Actions**
+(`.github/workflows/sync-currencies.yml`, cada 30 minutos, las 9 divisas en pasos independientes)
+más una rutina de respaldo por hora como red de seguridad. Los titulares y su traducción se
+sincronizan aparte (`.github/workflows/sync-titulares.yml`).
 
-Requiere la variable de entorno `FRED_API_KEY` (server-side, sin prefijo `VITE_` para que nunca se
-exponga al navegador) — se obtiene gratis en
-[fredaccount.stlouisfed.org/apikeys](https://fredaccount.stlouisfed.org/apikeys). Esta función solo
-corre en Vercel (o con `vercel dev`); no funciona con `npm run dev` porque Vite no sirve `/api`.
+Cada función de sync requiere las variables de entorno correspondientes a su fuente (ver cada
+archivo `api/*-sync.ts`) y solo corre en Vercel (o con `vercel dev`); no funciona con `npm run dev`
+porque Vite no sirve `/api`.
+
+Cobertura real de automatización, quirks por fuente y decisiones de diseño: ver `HANDOFF.md`.
+
+## Mapa de conocimiento (Graphify)
+
+El repo tiene un grafo de conocimiento generado con [Graphify](https://graphify.com) en
+`graphify-out/` (`graph.html` interactivo, `GRAPH_REPORT.md`, `graph.json` consultable). Útil para
+entender rápido cómo se conectan los 9 pipelines de sync, los componentes de UI y las decisiones
+documentadas en `HANDOFF.md`. Ver la skill `/graphify` en Claude Code para consultarlo o
+actualizarlo (`/graphify . --update` tras cambios).
 
 ## Stack
 
