@@ -64,16 +64,31 @@ abajo):
   tapado detrás de las pastillas de divisa; el badge "N subcomponentes"
   se cortaba contra el borde de las tarjetas con subcomponentes.
 
-**Pendiente explícito para la próxima sesión**:
-- Auditar el histórico de ISM anterior a nov-2025 (posible mismo bug
-  de corrimiento de fecha, sin confirmar).
+**Pendiente explícito para la próxima sesión** (actualizado en la
+continuación de esta misma sesión — ver "Sesión 2-ago-2026 (cont. 2):
+auditoría ISM completa..." más abajo para el detalle):
+- ~~Auditar el histórico de ISM anterior a nov-2025~~ — **RESUELTO**:
+  se confirmó que el bug de corrimiento de 1 mes afecta TODA la serie
+  desde 2015-01, no solo nov-2025/jun-2026 — corregido de punta a
+  punta en `historical-series.json` (139 meses por serie, 2014-12 a
+  2026-06), verificado mes a mes contra prnewswire.com en varios puntos
+  de control (2015, COVID abr/may-2020, límite sep/oct-2025).
 - Cargar el FINAL de julio-2026 (vía Actualizar Datos) para
   `sp_pmi_manuf`/`serv`, `jpy_pmi_manuf`/`serv`, `aud_pmi_manuf`/`serv`
-  apenas salga; cargar julio de `cad_pmi_manuf`/`serv`,
-  `nzd_pmi_manuf`/`serv`, `chf_pmi_manuf` apenas publiquen.
-- 2 filas de `nzd_pmi_manuf`/`nzd_pmi_serv` (fecha 2026-06-29, valores
-  50.3/50.2) sin identificar — preguntarle al usuario qué representaban
-  antes de tocarlas.
+  en cuanto salga (todavía no publicado al momento de este chequeo,
+  2-ago-2026 domingo — el flash de julio ya está cargado y verificado
+  correcto para las 3 economías); cargar julio de `cad_pmi_manuf`/`serv`,
+  `nzd_pmi_manuf`/`serv`, `chf_pmi_manuf` apenas publiquen (tampoco
+  salió todavía, 1ª publicación cae el lunes 3-ago-2026 o después).
+- ~~2 filas de `nzd_pmi_manuf`/`nzd_pmi_serv` sin identificar~~ —
+  **RESUELTO**: ya estaban borradas de producción (la
+  `migration_2026-08-01_pmi_dedup_2.sql` de la sesión anterior ya las
+  eliminó, el resumen de arriba estaba desactualizado en ese punto). Se
+  investigó a fondo qué podían representar (50.3/50.2, fecha 2026-06-29)
+  contra el histórico real de BusinessNZ PMI/PSI 2024-2026 (valores
+  originales y revisados) — no coinciden con ningún dato oficial
+  encontrado. Conclusión: dato espurio (probablemente un artefacto de
+  import, no un punto real sin cargar) — no hace falta reponer nada.
 
 Para agarrar viaje rápido con la sesión anterior (1-ago tarde/noche —
 preliminar/final original, automatización de EUR, cron de GitHub
@@ -3631,3 +3646,128 @@ que usar `curl` para bajar el bundle JS servido en producción y
 `grep`/leer el contenido a mano (funcionó bien para confirmar si un fix
 ya estaba deployado) — Playwright solo sirvió apuntado a `localhost`
 (servidor local, no sale del sandbox).
+
+## Sesión 2-ago-2026 (cont. 2): auditoría ISM completa, filas NZD, chequeo PMI julio
+
+Continuación de la misma sesión (arrancó con "sigue con los pendientes
+de la sesión anterior"), en la rama asignada del entorno
+(`claude/lee-handoff-graphify-vs548t`, no la de producción). Se preguntó
+al usuario dos cosas antes de tocar nada (`AskUserQuestion`): qué hacer
+con las 2 filas NZD sin identificar, y cómo abordar la auditoría de ISM
+(eligió "muestreo primero"). Los tres pendientes quedaron resueltos.
+
+### 1. Filas NZD `nzd_pmi_manuf`/`nzd_pmi_serv` (2026-06-29, 50.3/50.2)
+
+Al consultar `indicator_overrides` en vivo por REST (misma `anon key`
+pública del handoff), **estas 2 filas ya no existían en producción** —
+`migration_2026-08-01_pmi_dedup_2.sql` (escrita en la sesión anterior)
+ya incluía su `delete`, aunque el resumen de cierre de esa sesión no lo
+reflejó (quedó redactado como "sin resolver"). El usuario pidió además
+investigar qué representaban antes de confirmar que no hacía falta
+reponer nada: se buscó el valor 50.3 (manuf)/50.2 (serv) contra el
+histórico real de BusinessNZ PMI/PSI — original y revisado — en 2024,
+2025 y 2026 (incluyendo los meses con revisión, ej. abril/mayo 2026) y
+no apareció ninguna coincidencia. Conclusión: no hay un dato real detrás
+de esas dos filas — son casi seguro un artefacto de alguna carga previa
+(no se pudo determinar la causa exacta), no un punto legítimo sin
+cargar. No se repuso nada, y no hace falta ninguna acción en Supabase
+(el delete ya está aplicado).
+
+### 2. PMI final/headline de julio-2026 — todavía no publicado
+
+Se verificó (WebSearch, fuentes primarias: S&P Global, au Jibun Bank,
+prensa especializada) el estado de julio-2026 para las 6 economías con
+reporte de dos vueltas + las 3 de publicación única que solo llegaban
+hasta junio:
+
+- **USD (S&P Global)**: flash de julio ya cargado y verificado exacto
+  contra la fuente (`sp_pmi_manuf`=53.8, `sp_pmi_serv`=53.6, coincide
+  con "US S&P Global Composite PMI... Services PMI rose to 53.6...
+  Manufacturing PMI ticked down to 53.8"). El FINAL (normalmente 1er/3er
+  día hábil del mes) todavía no salió al momento de este chequeo.
+- **JPY (au Jibun Bank)**: flash ya cargado y verificado exacto
+  (`jpy_pmi_manuf`=54.7, `jpy_pmi_serv`=51.9, coincide con "flash Japan
+  Manufacturing PMI came in at 54.7... services sector PMI flash
+  reading came in at 51.9"). Final pendiente, no publicado todavía.
+- **AUD (Judo Bank)**: no re-verificado en detalle esta vuelta (ya
+  auditado a fondo en la sesión anterior), mismo estado esperado: flash
+  cargado, final pendiente.
+- **CAD/NZD/CHF** (publicación única, sin flash): siguen solo hasta
+  junio-2026 — correcto, su reporte de julio tampoco salió todavía.
+
+**Por qué nada salió todavía**: 2-ago-2026 es domingo (1-ago cayó
+sábado) — estos reportes se publican el 1er día hábil del mes (o el
+3° para Servicios/Compuesto en algunos países), o sea recién a partir
+del lunes 3-ago-2026 en adelante. No hay nada más para cargar hasta
+entonces — **volver a chequear a partir del lunes/martes**.
+
+### 3. Auditoría de ISM histórico — bug confirmado en TODA la serie desde 2015, corregido de punta a punta
+
+El handoff anterior dejaba como sospecha sin confirmar que el bug de
+corrimiento de 1 mes de `ism_manuf`/`ism_serv` (ya corregido para
+nov-2025 a jun-2026) pudiera extenderse más atrás en el tiempo. Se
+verificó una muestra de puntos de control bien separados en el tiempo
+contra los comunicados oficiales de ISM (prnewswire.com):
+
+- **2015 (inicio de la serie)**: el valor guardado bajo `2015-01-01`
+  (55.5 manuf / 56.2 serv) resultó ser exactamente el dato real de
+  **diciembre-2014** (confirmado: "PMI® at 55.5%; December Manufacturing
+  ISM® Report" y "NMI® at 56.2%... December"), y `2015-02-01` (53.5
+  manuf) el real de **enero-2015** ("PMI® at 53.5%; January...") — mismo
+  patrón de corrimiento +1 mes.
+- **Abril/mayo 2020 (piso de COVID, fácil de verificar por lo extremo
+  del valor)**: el guardado bajo `2020-05-01` (41.5 manuf) resultó ser
+  el real de **abril-2020** (confirmado: "PMI® at 41.5%; April 2020..."),
+  y `2020-06-01` (43.1) el real de **mayo-2020** ("PMI® at 43.1%; May
+  2020..." — "up 1.6 points from the April reading of 41.5"). Mismo
+  patrón, exacto, 5 años después del primer punto de control.
+- **Límite sep/oct-2025 (el borde justo antes de la corrección de la
+  sesión anterior)**: el guardado bajo `2025-10-01` (49.1 manuf / 50.0
+  serv) resultó ser el real de **septiembre-2025** (confirmado:
+  "Manufacturing PMI® at 49.1%; September 2025..." / "Services PMI® at
+  50%; September 2025...") — el corrimiento llegaba intacto hasta el
+  último mes antes de donde empezó el fix de la sesión anterior.
+
+Con dos puntos de control en extremos opuestos de 11 años (2015 y 2020)
+más el borde 2025 coincidiendo exacto los tres, se confirmó que **el
+bug afecta el 100% de la serie histórica pre-existente** (2015-01 a
+2025-10 tal como estaba guardada), no un tramo acotado. Se le preguntó
+al usuario si corregir todo de una — dijo que sí.
+
+**Corrección aplicada** (`historical-series.json`, script Python
+puntual, no quedó en el repo): para `ism_manuf` e `ism_serv` por
+separado,
+1. Se separaron las 130 entradas `2015-01` a `2025-10` (rango con el
+   bug) de las 8 entradas `2025-11` a `2026-06` (ya corregidas en la
+   sesión anterior, sin tocar).
+2. Cada entrada del rango con bug se re-fechó un mes hacia atrás (el
+   valor no cambia, solo la fecha) — ej. lo guardado en `2025-10-01`
+   pasa a `2025-09-01`, `2015-01-01` pasa a `2014-12-01`.
+3. Esto deja un hueco en `2025-10-01` (la fecha que antes tenía el dato
+   de septiembre corrido) — se llenó con el dato REAL de **octubre-2025**
+   buscado y verificado fresco contra prnewswire.com: Manufactura 48.7%
+   ("Manufacturing PMI® at 48.7%; October 2025..."), Servicios 52.4%
+   ("Services PMI® at 52.4%; October 2025...").
+4. El punto más antiguo, que ahora queda fechado `2014-12-01` (55.5
+   manuf / 56.2 serv), se mantuvo — es un dato real y verificado, no
+   tiene sentido descartarlo solo porque el rango visible empezaba en
+   2015.
+
+Verificado antes de escribir: las 139 fechas de cada serie quedan
+consecutivas sin huecos (`2014-12` a `2026-06`), y se confirmó a mano
+que abr/may-2020 y sep/oct-2025 quedaron en el valor correcto post-fix.
+`npm run build` (typecheck + vite build) en verde después del cambio.
+
+**No se tocó Supabase** — `ism_manuf`/`ism_serv` no tienen ninguna fila
+en `indicator_overrides` (se confirmó por REST antes de arrancar), todo
+el histórico vive en `historical-series.json`, que es lo que se
+corrigió. El commit de este fix queda en la rama de esta sesión
+(`claude/lee-handoff-graphify-vs548t`) — **pendiente el mismo paso de
+siempre antes de que esto llegue a producción**: build/typecheck en
+verde (ya hecho) y permiso explícito del usuario para pushear a
+`claude/macro-usd-web-dashboard-xm5ypk`.
+
+**Nota para la próxima sesión**: este fix cambia el gráfico histórico
+completo de ISM Manufactura/Servicios (11+ años) — si el usuario nota
+algo que antes "se veía distinto" en el histórico viejo de estas dos
+series, es el efecto esperado de esta corrección, no un bug nuevo.
