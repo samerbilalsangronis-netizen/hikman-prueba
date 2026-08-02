@@ -1,53 +1,49 @@
 # Graph Report - .  (2026-08-02)
 
 ## Corpus Check
-- 125 files · ~278,274 words
+- 125 files · ~278,400 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 583 nodes · 1109 edges · 40 communities (38 shown, 2 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 17 edges (avg confidence: 0.57)
+- 619 nodes · 1144 edges · 36 communities (34 shown, 2 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 52 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- App Shell & Panels
-- Chart Rendering Components
+- Currency Bias & Macro Context
+- App Shell & Layout
+- Chart & FOMC Components
 - Package Dependencies
-- FRED Indicator Mappings
-- Macro Data Context
-- Sync API & Branding Notes
+- Banker Headshot Photos
+- Score Panel & Indicators
 - NZD Sync Pipeline
 - TS App Compiler Config
-- Central Bankers Data
 - TS Node Compiler Config
-- Currency Bias Logic
 - EUR Sync Pipeline
-- Headlines & Titulares
-- Score Panel & Seeds
+- Branding & Entry Doc Notes
 - AUD Sync Pipeline
+- Sync Entrypoints & Stale README Notes
 - FRED Sync Pipeline
 - Headlines Sync Pipeline
+- Banqueros Page & Types
 - CAD Sync Pipeline
 - CNY Sync Pipeline
 - JPY Sync Pipeline
+- AUD/EUR/USD Data Sources
 - CHF Sync Pipeline
-- EUR GDP/HICP Automation
-- Headline Translation Feature
-- CHF/JPY Data Sources
-- Lint Config (oxlint)
+- GBP/NZD Workflows & Cron Bug
 - Equities & RentaVariable
-- EUR/FRED Workflows
-- Workflow Cron & Backup
+- Headline Translation Feature
+- Lint Config (oxlint)
+- EUR/JPY GDP Automation Notes
 - GBP Sync Pipeline
+- Release Stage & Subcomponent Modal
 - Equities Quotes API
+- CHF Data Sources
 - Supabase Persistence
-- Document Upload List
-- Supabase Client Config
-- AUD Data Sources
 - CAD Data Sources
-- Release Stage Badge
 - Translate Headlines API
-- GBP Data Source
+- Brand Assets (Logo/Favicon)
 - TS Root Config
 
 ## God Nodes (most connected - your core abstractions)
@@ -77,36 +73,31 @@
 ## Import Cycles
 - None detected.
 
-## Hyperedges (group relationships)
-- **Multi-currency architecture pattern shared across all 9 currencies** — handoff_multicurrency_architecture, handoff_currency_usd, handoff_currency_eur, handoff_currency_gbp, handoff_currency_cad, handoff_currency_aud, handoff_currency_nzd, handoff_currency_jpy, handoff_currency_chf, handoff_currency_cny [INFERRED 0.85]
-- **Currencies participating in the GDP-by-component (C+I+G+NX) redesign with real coverage** — handoff_gdp_subcomponent_redesign, handoff_currency_usd, handoff_currency_eur, handoff_currency_aud, handoff_currency_jpy, handoff_currency_cny [INFERRED 0.85]
-- **Panel de Control page composed of Bias, Titulares ticker, and translation features** — handoff_panel_control, handoff_currency_bias_feature, handoff_titulares_feature, handoff_headline_translation_feature [EXTRACTED 1.00]
+## Communities (36 total, 2 thin omitted)
 
-## Communities (40 total, 2 thin omitted)
+### Community 0 - "Currency Bias & Macro Context"
+Cohesion: 0.05
+Nodes (61): CurrencyBiasCardProps, BIAS_CURRENCIES, formatDateTime(), HeadlineCard(), HeadlineCardProps, MarqueeTickerProps, CurrencyContextValue, BankerNotesMap (+53 more)
 
-### Community 0 - "App Shell & Panels"
+### Community 1 - "App Shell & Layout"
 Cohesion: 0.09
-Nodes (40): App(), CurrencyBiasCard(), toDateInput(), FomcWatchPanel(), Layout(), navFor(), useTheme(), MarqueeTicker() (+32 more)
+Nodes (42): UI Icon Sprite Sheet (icons.svg), react, App(), ChartCard, CurrencyBiasCard(), toDateInput(), DocumentUploadList(), DocumentUploadListProps (+34 more)
 
-### Community 1 - "Chart Rendering Components"
+### Community 2 - "Chart & FOMC Components"
 Cohesion: 0.08
-Nodes (30): react, areEqual(), ChartCard, ChartCardInner(), ChartCardProps, ChartTooltip(), samePoint(), CONFIG (+22 more)
+Nodes (43): areEqual(), ChartCardInner(), ChartTooltip(), samePoint(), FomcWatchPanel(), CONFIG, FreshnessBadge(), FOMC_MEETINGS_2026 (+35 more)
 
-### Community 2 - "Package Dependencies"
+### Community 3 - "Package Dependencies"
 Cohesion: 0.05
 Nodes (43): oxlint, dependencies, react, react-dom, react-router-dom, recharts, @supabase/supabase-js, devDependencies (+35 more)
 
-### Community 3 - "FRED Indicator Mappings"
-Cohesion: 0.13
-Nodes (27): AUD_AUTO_INDICATOR_IDS, CAD_AUTO_INDICATOR_IDS, CBBS_MAPPING, CHF_AUTO_INDICATOR_IDS, CNY_AUTO_INDICATOR_IDS, EUR_EUROSTAT_INDICATOR_ID, EUR_FRED_MAPPINGS, EUR_HICP_FPD_INDICATOR_IDS (+19 more)
+### Community 4 - "Banker Headshot Photos"
+Cohesion: 0.05
+Nodes (40): alexopoulos.jpg (headshot photo), andrew-hauser.jpg (headshot photo), anna-breman.jpg (headshot photo), barkin.jpg (headshot photo), breeden.jpg (headshot photo), bruce-preston.jpg (headshot photo), Carl Hansen headshot photo, Carolyn Hewson headshot photo (+32 more)
 
-### Community 4 - "Macro Data Context"
-Cohesion: 0.12
-Nodes (25): BankerNotesMap, BiasMap, defaultBiasMap(), fetchAllRows(), FomcWatchMap, ForecastMap, loadLocalBankerNotes(), loadLocalBias() (+17 more)
-
-### Community 5 - "Sync API & Branding Notes"
-Cohesion: 0.08
-Nodes (26): api/aud-sync.ts, api/cad-sync.ts, api/chf-sync.ts, api/cny-sync.ts, api/fred-sync.ts, api/gbp-sync.ts, api/jpy-sync.ts, api/nzd-sync.ts (+18 more)
+### Community 5 - "Score Panel & Indicators"
+Cohesion: 0.09
+Nodes (23): ChartCardProps, ScorePanel(), ScorePanelProps, valoracionColor(), SubcomponentModal(), SubcomponentModalProps, FREQUENCY_STALE_DAYS, INDICATORS (+15 more)
 
 ### Community 6 - "NZD Sync Pipeline"
 Cohesion: 0.18
@@ -116,121 +107,105 @@ Nodes (24): cpiQoqSeries(), cpiYoySeries(), currentQuarterEnd(), extractSingleCs
 Cohesion: 0.08
 Nodes (24): DOM, src, vite/client, compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx (+16 more)
 
-### Community 8 - "Central Bankers Data"
-Cohesion: 0.11
-Nodes (19): BOC_BANKERS, BOE_BANKERS, BOJ_BANKERS, ECB_BANKERS, FED_BANKERS, RBA_BANKERS, RBNZ_BANKERS, SNB_BANKERS (+11 more)
-
-### Community 9 - "TS Node Compiler Config"
+### Community 8 - "TS Node Compiler Config"
 Cohesion: 0.10
 Nodes (19): node, vite.config.ts, compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection (+11 more)
 
-### Community 10 - "Currency Bias Logic"
-Cohesion: 0.17
-Nodes (15): CurrencyBiasCardProps, MacroDataContextValue, BIAS_COLORS, BIAS_LABELS, BIAS_LEVELS, CENTRAL_BANK_BY_CURRENCY, formatMonth(), BiasLevel (+7 more)
-
-### Community 11 - "EUR Sync Pipeline"
+### Community 9 - "EUR Sync Pipeline"
 Cohesion: 0.15
 Nodes (18): computeSeries(), EUR_FRED_MAPPINGS, EurostatJsonStat, fetchEurostatUnemployment(), fetchFredObservations(), fetchHicpFpd(), fetchNamqContribution(), FredMapping (+10 more)
 
-### Community 12 - "Headlines & Titulares"
-Cohesion: 0.19
-Nodes (14): BIAS_CURRENCIES, formatDateTime(), HeadlineCard(), HeadlineCardProps, MarqueeTickerProps, CurrencyContextValue, IMPACT_COLORS, IMPACT_LABELS (+6 more)
+### Community 10 - "Branding & Entry Doc Notes"
+Cohesion: 0.14
+Nodes (16): CNY sync step (chinadata.live) → /api/cny-sync, chinadata.live (unofficial NBS/GACC aggregator), Self-hosting central-banker photos instead of hotlinking, Hikman Capital brand identity (logo/watermark), chinadata.live aggregator repeatedly lags weeks/months behind NBS releases, CNY currency pipeline (13 indicators, 13/13 automated — reference/risk-proxy currency), HIKMAN ENDÓGENO dashboard, Multi-currency architecture pattern (+8 more)
 
-### Community 13 - "Score Panel & Seeds"
-Cohesion: 0.13
-Nodes (10): ScorePanel(), ScorePanelProps, valoracionColor(), AUD_SCORE_SEED, CAD_SCORE_SEED, EUR_SCORE_SEED, GBP_SCORE_SEED, JPY_SCORE_SEED (+2 more)
-
-### Community 14 - "AUD Sync Pipeline"
+### Community 11 - "AUD Sync Pipeline"
 Cohesion: 0.35
 Nodes (13): AbsObservation, cpiYoySeries(), employmentChangeSeries(), fetchAbsSeries(), fetchRbaCashRate(), gdpYoySeries(), handler(), Observation (+5 more)
 
-### Community 15 - "FRED Sync Pipeline"
+### Community 12 - "Sync Entrypoints & Stale README Notes"
+Cohesion: 0.16
+Nodes (14): api/aud-sync.ts, api/cad-sync.ts, api/chf-sync.ts, api/cny-sync.ts, api/fred-sync.ts, api/gbp-sync.ts, api/jpy-sync.ts, api/nzd-sync.ts (+6 more)
+
+### Community 13 - "FRED Sync Pipeline"
 Cohesion: 0.26
 Nodes (11): CBBS_MAPPING, computeSeries(), dedupeConsecutive(), fetchObservations(), FRED_MAPPINGS, FredMapping, FredTransform, handler() (+3 more)
 
-### Community 16 - "Headlines Sync Pipeline"
+### Community 14 - "Headlines Sync Pipeline"
 Cohesion: 0.27
 Nodes (11): BOND_EQUITY_KEYWORDS, classifyFinnhubHeadline(), CURRENCY_KEYWORDS, fetchFinnhubHeadlines(), FinnhubNewsItem, handler(), HeadlineRow, HIGH_IMPACT_KEYWORDS (+3 more)
 
-### Community 17 - "CAD Sync Pipeline"
+### Community 15 - "Banqueros Page & Types"
+Cohesion: 0.21
+Nodes (11): BankerCard(), initials(), STANCE_LABEL, stanceColor(), StatementBlock(), VOTE_GROUPS, voteBadge(), BankerNote (+3 more)
+
+### Community 16 - "CAD Sync Pipeline"
 Cohesion: 0.31
 Nodes (10): diffX1000ByMonth(), fetchBocSeries(), fetchStatCanVector(), handler(), levelByMonth(), Observation, pctChangeByMonth(), shiftMonths() (+2 more)
 
-### Community 18 - "CNY Sync Pipeline"
+### Community 17 - "CNY Sync Pipeline"
 Cohesion: 0.35
 Nodes (10): deriveYoyFromChainedMom(), fetchChinaDataSeries(), fetchTradeBalance(), handler(), indexToYoySeries(), normalizeDate(), Observation, pctSeries() (+2 more)
 
-### Community 19 - "JPY Sync Pipeline"
+### Community 18 - "JPY Sync Pipeline"
 Cohesion: 0.35
 Nodes (10): directPctSeries(), employmentChangeSeries(), fetchBojRate(), fetchDashboardSeries(), fetchTradeBalance(), handler(), Observation, parseEstatTime() (+2 more)
+
+### Community 19 - "AUD/EUR/USD Data Sources"
+Cohesion: 0.25
+Nodes (11): AUD sync step (ABS + RBA) → /api/aud-sync, EUR sync step (FRED + Eurostat) → /api/eur-sync, USD sync step (FRED) → /api/fred-sync, ABS Data API (SDMX 2.1, keyless), Eurostat SDMX API, FRED API (Federal Reserve Bank of St. Louis), RBA public CSV (table F1.1), AUD currency pipeline (20 indicators, 16 automated) (+3 more)
 
 ### Community 20 - "CHF Sync Pipeline"
 Cohesion: 0.36
 Nodes (9): directLevelSeries(), directPctSeries(), fetchKofBarometer(), fetchSnbCube(), fetchSwissdatasSeries(), handler(), Observation, pctChangeSeries() (+1 more)
 
-### Community 21 - "EUR GDP/HICP Automation"
-Cohesion: 0.22
-Nodes (10): api/eur-sync.ts, CNY sync step (chinadata.live) → /api/cny-sync, chinadata.live (unofficial NBS/GACC aggregator), chinadata.live aggregator repeatedly lags weeks/months behind NBS releases, CNY currency pipeline (13 indicators, 13/13 automated — reference/risk-proxy currency), EUR GDP-by-component automation via namq_10_gdp (unit=CON_PPCH_PRE), EUR HICP flash→final automation via Eurostat prc_hicp_fpd, GDP subcomponent redesign (Consumo/Inversión/Gasto Público/Exportaciones Netas) across all 9 currencies (+2 more)
+### Community 21 - "GBP/NZD Workflows & Cron Bug"
+Cohesion: 0.27
+Nodes (10): GBP sync step (BoE) → /api/gbp-sync, NZD sync step (Stats NZ) → /api/nzd-sync, Sincronizar Divisas (GitHub Actions workflow), Sincronizar Titulares (GitHub Actions workflow), Bank of England IADB (CSV), Stats NZ per-release CSVs, Backup sync Routine (trig_01VigD4t2wgyxh8YCAYDqtg1), GBP currency pipeline (16 indicators, mostly manual) (+2 more)
 
-### Community 22 - "Headline Translation Feature"
+### Community 22 - "Equities & RentaVariable"
+Cohesion: 0.31
+Nodes (8): EQUITIES_BY_CURRENCY, EquityGroup, EquitySymbol, formatPrice(), formatTime(), Quote, QuoteCard(), RentaVariable()
+
+### Community 23 - "Headline Translation Feature"
 Cohesion: 0.28
 Nodes (9): api/headlines-sync.ts, api/translate-headlines.ts, Sincronizar titulares step → /api/headlines-sync, Traducir titulares pendientes step → /api/translate-headlines, Currency Bias feature (CurrencyBiasCard), Forex Factory CDN URL change broke headlines sync, Automatic headline translation via MyMemory, Panel de Control page (/panel-control) (+1 more)
-
-### Community 23 - "CHF/JPY Data Sources"
-Cohesion: 0.28
-Nodes (9): CHF sync step (SNB + SECO + KOF) → /api/chf-sync, JPY sync step (e-Stat + BOJ) → /api/jpy-sync, Bank of Japan CSV (stat-search.boj.or.jp), e-Stat Dashboard API (Japan), KOF Economic Barometer API v2, SECO CSV feed (scheduler.swissdatas.ch), SNB Data Portal API (data.snb.ch), CHF currency pipeline (16 indicators, 9 automated) (+1 more)
 
 ### Community 24 - "Lint Config (oxlint)"
 Cohesion: 0.22
 Nodes (8): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema, oxc, typescript, warn
 
-### Community 25 - "Equities & RentaVariable"
-Cohesion: 0.33
-Nodes (7): EQUITIES_BY_CURRENCY, EquityGroup, EquitySymbol, formatPrice(), formatTime(), Quote, QuoteCard()
+### Community 25 - "EUR/JPY GDP Automation Notes"
+Cohesion: 0.29
+Nodes (8): api/eur-sync.ts, JPY sync step (e-Stat + BOJ) → /api/jpy-sync, Bank of Japan CSV (stat-search.boj.or.jp), e-Stat Dashboard API (Japan), JPY currency pipeline (16 indicators, 12 automated), EUR GDP-by-component automation via namq_10_gdp (unit=CON_PPCH_PRE), EUR HICP flash→final automation via Eurostat prc_hicp_fpd, GDP subcomponent redesign (Consumo/Inversión/Gasto Público/Exportaciones Netas) across all 9 currencies
 
-### Community 26 - "EUR/FRED Workflows"
-Cohesion: 0.43
-Nodes (7): EUR sync step (FRED + Eurostat) → /api/eur-sync, USD sync step (FRED) → /api/fred-sync, Eurostat SDMX API, FRED API (Federal Reserve Bank of St. Louis), EUR currency pipeline (21 Eurozone + 18 DE/FR indicators), USD currency pipeline (~43 indicators), Renta Variable (equities) feature (/renta-variable)
-
-### Community 27 - "Workflow Cron & Backup"
-Cohesion: 0.38
-Nodes (7): NZD sync step (Stats NZ) → /api/nzd-sync, Sincronizar Divisas (GitHub Actions workflow), Sincronizar Titulares (GitHub Actions workflow), Stats NZ per-release CSVs, Backup sync Routine (trig_01VigD4t2wgyxh8YCAYDqtg1), NZD currency pipeline (14 indicators, 6 automated), GitHub Actions scheduled cron never fired on its own
-
-### Community 28 - "GBP Sync Pipeline"
+### Community 26 - "GBP Sync Pipeline"
 Cohesion: 0.53
 Nodes (5): fetchBoeBankRate(), fetchTradeBalance(), handler(), Observation, parseMonthlyFromDailyCsv()
 
-### Community 29 - "Equities Quotes API"
+### Community 27 - "Release Stage & Subcomponent Modal"
+Cohesion: 0.33
+Nodes (6): Preliminar/Final release-stage badge (IndicatorMeta.releaseStage), Subcomponent modal UX (SubcomponentModal.tsx + groupByParent), src/components/ChartCard.tsx, src/components/SectionGrid.tsx, src/pages/Actualizar.tsx, src/types.ts
+
+### Community 28 - "Equities Quotes API"
 Cohesion: 0.60
 Nodes (4): fetchFinnhubQuote(), fetchYahooQuote(), handler(), QuoteResult
+
+### Community 29 - "CHF Data Sources"
+Cohesion: 0.50
+Nodes (5): CHF sync step (SNB + SECO + KOF) → /api/chf-sync, KOF Economic Barometer API v2, SECO CSV feed (scheduler.swissdatas.ch), SNB Data Portal API (data.snb.ch), CHF currency pipeline (16 indicators, 9 automated)
 
 ### Community 30 - "Supabase Persistence"
 Cohesion: 0.40
 Nodes (5): Migration from HIKMAN CAPITAL SISTEMA 2.0.xlsx, Supabase (Postgres backend), Supabase/localStorage persistence (README), src/data/MacroDataContext.tsx, supabase/schema.sql
 
-### Community 31 - "Document Upload List"
-Cohesion: 0.60
-Nodes (4): DocumentUploadList(), DocumentUploadListProps, formatDateTime(), DocumentEntry
-
-### Community 32 - "Supabase Client Config"
-Cohesion: 0.40
-Nodes (4): anonKey, supabase, supabaseEnabled, url
-
-### Community 33 - "AUD Data Sources"
-Cohesion: 0.67
-Nodes (4): AUD sync step (ABS + RBA) → /api/aud-sync, ABS Data API (SDMX 2.1, keyless), RBA public CSV (table F1.1), AUD currency pipeline (20 indicators, 16 automated)
-
-### Community 34 - "CAD Data Sources"
+### Community 31 - "CAD Data Sources"
 Cohesion: 0.83
 Nodes (4): CAD sync step (StatCan + BoC) → /api/cad-sync, Bank of Canada Valet API, StatCan Web Data Service (WDS), CAD currency pipeline (17 indicators, 11 automated)
 
-### Community 35 - "Release Stage Badge"
-Cohesion: 0.50
-Nodes (4): Preliminar/Final release-stage badge (IndicatorMeta.releaseStage), src/components/ChartCard.tsx, src/pages/Actualizar.tsx, src/types.ts
-
-### Community 37 - "GBP Data Source"
-Cohesion: 1.00
-Nodes (3): GBP sync step (BoE) → /api/gbp-sync, Bank of England IADB (CSV), GBP currency pipeline (16 indicators, mostly manual)
+### Community 33 - "Brand Assets (Logo/Favicon)"
+Cohesion: 0.67
+Nodes (3): Favicon (HC monogram mark), Full Logo Lockup (HC mark + 'HIKMAN CAPITAL' wordmark), Logo Icon (HC monogram mark, standalone)
 
 ## Ambiguous Edges - Review These
 - `Sincronizar Divisas (GitHub Actions workflow)` → `'Sincronizar con FRED' manual button (README)`  [AMBIGUOUS]
@@ -243,7 +218,7 @@ Nodes (3): GBP sync step (BoE) → /api/gbp-sync, Bank of England IADB (CSV), GB
   README.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **152 isolated node(s):** `$schema`, `typescript`, `oxc`, `react/rules-of-hooks`, `warn` (+147 more)
+- **187 isolated node(s):** `$schema`, `typescript`, `oxc`, `react/rules-of-hooks`, `warn` (+182 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -258,9 +233,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `USD Macro — Seguimiento Fundamental (README project description)` and `index.html entry document (HIKMAN ENDÓGENO)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `react` connect `Chart Rendering Components` to `App Shell & Panels`, `FRED Indicator Mappings`, `Macro Data Context`, `Central Bankers Data`, `Currency Bias Logic`, `Headlines & Titulares`, `Lint Config (oxlint)`, `Equities & RentaVariable`, `Document Upload List`?**
+- **Why does `react` connect `App Shell & Layout` to `Currency Bias & Macro Context`, `Chart & FOMC Components`, `Score Panel & Indicators`, `Banqueros Page & Types`, `Equities & RentaVariable`, `Lint Config (oxlint)`?**
   _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **Why does `Sincronizar Divisas (GitHub Actions workflow)` connect `Workflow Cron & Backup` to `AUD Data Sources`, `CAD Data Sources`, `GBP Data Source`, `Sync API & Branding Notes`, `EUR GDP/HICP Automation`, `CHF/JPY Data Sources`, `EUR/FRED Workflows`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Why does `plugins` connect `Lint Config (oxlint)` to `Chart Rendering Components`?**
+- **Why does `Sincronizar Divisas (GitHub Actions workflow)` connect `GBP/NZD Workflows & Cron Bug` to `Branding & Entry Doc Notes`, `Sync Entrypoints & Stale README Notes`, `AUD/EUR/USD Data Sources`, `EUR/JPY GDP Automation Notes`, `CHF Data Sources`, `CAD Data Sources`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Why does `plugins` connect `Lint Config (oxlint)` to `App Shell & Layout`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
