@@ -3198,6 +3198,36 @@ reabrir la discusión)**:
   reciente (BusinessNZ revisa el ajuste estacional mes a mes, es
   comportamiento normal, no un error).
 
+### Bug (parte 2): el try/catch no alcanzaba si el fetch se cuelga sin resolver ni rechazar
+
+El usuario probó el fix anterior y avisó que seguía trabado en
+"Cargando…" 5 minutos después. Confirmado que el fix SÍ estaba en
+producción (se bajó el bundle en vivo y se encontró el string "Error al
+sincronizar con Supabase"), así que el problema era otro: un
+`fetch` que se cuelga sin nunca resolver NI rechazar (pasa con ciertos
+firewalls/proxies que descartan paquetes en silencio en vez de cortar la
+conexión activamente) no dispara ningún `catch` — el `await
+Promise.all(...)` simplemente espera para siempre, y ningún try/catch
+del mundo lo soluciona porque no hay excepción que atrapar.
+
+**Fix**: `withTimeout()` — envuelve el `Promise.all(...)` en un
+`Promise.race()` contra un timer de 30s que rechaza si no terminó a
+tiempo. Así, cuelgue o error real, siempre hay algo que cae en el catch
+y dispara el `finally { setLoading(false) }`.
+
+**De paso, corregido un problema de UX relacionado**: con el fix
+anterior solo (try/catch sin timeout), si la sync fallaba el badge iba a
+pasar de "Cargando…" a "Sincronizado (Supabase)" — mintiendo, porque
+`syncMode` se calcula solo a partir de si Supabase está CONFIGURADO
+(`supabaseEnabled`, fijo en build time), no de si el último intento tuvo
+éxito. Se agregó un estado nuevo `syncError` en `MacroDataContext`
+(`true` si el intento más reciente falló o dio timeout, se resetea a
+`false` al arrancar cada `refresh()`) y el badge en `Layout.tsx` ahora
+tiene 4 estados reales: Cargando / Sincronizado (Supabase) / Guardado
+local / **Sin conexión (reintentar)** — este último en rojo
+(`--status-critical`). El badge ahora también es clickeable y llama a
+`refresh()` — sirve para reintentar sin recargar toda la página.
+
 ### Bug: "Cargando…" se podía quedar trabado para siempre
 
 El usuario preguntó por qué a veces la app le aparece "Sincronizado

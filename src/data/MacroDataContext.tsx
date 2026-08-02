@@ -159,6 +159,19 @@ function loadLocalMentorNotes(): DocumentEntry[] {
   }
 }
 
+// Si el fetch a Supabase se queda colgado (sin resolver ni rechazar nunca —
+// pasa con ciertos firewalls/proxies que descartan paquetes en silencio en
+// vez de rechazar la conexión) el try/catch de refresh() no sirve de nada,
+// porque no hay excepción que atrapar. Este timeout fuerza un rechazo
+// después de N ms para que la app se rinda y muestre lo que tenga en vez de
+// quedarse en "Cargando…" para siempre.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout (${ms}ms) esperando ${label}`)), ms)),
+  ]);
+}
+
 function mergeSeries(base: SeriesPoint[], overrides: SeriesPoint[]): SeriesPoint[] {
   const map = new Map<string, number>();
   for (const [date, value] of base) map.set(date, value);
@@ -232,6 +245,10 @@ interface MacroDataContextValue {
   exportJson: () => string;
   loading: boolean;
   syncMode: 'cloud' | 'local';
+  /** true si la última carga desde Supabase falló o se colgó (timeout) —
+   * distinto de `loading`, que ya se apagó en ese caso. Ver Layout.tsx: el
+   * badge no debe decir "Sincronizado" cuando en realidad falló. */
+  syncError: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -249,6 +266,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<DocumentEntry[]>([]);
   const [mentorNotes, setMentorNotes] = useState<DocumentEntry[]>([]);
   const [loading, setLoading] = useState(supabaseEnabled);
+  const [syncError, setSyncError] = useState(false);
 
   const base = historicalSeries as unknown as SeriesMap;
 
@@ -269,12 +287,13 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     }
 
     const client = supabase;
+    setSyncError(false);
     // Sin try/finally acá, un error de red (sin conexión, firewall/extensión
     // bloqueando supabase.co) tira el Promise.all y corta la función antes
     // de llegar al setLoading(false) de más abajo — el usuario se queda
     // viendo "Cargando…" para siempre en vez de degradar con lo que haya.
     try {
-    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await withTimeout(Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value, stage').range(from, to),
       ),
@@ -307,7 +326,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         .from('mentor_notes')
         .select('id, title, text_content, file_url, file_name, created_at')
         .order('created_at', { ascending: false }),
-    ]);
+    ]), 30000, 'la carga inicial de datos');
 
     {
       const map: SeriesMap = {};
@@ -490,6 +509,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error('Error al sincronizar con Supabase:', error);
+      setSyncError(true);
     } finally {
       setLoading(false);
     }
@@ -1019,6 +1039,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       exportJson,
       loading,
       syncMode: (supabaseEnabled ? 'cloud' : 'local') as 'cloud' | 'local',
+      syncError,
       refresh,
     }),
     [
@@ -1057,6 +1078,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       resetOverrides,
       exportJson,
       loading,
+      syncError,
       refresh,
     ],
   );

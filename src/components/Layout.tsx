@@ -68,7 +68,7 @@ function useTheme() {
 
 export function Layout() {
   const [theme, setTheme] = useTheme();
-  const { syncMode, loading } = useMacroData();
+  const { syncMode, loading, syncError, refresh } = useMacroData();
   const { currency, setCurrency } = useCurrency();
 
   return (
@@ -109,21 +109,31 @@ export function Layout() {
                 </button>
               ))}
             </div>
-            <span
+            <button
+              type="button"
+              onClick={() => refresh()}
               className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium sm:inline-flex"
-              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}
               title={
-                syncMode === 'cloud'
-                  ? 'Los datos se guardan en Supabase y se sincronizan entre dispositivos'
-                  : 'Los datos se guardan solo en este navegador (configura Supabase para sincronizar)'
+                syncError
+                  ? 'No se pudo conectar con Supabase (sin conexión o bloqueado) — mostrando solo datos locales. Tocá para reintentar.'
+                  : syncMode === 'cloud'
+                    ? 'Los datos se guardan en Supabase y se sincronizan entre dispositivos. Tocá para refrescar.'
+                    : 'Los datos se guardan solo en este navegador (configura Supabase para sincronizar)'
               }
             >
               <span
                 className="h-1.5 w-1.5 rounded-full"
-                style={{ background: syncMode === 'cloud' ? 'var(--status-good)' : 'var(--status-warning)' }}
+                style={{
+                  background: syncError
+                    ? 'var(--status-critical)'
+                    : syncMode === 'cloud'
+                      ? 'var(--status-good)'
+                      : 'var(--status-warning)',
+                }}
               />
-              {loading ? 'Cargando…' : syncMode === 'cloud' ? 'Sincronizado (Supabase)' : 'Guardado local'}
-            </span>
+              {loading ? 'Cargando…' : syncError ? 'Sin conexión (reintentar)' : syncMode === 'cloud' ? 'Sincronizado (Supabase)' : 'Guardado local'}
+            </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="rounded-full px-3 py-1 text-xs font-medium"
