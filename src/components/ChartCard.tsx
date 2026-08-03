@@ -1,23 +1,13 @@
-import { memo, useMemo } from 'react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { memo, useMemo, useState } from 'react';
 import type { IndicatorMeta, SeriesPoint } from '../types';
-import { formatDate, formatMonth, formatValue } from '../lib/format';
+import { formatValue } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from './FreshnessBadge';
+import { IndicatorChart } from './IndicatorChart';
+import { HistoryModal } from './HistoryModal';
 
-function ReleaseStageBadge({ stage }: { stage: NonNullable<IndicatorMeta['releaseStage']> }) {
+// Exportado para reuso en HistoryModal (mismo badge en la tarjeta y en el modal).
+export function ReleaseStageBadge({ stage }: { stage: NonNullable<IndicatorMeta['releaseStage']> }) {
   const cfg =
     stage === 'preliminar'
       ? { label: 'Preliminar', color: 'var(--status-warning)' }
@@ -34,28 +24,6 @@ function ReleaseStageBadge({ stage }: { stage: NonNullable<IndicatorMeta['releas
     >
       {cfg.label}
     </span>
-  );
-}
-
-function ChartTooltip({
-  active,
-  payload,
-  format,
-}: {
-  active?: boolean;
-  payload?: { payload: { date: string; value: number } }[];
-  format: IndicatorMeta['format'];
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const { date, value } = payload[0].payload;
-  return (
-    <div
-      className="rounded-md px-2.5 py-1.5 text-xs shadow-sm"
-      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-    >
-      <div style={{ color: 'var(--text-muted)' }}>{formatDate(date)}</div>
-      <div className="font-semibold">{formatValue(value, format)}</div>
-    </div>
   );
 }
 
@@ -80,6 +48,7 @@ interface ChartCardProps {
 }
 
 function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, subcomponentsControl, compact = false }: ChartCardProps) {
+  const [historyOpen, setHistoryOpen] = useState(false);
   const stage = releaseStage ?? meta.releaseStage;
   const freshness = getFreshness(points, meta.frequency);
   const windowed = points.slice(-months);
@@ -100,8 +69,6 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
       : meta.goodDirection === 'up'
         ? delta >= 0
         : delta <= 0;
-
-  const color = 'var(--series-1)';
 
   return (
     <div
@@ -196,80 +163,26 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
         </div>
       </div>
 
-      <div className={compact ? 'mt-2 h-[80px] w-full' : 'mt-2 h-[140px] w-full'}>
-        <ResponsiveContainer width="100%" height="100%">
-          {meta.chart === 'bar' ? (
-            <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="var(--gridline)" strokeDasharray="0" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatMonth}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={{ stroke: 'var(--baseline)' }}
-                tickLine={false}
-                minTickGap={30}
-              />
-              <YAxis
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={54}
-                tickFormatter={(v) => formatValue(v, meta.format)}
-              />
-              <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ fill: 'var(--gridline)' }} />
-              <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={14} />
-            </BarChart>
-          ) : meta.chart === 'area' ? (
-            <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`grad-${meta.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="var(--gridline)" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatMonth}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={{ stroke: 'var(--baseline)' }}
-                tickLine={false}
-                minTickGap={30}
-              />
-              <YAxis
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={54}
-                tickFormatter={(v) => formatValue(v, meta.format)}
-              />
-              <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ stroke: 'var(--baseline)' }} />
-              <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#grad-${meta.id})`} />
-            </AreaChart>
-          ) : (
-            <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="var(--gridline)" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatMonth}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={{ stroke: 'var(--baseline)' }}
-                tickLine={false}
-                minTickGap={30}
-              />
-              <YAxis
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={54}
-                tickFormatter={(v) => formatValue(v, meta.format)}
-              />
-              <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ stroke: 'var(--baseline)' }} />
-              <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
-      </div>
+      <button
+        type="button"
+        disabled={points.length === 0}
+        onClick={() => setHistoryOpen(true)}
+        title={points.length > 0 ? 'Ver histórico completo' : undefined}
+        className={
+          'relative mt-2 w-full rounded-lg text-left transition-colors' +
+          (points.length > 0 ? ' cursor-pointer hover:bg-[var(--surface-2)]' : ' cursor-default')
+        }
+      >
+        {points.length > 0 && (
+          <span
+            className="pointer-events-none absolute right-1 top-1 z-10 text-[9px]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ⤢
+          </span>
+        )}
+        <IndicatorChart meta={meta} data={data} height={compact ? 80 : 140} />
+      </button>
 
       <a
         href={meta.sourceUrl}
@@ -280,6 +193,10 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
       >
         Fuente: {meta.source}
       </a>
+
+      {historyOpen && (
+        <HistoryModal meta={meta} points={points} releaseStage={stage} onClose={() => setHistoryOpen(false)} />
+      )}
     </div>
   );
 }
