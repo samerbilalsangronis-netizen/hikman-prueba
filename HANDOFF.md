@@ -4204,3 +4204,64 @@ y las dimensiones resultantes, no por observación de movimiento continuo
 en tiempo real dentro del sandbox.
 
 **Archivos**: `src/components/MarqueeTicker.tsx`.
+
+## Corrección al fix anterior: la causa real era el redondeo de scrollLeft
+
+El fix documentado arriba (copias dinámicas para evitar el clamp nativo)
+era un bug real y quedó, pero **no era la causa de que la cinta no se
+moviera en absoluto** — el usuario confirmó que seguía sin moverse incluso
+después de ese deploy, verificado con hard refresh e incógnito.
+
+Investigando más a fondo (contando invocaciones reales de `step()` vía
+instrumentación temporal): el loop de `requestAnimationFrame` SÍ se
+ejecutaba de forma perfectamente normal a 60fps (confirmado con un
+contador independiente en la misma página), `shouldMove` era `true` todo
+el tiempo, `dt` era normal (~0.0167s) — y aun así `el.scrollLeft` quedaba
+literalmente congelado en 1-2px para siempre, incluso leyendo el valor
+inmediatamente después de la propia asignación en la misma línea.
+
+**Causa real**: `Element.scrollLeft` en Chromium se redondea a entero al
+leer/escribir. A la velocidad configurada (20-60px/s, clampeada según
+`items.length * 4`), a 60fps cada frame suma entre 0.33px y 1px. El código
+hacía `el.scrollLeft += speedPxPerSec * dt`, es decir, releía el valor
+(ya redondeado) del DOM cada frame y le sumaba el incremento — con pocos
+titulares fijados (`speedPxPerSec` clampeado al mínimo de 20px/s ⇒
+0.33px/frame), la suma nunca cruza el umbral de redondeo hacia arriba
+(0.33 redondea para abajo, siempre, sobre cualquier entero): `1 + 0.33 =
+1.33 → redondea a 1` — frame tras frame, para siempre. La cinta jamás se
+mueve, desde el primer frame, sin importar cuántos titulares haya ni cuán
+ancha sea la pantalla. Esto explica el reporte del usuario mucho mejor que
+el bug del clamp (que solo se manifiesta eventualmente, tras acumular
+suficiente movimiento) — y por qué insistía en que "no se mueve" incluso
+recién cargada la página.
+
+Confirmado de forma aislada:
+```js
+el.scrollLeft = 1.33;
+el.scrollLeft // → 1 (redondeado)
+el.scrollLeft += 0.33; // intenta 1.33 de nuevo
+el.scrollLeft // → 1 (nunca avanza)
+```
+
+**Fix**: se dejó de usar `el.scrollLeft` releído como acumulador. Ahora
+hay un `positionRef` (un `useRef<number>`) que acumula la posición real
+con decimales completos, fuera del DOM, y solo al final de cada frame se
+vuelca a `el.scrollLeft = positionRef.current` (que sí puede perder el
+decimal para la pantalla, pero el acumulador interno nunca lo pierde, así
+que en el siguiente frame sigue sumando desde el valor correcto). El drag
+manual (`onPointerMove`) también sincroniza `positionRef.current` con la
+posición arrastrada, para que el auto-scroll retome exactamente desde ahí
+al soltar, no desde una posición vieja.
+
+Verificado con Playwright forzando cientos de frames reales sobre la
+página real corriendo en local con los 4 titulares fijados reales
+(consultados directo de Supabase de producción): la cinta ahora avanza de
+forma sostenida y proporcional al tiempo real transcurrido (ej.
+33→53→73→...→274px en ~13s), tanto con los 4 titulares reales como con
+1-2 titulares cortos sintéticos (los casos que antes se congelaban).
+
+También se corrigió un warning de React ("key" prop faltante en las
+copias del contenido — quedó sin `key` tras el cambio a cantidad dinámica
+de copias).
+
+**Archivos**: `src/components/MarqueeTicker.tsx`.

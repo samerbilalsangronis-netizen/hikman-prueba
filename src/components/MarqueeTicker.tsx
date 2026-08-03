@@ -38,6 +38,15 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
   // Después de soltar un drag, esperamos un respiro antes de retomar el
   // auto-scroll — si no, "pelea" contra el dedo/mouse que recién soltaste.
   const resumeAtRef = useRef(0);
+  // scrollLeft del navegador se redondea a entero al leer/escribir. A esta
+  // velocidad (20-60px/s a 60fps = 0.33-1px por frame), sumar directo sobre
+  // `el.scrollLeft` releído cada frame casi nunca llega a 0.5px: el redondeo
+  // lo devuelve exactamente al mismo entero para siempre, frame tras frame
+  // — la cinta no avanza NUNCA, desde el primer frame (el bug real detrás
+  // de "no se mueve", independiente de cuántos titulares haya). Por eso la
+  // posición "real" (con decimales) se acumula acá, fuera del DOM, y solo
+  // se vuelca a scrollLeft (que sí puede perder el decimal) al final.
+  const positionRef = useRef(0);
 
   const speedPxPerSec = Math.max(20, Math.min(60, items.length * 4));
 
@@ -45,9 +54,9 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
   // pocos titulares cortos, dos copias pueden no llegar a cubrir 2x el ancho
   // visible — y el navegador clampea scrollLeft a scrollWidth-clientWidth,
   // un tope por debajo del punto donde el código "engancha" el reinicio del
-  // loop (runWidth). Resultado: la cinta se queda pegada para siempre apenas
-  // llega a ese tope, sin poder completar el wraparound. Por eso medimos y
-  // agregamos copias hasta que sobre margen de sobra.
+  // loop (runWidth). Resultado: la cinta se queda pegada apenas llega a ese
+  // tope, sin poder completar el wraparound. Por eso medimos y agregamos
+  // copias hasta que sobre margen de sobra (nativeMax >= runWidth siempre).
   const [copies, setCopies] = useState(2);
 
   useLayoutEffect(() => {
@@ -89,6 +98,8 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
     if (!el) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    positionRef.current = el.scrollLeft;
+
     let raf = 0;
     let lastTs: number | null = null;
 
@@ -104,8 +115,8 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
       const runWidth = el.scrollWidth / copies;
       const shouldMove = !isHovered && !dragState.current.dragging && ts >= resumeAtRef.current && runWidth > 0;
       if (shouldMove) {
-        el.scrollLeft += speedPxPerSec * dt;
-        if (el.scrollLeft >= runWidth) el.scrollLeft -= runWidth;
+        positionRef.current = (positionRef.current + speedPxPerSec * dt) % runWidth;
+        el.scrollLeft = positionRef.current;
       }
       raf = requestAnimationFrame(step);
     }
@@ -133,6 +144,10 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
       next = ((next % runWidth) + runWidth) % runWidth;
     }
     el.scrollLeft = next;
+    // Mantiene el acumulador propio sincronizado con el drag manual, para
+    // que el auto-scroll retome desde donde soltó el usuario (no desde una
+    // posición vieja).
+    positionRef.current = next;
   }
 
   function endDrag(e: React.PointerEvent<HTMLDivElement>) {
@@ -153,7 +168,7 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
 
   function renderRun(keyPrefix: string) {
     return (
-      <span className="flex shrink-0 items-center">
+      <span key={keyPrefix} className="flex shrink-0 items-center">
         <span className="mx-4 shrink-0 text-sm font-extrabold tracking-wide" style={{ color: 'var(--series-3)' }}>
           HIKMAN CAPITAL
         </span>
