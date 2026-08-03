@@ -4265,3 +4265,8 @@ copias del contenido — quedó sin `key` tras el cambio a cantidad dinámica
 de copias).
 
 **Archivos**: `src/components/MarqueeTicker.tsx`.
+
+**Estado**: ambos fixes de la cinta (el del clamp y el del redondeo de
+scrollLeft, este último la causa real) ya están en producción —
+`claude/macro-usd-web-dashboard-xm5ypk` en fast-forward hasta `ded61a0`,
+mismo commit que la rama de sesión `claude/lee-handoff-graphify-vs548t`.
