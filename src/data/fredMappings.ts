@@ -171,6 +171,8 @@ export const AUD_AUTO_INDICATOR_IDS = [
   'aud_rba_rate',
   'aud_cpi',
   'aud_cpi_yoy',
+  'aud_cpi_monthly',
+  'aud_cpi_monthly_yoy',
   'aud_core_cpi',
   'aud_core_cpi_yoy',
   'aud_weighted_median',

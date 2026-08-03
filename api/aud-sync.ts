@@ -231,6 +231,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // que sigue la fuente de referencia del usuario. Ver indicatorsAud.ts.
     { id: 'aud_cpi', run: () => pctSeries('CPI', '2.10001.10.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_cpi_yoy', run: cpiYoySeries },
+    // CPI Mensual nuevo (ABS, "primary measure" desde oct-2025) — corre en
+    // PARALELO al trimestral de arriba, no lo reemplaza. Mismo dataflow
+    // 'CPI' (v2.0.0) pero con FREQ=M, donde el a/a SÍ viene directo
+    // (MEASURE=3) a diferencia de la combinación trimestral. Ver
+    // indicatorsAud.ts / HANDOFF.md lección AUD #21/22.
+    { id: 'aud_cpi_monthly', run: () => pctSeries('CPI', '2.10001.10.50.M', ABS_START_PERIOD_M) },
+    { id: 'aud_cpi_monthly_yoy', run: () => pctSeries('CPI', '3.10001.10.50.M', ABS_START_PERIOD_M) },
     { id: 'aud_core_cpi', run: () => pctSeries('CPI_Q', '2.999902.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_core_cpi_yoy', run: () => pctSeries('CPI_Q', '3.999902.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_weighted_median', run: () => pctSeries('CPI_Q', '2.999903.20.50.Q', ABS_START_PERIOD_Q) },

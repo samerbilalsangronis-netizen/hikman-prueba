@@ -3961,3 +3961,93 @@ trabajo de esta sección quedó en la rama de la sesión
 (`claude/lee-handoff-graphify-vs548t`), no en producción — no se pidió
 explícitamente pushear a `claude/macro-usd-web-dashboard-xm5ypk` esta
 vez.
+
+**Actualización — ya en producción**: el usuario pidió "pushealo a
+producción" y se hizo fast-forward de `claude/lee-handoff-graphify-vs548t`
+a `claude/macro-usd-web-dashboard-xm5ypk` (commit `9641b25`).
+
+## Sesión 2-ago-2026 (cont. 4): intervalo 3A + CPI Mensual nuevo de AUD (corre en paralelo al trimestral)
+
+Dos pedidos en un mismo mensaje, después de que el usuario preguntó por
+qué el CPI a/a de EUR mostraba solo ~3 años (respondido: el sync automático
+capa cada corrida a 36-40 puntos, ver sección de arriba) y por qué el
+CPI Interanual de EUR preliminar del viernes iba a cambiar (respondido:
+sí, automático, vía el mecanismo FIN>FLS de `prc_hicp_fpd` — pero se
+encontró que el sync automático no setea el campo `stage`, así que esas
+4 tarjetas de EUR HICP nunca muestran la insignia "Preliminar" aunque el
+valor sí sea provisorio — **queda pendiente si el usuario quiere que se
+agregue**, no se tocó todavía).
+
+### 1. Intervalo 3A en el modal de histórico
+
+Pedido simple: agregar "3A" (3 años) a los botones de `HistoryModal`
+(1A/5A/10A/Histórico completo del feature de la sesión anterior).
+`src/lib/historyIntervals.ts`: `HistoryInterval` ahora incluye `'3y'`,
+`availableHistoryIntervals()` lo agrega si el span de la serie ≥ 3 años
+(entre 1A y 5A), `filterByInterval()` usa una tabla `INTERVAL_YEARS` en
+vez del `if/else` encadenado que tenía antes. No hizo falta tocar
+`HistoryModal.tsx` — itera `intervals` genéricamente.
+
+### 2. CPI Mensual de AUD — indicador nuevo, no un reemplazo
+
+El usuario señaló que `aud_cpi_yoy` salta de 3 en 3 meses en el gráfico
+(ene/abr/jul/oct) — confirmado, es la serie trimestral "Original" de
+siempre (`frequency: 'quarterly'`, decisión explícita de una sesión
+anterior porque coincide con la fuente de referencia del usuario, ver
+lección AUD #21/22 más arriba). Pero la ABS **también** publica una
+tasa interanual nueva **todos los meses** desde que el CPI Mensual se
+volvió "la medida primaria de inflación de Australia" (oct-2025,
+primera publicación 26-nov-2025) — el usuario aclaró que quiere
+**seguir las dos en paralelo**, no reemplazar una por la otra.
+
+**Investigación**: la ABS restructuró el dataflow `CPI` de la Data API
+(pasó a versión 2.0.0) para incluir también `FREQ=M` con el a/a como
+medida directa (`MEASURE=3` = "Percentage change from previous year",
+antes esto solo existía como t/t para la combinación trimestral, ver
+lección AUD #22). El viejo indicador mensual parcial (dataflow `CPI_M`,
+el que se había descartado en la sesión que decidió usar la base
+trimestral) corta en sep-2025 — quedó discontinuado justo cuando
+arrancó el nuevo. Encontrado por prueba y error explorando
+`/rest/dataflow/ABS` y el DSD de `CPI` (`/rest/datastructure/ABS/CPI?references=all`),
+no por documentación.
+
+- **`aud_cpi_monthly`** (m/m) y **`aud_cpi_monthly_yoy`** (a/a) — nuevos
+  indicadores en `indicatorsAud.ts`, `frequency: 'monthly'`, sección
+  Inflación, ubicados justo después del par trimestral `aud_cpi`/`aud_cpi_yoy`
+  (mismo criterio de orden que el resto del proyecto). Dataflow `CPI`
+  (v2.0.0), keys `2.10001.10.50.M` (m/m) y `3.10001.10.50.M` (a/a) —
+  mismo `INDEX`/`TSEST`/`REGION` que la base trimestral (10001=All groups,
+  10=Original, 50=weighted average ocho capitales), solo cambia
+  `FREQ=M` en vez de `Q`. **Verificado exacto contra lo ya documentado**:
+  4.6% marzo-2026, 4.0% mayo-2026 (lección AUD #16).
+- `api/aud-sync.ts`: 2 jobs nuevos con `pctSeries('CPI', '2.10001.10.50.M', ABS_START_PERIOD_M)`
+  / `pctSeries('CPI', '3.10001.10.50.M', ABS_START_PERIOD_M)` — el a/a
+  viene directo de la API acá (a diferencia de `cpiYoySeries()` para la
+  trimestral, que lo deriva del nivel), no hizo falta ninguna función
+  nueva. No se agregaron a `QUARTERLY_IDS` (son mensuales, no aplica el
+  cleanup de filas fuera de ciclo).
+- `fredMappings.ts`: los 2 ids nuevos agregados a `AUD_AUTO_INDICATOR_IDS`.
+- **Serie corta a propósito** (producto nuevo): `aud_cpi_monthly` arranca
+  may-2024 (26 puntos), `aud_cpi_monthly_yoy` arranca abr-2025 (15
+  puntos) — es todo lo que existe, no hay más historia para backfillear
+  todavía. Con menos de 3 años de span, el modal de histórico solo
+  muestra 1A + Histórico completo para estos dos (correcto, ver sección
+  1 de arriba).
+- Se actualizó la descripción de `aud_cpi_yoy` para referenciar
+  `aud_cpi_monthly_yoy` por nombre en vez de describirlo genéricamente
+  como "la serie mensual nueva".
+
+Probado con Playwright: las 2 tarjetas nuevas aparecen bien ubicadas en
+`/inflacion` de AUD, con los valores correctos (-0.10% m/m, 3.8% a/a
+para jun-2026); el intervalo 3A aparece correctamente en series con
+≥3 años de span (EUR CPI) y no aparece en las de AUD mensual (muy
+cortas todavía). `npm run build` en verde, sin errores de consola.
+
+**Pendiente explícito para la próxima sesión**:
+- Decidir si agregar la insignia Preliminar/Final al sync automático de
+  EUR HICP (`api/eur-sync.ts`) — hoy `eur_cpi`/`eur_cpi_yoy`/`eur_core_cpi`/`eur_core_cpi_yoy`
+  nunca muestran la insignia aunque el valor sea flash, porque el sync
+  no escribe el campo `stage` (ese mecanismo solo lo usa la carga
+  manual desde Actualizar Datos). Sería un cambio chico: en
+  `fetchHicpFpd()`, guardar si el período vino de FIN o FLS y pasar
+  `stage: 'final'`/`'preliminar'` en el upsert.
