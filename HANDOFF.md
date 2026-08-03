@@ -3799,3 +3799,165 @@ la rama de esta sesión junto con un ajuste de `.gitignore` para que los
 archivos de trabajo temporales de graphify (`.graphify_*`) no disparen
 el stop hook de "hay cambios sin commitear" mientras el pipeline está
 corriendo.
+
+## Sesión 2-ago-2026 (cont. 3): modal de histórico completo + backfill profundo en 5 divisas
+
+Pedido explícito del usuario: al tocar el gráfico de cualquier tarjeta,
+abrir una ventana más grande con selector de intervalos (1A/5A/10A/
+Histórico completo, con 5A/10A solo si la serie los tiene). Al
+implementarlo el usuario notó que EUR CPI a/a (que sí tiene API) solo
+mostraba ~3 años pese a tener una fuente automática — eso llevó a
+encontrar y corregir un problema sistémico de profundidad histórica en
+5 de las 9 divisas.
+
+### 1. Feature: `HistoryModal` — histórico completo con selector de rango
+
+- **`src/components/IndicatorChart.tsx`** (nuevo): lógica de render del
+  gráfico (bar/area/line + `ChartTooltip`) extraída de `ChartCard.tsx`
+  para reusarla también en el modal, sin duplicar ~120 líneas de JSX de
+  Recharts.
+- **`src/lib/historyIntervals.ts`** (nuevo): `availableHistoryIntervals(points)`
+  calcula qué botones mostrar según el span real en años de la serie
+  (1A y "Histórico completo" siempre, 5A si span≥5 años, 10A si
+  span≥10) — `filterByInterval(points, interval)` filtra por fecha de
+  corte.
+- **`src/components/HistoryModal.tsx`** (nuevo): mismo patrón visual que
+  `SubcomponentModal` (backdrop, Escape, `stopPropagation`), pero
+  `z-[60]` (por encima del `z-50` de `SubcomponentModal`) porque también
+  se puede abrir desde una tarjeta compacta DENTRO del modal de
+  subcomponentes — verificado que el anidado funciona bien (Escape
+  cierra solo el modal de arriba, gracias al `stopPropagation` que ya
+  tenía `SubcomponentModal`).
+- **`src/components/ChartCard.tsx`**: el gráfico de cada tarjeta ahora es
+  un `<button>` (con hint "⤢" en la esquina) que abre `HistoryModal`
+  pasándole `points` COMPLETO (no el `data` ventaneado a `months`) —
+  deshabilitado si el indicador no tiene ningún dato todavía. Estado
+  100% interno al componente (`useState`), así que no hizo falta tocar
+  `SectionGrid.tsx`/`Dashboard.tsx`/`CountryPage.tsx`/`SubcomponentModal.tsx` —
+  funciona automáticamente en las 4 pantallas que usan `ChartCard`.
+
+Probado con Playwright contra `npm run dev`: abre/cierra bien, filtra
+por intervalo correctamente, funciona en modo oscuro y mobile (390px),
+sin errores de consola.
+
+### 2. El hallazgo: `BACKFILL_LIMIT`/`BACKFILL_MONTHS`/`BACKFILL_POINTS` capan TODAS las divisas, no solo EUR
+
+Con el modal nuevo se hizo obvio que EUR CPI a/a solo mostraba 36
+puntos (~3 años) pese a tener fuente automática (Eurostat
+`prc_hicp_fpd`, confirmado con la API real que tiene datos desde
+**1996-01**). La causa: **cada `api/*-sync.ts` tiene una constante que
+capa cuántos puntos escribe EN CADA CORRIDA** (cada 30 min vía GitHub
+Actions) — pide la serie completa a la fuente y se queda solo con los
+últimos N antes de hacer upsert:
+
+| Archivo | Constante | Valor |
+|---|---|---|
+| `fred-sync.ts` (USD) | `BACKFILL_LIMIT` | 36 |
+| `eur-sync.ts` | `BACKFILL_LIMIT` | 36 |
+| `gbp-sync.ts` | `BACKFILL_MONTHS` | 36 |
+| `cad-sync.ts` | `BACKFILL_MONTHS` | 36 |
+| `aud-sync.ts` | `BACKFILL_MONTHS` | 36 |
+| `jpy-sync.ts` | `BACKFILL_POINTS` | 40 |
+| `chf-sync.ts` | `BACKFILL_POINTS` | 40 |
+| `cny-sync.ts` | `BACKFILL_POINTS` | 40 |
+| `nzd-sync.ts` | `BACKFILL_POINTS` | 40 |
+
+Es intencional (mantiene cada corrida chica y rápida) y **no se tocó**
+— el sync automático sigue escribiendo solo la ventana reciente en
+Supabase, exactamente igual que antes. El problema era que
+`historical-series.json` (el archivo base que "extiende" la historia
+hacia atrás de lo que el sync escribe) **nunca se backfilleó para
+varios indicadores nuevos**, así que la profundidad real visible
+quedaba igual al cap del sync.
+
+Se auditó la profundidad real (base + overrides de Supabase combinados,
+consultando la tabla completa por REST paginada) de los ~120
+indicadores automáticos de las 9 divisas. Resultado:
+- **GBP, CAD, AUD, NZD: ya tenían histórico profundo** (cientos de
+  puntos, algunos desde 2000-2006) — alguien ya los backfilleó en una
+  sesión anterior, no hacía falta tocarlos.
+- **USD: mixto** — los indicadores originales del dashboard (CPI, PPI,
+  NFP, tasa Fed, etc.) ya tenían historia profunda, pero ~28 agregados
+  en sesiones posteriores (`cpi_yoy`, `pce`/`_yoy`, `core_pce`/`_yoy`,
+  `personal_income`/`_spending`, `eci_qoq`/`_yoy`, `gdp_deflator`,
+  `gdp_consumption`/`investment`/`government`/`net_exports`,
+  `retail_sales`/`_yoy`, `core_retail_sales`, `industrial_production`/`_yoy`,
+  `trade_balance`, `empire_state`, `wage_pct_yoy`, `uom`,
+  `initial_claims`, `continuing_claims`, `ppi_yoy`, `core_ppi_yoy`,
+  `core_cpi_yoy`) tenían 0-38 puntos.
+- **EUR: prácticamente todo capado** (18 indicadores) — el HICP
+  automatizado con Eurostat, las tasas del BCE, el PIB y sus
+  subcomponentes.
+- **JPY (14) y CHF (9): el 100% de los automáticos**, exactamente en el
+  cap (40/41 puntos) — nunca tuvieron backfill histórico.
+- **CNY (13): el 100% de los automáticos capado**, salvo
+  `cny_trade_balance` que **SÍ tiene un límite real de la fuente**
+  (`chinadata.live` solo publica esa serie desde 2023-01, confirmado
+  contra `/api/v2/datasets` — coincide con lo ya documentado en
+  "Lecciones CNY").
+
+### 3. Backfill aplicado — metodología
+
+Para cada indicador corto: se reimplementó en Python, línea por línea,
+la MISMA lógica de transform del `api/*-sync.ts` correspondiente
+(`pctChangeByMonth`/`pctChangeSeries`, `directPctSeries`,
+`employmentChangeSeries`, `deriveYoyFromChainedMom`, etc. — no se
+inventó ningún cálculo nuevo), se pidió la serie COMPLETA a la fuente
+(sin el parámetro de fecha/límite que el sync usa para acotar), y se
+verificó el resultado contra el valor más reciente ya confirmado en
+Supabase `indicator_overrides` antes de mergear — **coincidencia exacta
+en todos los casos verificados** (decenas de puntos de control, uno o
+más por divisa).
+
+**82 indicadores backfilleados** (28 USD + 18 EUR + 14 JPY + 9 CHF + 13
+CNY, aunque `cny_trade_balance` quedó igual por el límite real de la
+fuente):
+- **USD**: FRED directo (API key ya en Vercel), historia hasta 1914-1992
+  según la serie (ICSA/CCSA semanales desde 1967, CPI/PPI/industrial
+  production desde principios del s. XX, PIB/consumo/etc. desde 1947).
+- **EUR**: Eurostat `prc_hicp_fpd` (HICP, hasta 1996), FRED (tasas BCE,
+  PIB), Eurostat `une_rt_m` (desempleo, hasta 1983) y `namq_10_gdp`
+  (subcomponentes de PIB, hasta 1978). Las 3 tasas del BCE (`ECBDFR`/
+  `ECBMRRFR`/`ECBMLFR`) son series DIARIAS en FRED pero el indicador
+  está declarado `frequency: 'monthly'` en `indicatorsEur.ts` — se
+  downsampleó a un punto por mes (último valor del mes) en vez de
+  guardar los ~10.000 puntos diarios crudos, consistente con esa
+  metadata y con el resto del dashboard (mismo criterio que "downsamplea
+  a mensual" ya usado para RBA/BoE).
+- **JPY**: e-Stat Dashboard (pidiendo `TimeFrom` mucho más atrás del
+  `20150100`/`20101Q00` que usa el sync — la API simplemente devuelve lo
+  que tiene, algunas series arrancan en 2010 por límite real del
+  dataset, desempleo y ventas minoristas llegan a 1953/1980), CSV del
+  BOJ sin el recorte de `BACKFILL_POINTS` meses que aplica
+  `fetchBojRate()` (hasta 1998), CSV de Aduanas de Japón sin recorte
+  (hasta 1979).
+- **CHF**: mismos cubos SNB/feeds SECO/KOF que ya usa el sync, sin
+  ningún límite de fecha que sacar (esas fuentes no lo tenían) — CPI
+  llega hasta 1921(!), confianza del consumidor hasta 1972.
+- **CNY**: mismos slugs de `chinadata.live`, historia completa según
+  `/api/v2/datasets` (CPI/PPI desde 1996-2000, PMI desde 2005, PIB desde
+  1993).
+
+`historical-series.json` pasó de 619KB/126 series a **2.7MB, 172
+series, 52.188 puntos totales** (antes de esta sesión) — verificado sin
+huecos de fecha, sin fechas duplicadas, JSON válido, `npm run build` en
+verde. Probado con Playwright en USD/EUR/JPY/CHF/CNY: los 4 botones de
+intervalo (1A/5A/10A/Histórico completo) aparecen donde corresponde,
+el gráfico grande renderiza correctamente con cientos/miles de puntos,
+sin errores de consola.
+
+**No se tocó ningún `api/*-sync.ts`** — el mecanismo de sync automático
+sigue exactamente igual (mismo cap, mismas 30 min, mismos endpoints).
+Este backfill es un archivo de código (`historical-series.json`), no
+Supabase — no hay SQL para correr.
+
+**Pendiente para la próxima sesión**: decidir si aplicar el mismo
+backfill a GBP/CAD/AUD/NZD también, aunque ya tienen bastante
+profundidad — no se auditó si TODOS sus indicadores automáticos llegan
+igual de atrás (algunos podrían tener el mismo hueco que USD tenía en
+los agregados más nuevos, no se revisó indicador por indicador ahí
+porque la profundidad total ya alcanzaba para mostrar 10A). Todo el
+trabajo de esta sección quedó en la rama de la sesión
+(`claude/lee-handoff-graphify-vs548t`), no en producción — no se pidió
+explícitamente pushear a `claude/macro-usd-web-dashboard-xm5ypk` esta
+vez.
