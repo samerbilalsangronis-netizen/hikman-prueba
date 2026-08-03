@@ -6,9 +6,18 @@ name: Sincronizar Divisas
 # día, así que la automatización corre acá en vez de en Vercel. Cada 30
 # minutos, todas las divisas — cada paso es independiente
 # (continue-on-error) para que si una fuente falla no bloquee al resto.
+#
+# Minuto 7/37 (no 0/30): GitHub Actions documenta que los workflows
+# programados en la marca exacta de hora/media hora compiten con la
+# mayor congestión de todo el sistema y son los que más se retrasan —
+# confirmado en este repo (auditoría 3-ago-2026: corridas reales cada
+# 3-13h en vez de cada 30min pese al cron). Correr en un minuto menos
+# común reduce (no elimina) el retraso — GitHub sigue sin garantizar
+# la hora exacta, por eso la Rutina de respaldo cada 30 min sigue activa
+# como red de seguridad independiente (ver HANDOFF.md).
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '7,37 * * * *'
   workflow_dispatch: {}
 
 jobs:

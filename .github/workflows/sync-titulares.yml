@@ -6,9 +6,14 @@ name: Sincronizar Titulares
 # frecuentes que una vez por día, así que la automatización corre acá en
 # vez de en Vercel. Cada 10 minutos: trae titulares nuevos de Finnhub y
 # traduce los que falten.
+#
+# Minutos 4/14/24/34/44/54 (no 0/10/20/30/40/50): mismo motivo que
+# sync-currencies.yml — evitar la marca exacta de los 10 minutos, la más
+# congestionada del scheduler de GitHub Actions (ver ese archivo para el
+# detalle completo).
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '4,14,24,34,44,54 * * * *'
   workflow_dispatch: {}
 
 jobs:

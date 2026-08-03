@@ -4051,3 +4051,67 @@ cortas todavía). `npm run build` en verde, sin errores de consola.
   manual desde Actualizar Datos). Sería un cambio chico: en
   `fetchHicpFpd()`, guardar si el período vino de FIN o FLS y pasar
   `stage: 'final'`/`'preliminar'` en el upsert.
+
+## Sesión 3-ago-2026: CHF de julio desactualizado — diagnóstico del cron + carga manual + optimización
+
+El usuario avisó que la inflación de CHF de julio no había actualizado
+y pidió revisar el cron de GitHub. Diagnóstico completo (no era el cron):
+
+### 1. Diagnóstico — el cron y la Rutina de respaldo están sanos, el rezago es de la fuente
+
+`list_workflow_runs` (`sync-currencies.yml`) mostró **13 corridas por
+`schedule`, todas `success`**, desde el 1-ago — el cron nativo **sí está
+disparando solo** (a diferencia de lo que se temía cuando se creó la
+Rutina de respaldo el 1-ago). Pero el intervalo real entre corridas es
+muy irregular: gaps de 3-4h la mayoría de las veces, uno de **casi 13h**
+— lejos del `*/30 * * * *` configurado. La Rutina de respaldo
+(`trig_01VigD4t2wgyxh8YCAYDqtg1`) sí viene disparando cada hora en punto,
+sin falta (confirmado, disparó 8 minutos antes de este chequeo).
+
+**La causa real de que CHF no actualizara**: se verificó `data.snb.ch/api/cube/plkoprinfla`
+(la fuente que usa `chf-sync.ts`) en vivo — solo tenía datos hasta
+**junio-2026**. Pero el comunicado oficial de la BFS (Bundesamt für
+Statistik) de **julio ya había salido** (confirmado con WebSearch contra
+la fuente primaria, `edi.admin.ch`): CPI -0.1% m/m, +0.4% a/a, Core
++0.3% a/a. El SNB Data Portal (fuente secundaria que reempaqueta los
+datos de la BFS) todavía no lo había absorbido — mismo patrón de rezago
+ya documentado antes con FRED/University of Michigan Consumer Sentiment,
+solo que esta vez con el SNB en vez de FRED.
+
+**Se cargaron a mano los 3 valores verificados** directo a Supabase por
+REST (fecha de período `2026-07-01`, no la de publicación):
+`chf_cpi` -0.001, `chf_cpi_yoy` 0.004, `chf_core_cpi_yoy` 0.003.
+`chf_core_cpi` (m/m del núcleo) quedó sin cargar — no se encontró un
+valor oficial confirmado para ese específico, se autocompletará solo
+cuando el SNB Data Portal se ponga al día (mismo upsert por
+`indicator_id`+`date` de siempre).
+
+### 2. Optimización del cron — minuto de disparo, no el intervalo
+
+GitHub documenta que los workflows programados en la marca exacta de
+hora/media hora (`:00`/`:30`) compiten con la mayor congestión del
+scheduler de todo GitHub Actions a nivel global, y son los que más se
+retrasan — coincide exacto con lo que se vio acá (gaps de 3-13h pese a
+`*/30 * * * *`). Se cambiaron los dos workflows a minutos menos
+comunes:
+- `sync-currencies.yml`: `*/30 * * * *` → `'7,37 * * * *'`
+- `sync-titulares.yml`: `*/10 * * * *` → `'4,14,24,34,44,54 * * * *'`
+
+**Esto reduce, no elimina, el retraso** — GitHub sigue sin garantizar
+la hora exacta para workflows programados (es explícitamente "best
+effort" en su propia documentación), por eso la Rutina de respaldo
+sigue activa como red independiente.
+
+**Se intentó además subir la Rutina de respaldo de cada hora a cada 30
+min** (para que cubra mejor el hueco mientras el cron nativo se
+demora) — **no se pudo**: `update_trigger` rechazó el cron `2,32 * * * *`
+con el error "cron interval too short... minimum interval is 1 hour" —
+es un límite de la plataforma (Claude Code Remote Routines), no
+configurable. La Rutina queda igual, cada hora en punto (`32 * * * *`).
+
+**Resumen para la próxima sesión**: si CHF (o cualquier otra divisa)
+vuelve a verse desactualizado a pesar de estos cambios, no asumir que
+es el cron de nuevo — primero comparar la fuente real (`data.snb.ch`
+para CHF, o el endpoint correspondiente de cada divisa) contra el
+comunicado oficial, puede ser simplemente un rezago de la fuente
+secundaria, no un fallo de sincronización.
