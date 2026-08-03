@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Headline } from '../types';
 import { IMPACT_COLORS } from '../lib/impact';
 
@@ -7,8 +7,10 @@ interface MarqueeTickerProps {
 }
 
 // Cinta corrediza: arranca con la marca y sigue con los titulares fijados
-// (desde Titulares o desde una tarjeta de Sesgo). El contenido se duplica una
-// vez para poder loopear con scrollLeft sin salto visible al reiniciar.
+// (desde Titulares o desde una tarjeta de Sesgo). El contenido se repite las
+// veces necesarias (mínimo 2) para poder loopear con scrollLeft sin salto
+// visible al reiniciar — ver nota junto a `copies` sobre por qué el número
+// de copias es dinámico y no fijo en 2.
 //
 // Interactiva con el mouse (pedido explícito del usuario — antes era una
 // animación CSS pura, imposible de leer o clickear mientras se movía):
@@ -39,6 +41,49 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
 
   const speedPxPerSec = Math.max(20, Math.min(60, items.length * 4));
 
+  // Cuántas veces repetir el contenido (mínimo 2, para poder loopear). Con
+  // pocos titulares cortos, dos copias pueden no llegar a cubrir 2x el ancho
+  // visible — y el navegador clampea scrollLeft a scrollWidth-clientWidth,
+  // un tope por debajo del punto donde el código "engancha" el reinicio del
+  // loop (runWidth). Resultado: la cinta se queda pegada para siempre apenas
+  // llega a ese tope, sin poder completar el wraparound. Por eso medimos y
+  // agregamos copias hasta que sobre margen de sobra.
+  const [copies, setCopies] = useState(2);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    function recalcCopies() {
+      if (!el) return;
+      const runWidth = el.scrollWidth / copies;
+      if (runWidth <= 0) return;
+      const needed = Math.max(2, Math.ceil(el.clientWidth / runWidth) + 1);
+      if (needed !== copies) setCopies(needed);
+    }
+
+    recalcCopies();
+    const ro = new ResizeObserver(recalcCopies);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [copies, items.length]);
+
+  // Si el usuario abre un titular en pestaña nueva (target=_blank) y vuelve
+  // sin mover el mouse, nunca se dispara mouseleave — isHovered queda
+  // trabado en true y la cinta no vuelve a moverse jamás. Al recuperar foco
+  // asumimos que ya no está "encima" y retomamos el auto-scroll.
+  useEffect(() => {
+    function handleVisible() {
+      if (document.visibilityState === 'visible') setIsHovered(false);
+    }
+    document.addEventListener('visibilitychange', handleVisible);
+    window.addEventListener('focus', handleVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisible);
+      window.removeEventListener('focus', handleVisible);
+    };
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -50,19 +95,23 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
     function step(ts: number) {
       if (!el) return;
       if (lastTs === null) lastTs = ts;
-      const dt = (ts - lastTs) / 1000;
+      // Si la pestaña estuvo en segundo plano (o la laptop durmiendo), el
+      // navegador puede saltarse muchos frames — sin este tope, ese hueco
+      // se traduciría en un salto grande de golpe al volver.
+      const dt = Math.min((ts - lastTs) / 1000, 0.1);
       lastTs = ts;
 
-      const halfWidth = el.scrollWidth / 2;
-      if (!isHovered && !dragState.current.dragging && ts >= resumeAtRef.current && halfWidth > 0) {
+      const runWidth = el.scrollWidth / copies;
+      const shouldMove = !isHovered && !dragState.current.dragging && ts >= resumeAtRef.current && runWidth > 0;
+      if (shouldMove) {
         el.scrollLeft += speedPxPerSec * dt;
-        if (el.scrollLeft >= halfWidth) el.scrollLeft -= halfWidth;
+        if (el.scrollLeft >= runWidth) el.scrollLeft -= runWidth;
       }
       raf = requestAnimationFrame(step);
     }
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [isHovered, speedPxPerSec]);
+  }, [isHovered, speedPxPerSec, copies]);
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const el = containerRef.current;
@@ -77,11 +126,11 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
     const dx = e.clientX - dragState.current.startX;
     if (Math.abs(dx) > 3) dragState.current.moved = true;
     let next = dragState.current.startScrollLeft - dx;
-    const halfWidth = el.scrollWidth / 2;
-    if (halfWidth > 0) {
+    const runWidth = el.scrollWidth / copies;
+    if (runWidth > 0) {
       // Módulo manual (no negativo) para poder arrastrar hacia atrás del
       // origen sin quedarse pegado en scrollLeft=0.
-      next = ((next % halfWidth) + halfWidth) % halfWidth;
+      next = ((next % runWidth) + runWidth) % runWidth;
     }
     el.scrollLeft = next;
   }
@@ -149,8 +198,7 @@ export function MarqueeTicker({ headlines }: MarqueeTickerProps) {
       onClickCapture={onClickCapture}
     >
       <div className="flex w-max">
-        {renderRun('a')}
-        {renderRun('b')}
+        {Array.from({ length: copies }, (_, i) => renderRun(String(i)))}
       </div>
     </div>
   );

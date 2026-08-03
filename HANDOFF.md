@@ -4115,3 +4115,92 @@ es el cron de nuevo — primero comparar la fuente real (`data.snb.ch`
 para CHF, o el endpoint correspondiente de cada divisa) contra el
 comunicado oficial, puede ser simplemente un rezago de la fuente
 secundaria, no un fallo de sincronización.
+
+## Fix: cinta de titulares (MarqueeTicker) se congelaba permanentemente
+
+Reporte del usuario: "REVISA LA CINTA DE TITULARES, NO SE MUEVE" — con
+un screenshot mostrando la cinta de HIKMAN CAPITAL con 2 titulares fijados
+(uno muy largo sobre Irán/Trump, uno corto de Hassett) completamente
+detenida.
+
+### Root cause 1 (el bug real, determinístico): clamp nativo de scrollLeft
+
+`MarqueeTicker.tsx` duplicaba el contenido exactamente 2 veces
+(`renderRun('a')` + `renderRun('b')`) y usaba
+`halfWidth = el.scrollWidth / 2` como punto de "enganche" para resetear
+`scrollLeft` a 0 y loopear sin salto visible:
+
+```js
+if (el.scrollLeft >= halfWidth) el.scrollLeft -= halfWidth;
+```
+
+Pero el navegador clampea `scrollLeft` de forma nativa y silenciosa a un
+máximo de `scrollWidth - clientWidth` (no se puede scrollear más allá del
+contenido real). Cuando el contenido fijado es corto/poco (pocos
+titulares, o titulares cortos) relativo al ancho visible de la pantalla,
+ese tope nativo cae **por debajo** de `halfWidth` — es decir, la cinta
+nunca llega a scrollear lo suficiente para disparar el reset, se queda
+pegada en el tope nativo, y como `scrollLeft` ya no puede seguir
+creciendo, la condición `>= halfWidth` nunca se cumple: congelada para
+siempre.
+
+Confirmado con pruebas aisladas (Playwright, contenido sintético):
+
+| caso | scrollWidth | clientWidth | halfWidth (viejo) | tope nativo | ¿clampea antes del reset? |
+|---|---|---|---|---|---|
+| 2 titulares cortos | 1653 | 1280 | 826.5 | 373 | sí → congelado |
+| 1 titular (cualquiera) | 1280 | 1280 | 640 | 0 | sí → congelado (sin overflow) |
+| 12 titulares (1 largo) | 18761 | 1280 | 9380.5 | 17481 | no → funcionaba bien |
+
+Esto explica por qué el bug parecía "aleatorio": no depende del contenido
+en sí, sino de si el contenido total (duplicado) alcanza a ser más ancho
+que 2x el ancho visible del contenedor. Con pocos titulares fijados (el
+caso normal del panel — 1 o 2), casi siempre cae en el caso roto.
+
+**Fix**: en vez de duplicar el contenido siempre exactamente 2 veces, se
+mide dinámicamente (`ResizeObserver` + `useLayoutEffect`) cuántas copias
+(`copies`, mínimo 2) hacen falta para garantizar que el tope nativo
+(`scrollWidth - clientWidth`) quede siempre por encima del punto de reset
+(`runWidth = scrollWidth / copies`). La fórmula:
+
+```
+copies = max(2, ceil(clientWidth / runWidth) + 1)
+```
+
+garantiza algebraicamente `nativeMax >= runWidth` siempre (ver derivación
+en el comentario del código), sin importar cuán angosto sea el contenido
+fijado ni cuán ancha la pantalla. Se recalcula en cada resize del
+contenedor y cuando cambia la lista de titulares. `onPointerMove` (drag
+manual) se actualizó para usar el mismo `runWidth` dinámico en vez de
+`scrollWidth / 2` fijo.
+
+### Root cause 2 (bug real, pero de gatillo más específico): hover trabado tras abrir un titular en pestaña nueva
+
+Cada titular con URL se abre en `target="_blank"`. Si el usuario hace
+click (abre pestaña nueva) y vuelve sin mover el mouse de encima de la
+cinta, nunca se dispara `mouseleave` (requiere movimiento real del
+puntero) — `isHovered` queda trabado en `true` y la cinta no vuelve a
+moverse nunca más, aunque el usuario ya no esté "encima". Se agregó un
+listener de `visibilitychange`/`focus` que resetea `isHovered` a `false`
+cada vez que la pestaña recupera foco/visibilidad, asumiendo
+optimistamente que el usuario ya no está sobre la cinta.
+
+### Hardening adicional
+
+Se agregó un tope a `dt` (`Math.min(dt, 0.1)`) en el loop de
+`requestAnimationFrame` — si la pestaña estuvo en segundo plano o la
+laptop durmiendo, un `dt` gigante de golpe al recuperar el frame podía
+producir un salto brusco en vez de una reanudación suave.
+
+### Metodología / limitación de las pruebas
+
+Playwright headless en este sandbox demostró tener un `requestAnimationFrame`
+muy poco confiable (frames se disparan casi solo cuando algo fuerza una
+evaluación desde Node, no a ritmo real de pantalla) — no sirve para
+validar "sigue moviéndose indefinidamente" por tiempo real. La corrección
+del clamp se verificó algebraicamente (`nativeMax >= runWidth` por
+construcción de `copies`) y empíricamente vía conteo de copias renderizadas
+y las dimensiones resultantes, no por observación de movimiento continuo
+en tiempo real dentro del sandbox.
+
+**Archivos**: `src/components/MarqueeTicker.tsx`.
