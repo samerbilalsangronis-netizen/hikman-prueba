@@ -133,10 +133,10 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'nzd_employment_change',
-    label: 'Cambios en el Empleo',
+    label: 'Cambios en el Empleo (t/t)',
     shortLabel: 'Empleo',
     section: 'empleo',
-    format: 'thousands',
+    format: 'pct',
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'NZD',
@@ -144,7 +144,7 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
     goodDirection: 'up',
     description:
-      'Variación trimestral del empleo total, en miles de personas. Misma limitación que la tasa de desempleo — carga manual. Histórico derivado del nivel de empleo (OECD/FRED LFEMTTTTNZQ647S) desde 1986. Verificado: +13k para el segundo trimestre de 2026 (2.905.000 empleados).',
+      'Variación trimestral del empleo total, en porcentaje (mismo criterio que calendarios económicos como investing.com — antes se mostraba en miles de personas, cambiado a pedido del usuario para que coincida con su fuente de referencia). Misma limitación que la tasa de desempleo — carga manual. Histórico derivado del nivel de empleo (OECD/FRED LFEMTTTTNZQ647S) desde 1986. Verificado: +0.45% para el segundo trimestre de 2026 (2.905.000 empleados, +13.000).',
   },
   // Índice de Costes Laborales (Labour Cost Index) — mide la variación de
   // sueldos/salarios por hora para la misma cantidad y calidad de trabajo
