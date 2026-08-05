@@ -129,7 +129,7 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
     goodDirection: 'down',
     description:
-      'Tasa de desempleo de Nueva Zelanda, serie desestacionalizada. Stats NZ solo publica el CSV completo del HLFS dentro de un ZIP de ~400MB sin comprimir (todos los cruces demográficos) — poco práctico de automatizar en una función serverless para 1 solo dato trimestral. Carga manual. Verificado: 5.3% para el primer trimestre de 2026.',
+      'Tasa de desempleo de Nueva Zelanda, serie desestacionalizada. Stats NZ solo publica el CSV completo del HLFS dentro de un ZIP de ~400MB sin comprimir (todos los cruces demográficos) — poco práctico de automatizar en una función serverless para 1 solo dato trimestral. Carga manual. Histórico completo desde 1986 (OECD/FRED LRUNTTTTNZQ156S, mismo número que publica Stats NZ). Verificado: 5.6% para el segundo trimestre de 2026 (máximo desde 2014), 5.4% para el primer trimestre (revisado desde el 5.3% original).',
   },
   {
     id: 'nzd_employment_change',
@@ -143,7 +143,49 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     source: 'Stats NZ (Household Labour Force Survey, desestacionalizado)',
     sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
     goodDirection: 'up',
-    description: 'Variación trimestral del empleo total, en miles de personas. Misma limitación que la tasa de desempleo — carga manual.',
+    description:
+      'Variación trimestral del empleo total, en miles de personas. Misma limitación que la tasa de desempleo — carga manual. Histórico derivado del nivel de empleo (OECD/FRED LFEMTTTTNZQ647S) desde 1986. Verificado: +13k para el segundo trimestre de 2026 (2.905.000 empleados).',
+  },
+  // Índice de Costes Laborales (Labour Cost Index) — mide la variación de
+  // sueldos/salarios por hora para la misma cantidad y calidad de trabajo
+  // (no es lo mismo que "ingreso promedio", que también captura cambios de
+  // composición del empleo). Stats NZ lo publica trimestral junto con el
+  // HLFS, sin CSV público de la serie (a diferencia de CPI/PIB/ECT) — el
+  // histórico se reconstruyó a mano desde los "Labour Cost Index Technical
+  // Report" del Public Service Commission (publicservice.govt.nz, con datos
+  // provistos por Stats NZ), que citan el trimestre actual Y el anterior en
+  // cada entrega — permitió encadenar y verificar 7 trimestres consecutivos
+  // (dic-2024 a jun-2026) sin discontinuidades. Carga manual — sin fuente
+  // API descubierta.
+  {
+    id: 'nzd_labour_cost_index',
+    label: 'Índice de Costes Laborales (t/t)',
+    shortLabel: 'Costes Laborales',
+    section: 'empleo',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Labour Cost Index, "all salary and wage rates" incl. overtime)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
+    goodDirection: 'neutral',
+    description:
+      'Variación trimestral del costo salarial ("all sectors combined", medida ajustada). Reconstruido desde los Labour Cost Index Technical Report del Public Service Commission (fuente: Stats NZ). Verificado: +0.6% para el segundo trimestre de 2026.',
+  },
+  {
+    id: 'nzd_labour_cost_index_yoy',
+    label: 'Índice de Costes Laborales Interanual (a/a)',
+    shortLabel: 'Costes Laborales a/a',
+    section: 'empleo',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Labour Cost Index, "all salary and wage rates" incl. overtime)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/labour-market/',
+    goodDirection: 'neutral',
+    description:
+      'Costo salarial respecto al mismo trimestre del año anterior. Verificado: +2.0% para el segundo trimestre de 2026 (sin cambios desde diciembre-2025).',
   },
   // Confianza — sin API pública (encuestas privadas, ANZ / Westpac
   // McDermott Miller), igual que el resto de las divisas.
