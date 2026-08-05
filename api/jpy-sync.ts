@@ -7,8 +7,11 @@ import { createClient } from '@supabase/supabase-js';
 //
 // JPY se sincroniza desde tres fuentes sin key:
 // - e-Stat Dashboard API (dashboard.e-stat.go.jp) — CPI, Core CPI,
-//   desempleo, empleo, PIB y ventas minoristas. Distinta de la API
-//   principal de e-Stat (esa sí exige un appId registrado, se descarta).
+//   desempleo, empleo, PIB, ventas minoristas y salarios (ingresos totales +
+//   horas extra, del Monthly Labour Survey del MHLW — a diferencia del resto,
+//   el Dashboard publica el a/a de estas dos series YA calculado, no hace
+//   falta derivarlo de un nivel). Distinta de la API principal de e-Stat
+//   (esa sí exige un appId registrado, se descarta).
 // - BOJ Time-Series Data Search (stat-search.boj.or.jp) — tasa de
 //   política (call rate, serie FM01). A diferencia de rbnz.govt.nz, el
 //   sitio del BOJ NO está bloqueado.
@@ -175,6 +178,8 @@ const EMPLOYED_LEVEL = '0301010000010010010'; // 就業者（男女計）, en �
 const GDP_LEVEL = '0705020501000010000'; // PIB real, nivel
 const GDP_QOQ_DIRECT = '0705020501000040000'; // PIB real t/t, SIN anualizar
 const RETAIL_SALES_LEVEL = '0601010201010010000'; // 小売業販売額（名目）, sin versión desestacionalizada
+const WAGE_YOY_DIRECT = '0302020000000030000'; // 現金給与総額（前年同月比）, a/a ya calculado
+const OVERTIME_PAY_YOY_DIRECT = '0302020003000030010'; // 所定外給与（前年同月比）, a/a ya calculado
 
 const MONTHLY_FROM = '20150100';
 const QUARTERLY_FROM = '20101Q00';
@@ -293,6 +298,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     },
     { id: 'jpy_trade_balance', run: fetchTradeBalance },
+    {
+      id: 'jpy_wage_yoy',
+      run: async () => directPctSeries(await fetchDashboardSeries(WAGE_YOY_DIRECT, MONTHLY_FROM, '1')),
+    },
+    {
+      id: 'jpy_overtime_pay_yoy',
+      run: async () => directPctSeries(await fetchDashboardSeries(OVERTIME_PAY_YOY_DIRECT, MONTHLY_FROM, '1')),
+    },
   ];
 
   for (const job of jobs) {

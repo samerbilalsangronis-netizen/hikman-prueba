@@ -10,7 +10,7 @@ import type { IndicatorMeta } from '../types';
 // automatizar.
 //
 // Lecciones de esta divisa — la MÁS automatizada de las no-USD hasta
-// ahora (12 de 16 indicadores):
+// ahora (14 de 18 indicadores):
 //
 // 1. **La API principal de e-Stat (api.e-stat.go.jp) exige un appId
 //    registrado** — mismo problema que la Aotearoa Data Explorer de Stats
@@ -95,6 +95,23 @@ import type { IndicatorMeta } from '../types';
 //    confidence queda manual por ahora, igual que consumer confidence
 //    (Gabinete de Japón, sin URL de descarga estable encontrada) y los
 //    PMI (S&P Global / au Jibun Bank, privados).
+//
+// 9. **Salarios (Monthly Labour Survey del MHLW) SÍ están en el Dashboard
+//    de e-Stat**, agregados a pedido del usuario (5-ago-2026) — el
+//    endpoint getIndicatorInfo (sin key) devuelve el árbol completo de
+//    metadata (~9MB de JSON) donde se puede buscar por texto en japonés
+//    el nombre del indicador para encontrar su código; así se encontraron
+//    `0302020000000030000` (現金給与総額 a/a — ingresos totales) y
+//    `0302020003000030010` (所定外給与 a/a — horas extra), ambos YA
+//    calculados como % interanual directo (no hace falta derivar de un
+//    nivel, a diferencia de CPI/desempleo/PIB). Sin versión
+//    desestacionalizada (`IsSeasonalAdjustment=1`, 原数値) — el MHLW no
+//    publica una versión ajustada del a/a de salarios, es la convención
+//    real que sigue el mercado para este dato. Verificado: ingresos
+//    totales +3.6% para abril-2026 (coincide exacto con lo reportado por
+//    agregadores) y +3.3% calculado para mayo-2026 vs +3.2% oficial
+//    (~0.1pp de margen, mismo tipo de diferencia normal ya documentado
+//    en la lección 3). Histórico completo desde 2015-01.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -244,6 +261,43 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'Variación mensual del empleo total, en miles de personas — derivado del nivel de empleados desestacionalizado (Japón no publica esta variación como serie m/m separada). Verificado: nivel de 68.82 millones para mayo-2026, coincide con lo reportado.',
+  },
+  // Salarios (毎月勤労統計調査 — Monthly Labour Survey del MHLW). A diferencia
+  // del resto de indicadores de esta sección (derivados de un nivel), el
+  // Dashboard de e-Stat SÍ publica el a/a ya calculado como serie propia para
+  // estos dos — no hace falta derivar nada. Series sin desestacionalizar
+  // (原数値, IsSeasonalAdjustment=1) — el MHLW no publica una versión
+  // desestacionalizada del a/a de salarios, es la convención real que sigue
+  // el mercado para este dato.
+  {
+    id: 'jpy_wage_yoy',
+    label: 'Ingresos Salariales Totales (a/a)',
+    shortLabel: 'Salarios a/a',
+    section: 'empleo',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'e-Stat Dashboard (Monthly Labour Survey — 現金給与総額, sin desestacionalizar)',
+    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    goodDirection: 'up',
+    description:
+      'Ingresos salariales en efectivo totales (sueldo regular + horas extra + pagos especiales/bonos) respecto al mismo mes del año anterior. Verificado: +3.6% para abril-2026, coincide exacto con lo reportado; +3.3% calculado para mayo-2026 vs +3.2% oficial (margen normal de ~0.1pp, mismo tipo de diferencia ya documentada para otras series derivadas de JPY).',
+  },
+  {
+    id: 'jpy_overtime_pay_yoy',
+    label: 'Pago de Horas Extraordinarias (a/a)',
+    shortLabel: 'Horas Extra a/a',
+    section: 'empleo',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'e-Stat Dashboard (Monthly Labour Survey — 所定外給与, sin desestacionalizar)',
+    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    goodDirection: 'up',
+    description:
+      'Pago de horas extraordinarias (所定外給与) respecto al mismo mes del año anterior — el BOJ lo sigue de cerca como indicador adelantado de la demanda de trabajo real (a diferencia de los ingresos totales, no incluye bonos estacionales que distorsionan la lectura mes a mes).',
   },
   // Confianza — sin automatizar en esta primera pasada (ver lección 8).
   {
