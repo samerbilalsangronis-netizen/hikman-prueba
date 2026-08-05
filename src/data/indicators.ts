@@ -272,19 +272,6 @@ const USD_INDICATORS: IndicatorMeta[] = [
     description: 'Subcomponente del S&P Global PMI Servicios. Presión de precios en insumos. Carga manual.',
     parentId: 'sp_pmi_serv',
   },
-  {
-    id: 'sp_pmi_composite',
-    label: 'S&P Global PMI Compuesto',
-    shortLabel: 'S&P Compuesto',
-    section: 'crecimiento',
-    format: 'index',
-    frequency: 'monthly',
-    chart: 'bar',
-    source: 'S&P Global',
-    sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
-    goodDirection: 'up',
-    description: 'Combina manufactura y servicios de S&P Global en un solo índice de actividad.',
-  },
   // Confianza / Sentimiento del consumidor. SCORE_SEED (scoreSeed.ts) ya
   // traía 'uom' y 'cb' de la hoja "Resumen USD" del Excel original, pero
   // nunca se habían dado de alta como indicadores propios — quedaban
