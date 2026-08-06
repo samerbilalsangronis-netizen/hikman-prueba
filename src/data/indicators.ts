@@ -423,6 +423,20 @@ const USD_INDICATORS: IndicatorMeta[] = [
     description: 'Creación de empleo privado según ADP, adelanto del NFP.',
   },
   {
+    id: 'challenger_job_cuts_yoy',
+    label: 'Recortes de Empleo Challenger (a/a)',
+    shortLabel: 'Challenger a/a',
+    section: 'empleo',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'Challenger, Gray & Christmas, Inc.',
+    sourceUrl: 'https://www.challengergray.com/blog/category/job-cuts-report/',
+    goodDirection: 'down',
+    description:
+      'Variación interanual de despidos anunciados por empresas de EE.UU., reporte privado de una consultora de outplacement (no gubernamental, sin API pública/FRED). Carga manual, verificado contra investing.com. Muy volátil mes a mes (swings de +400%/-75% no son inusuales) por el tamaño chico de la muestra. Verificado: -46.1% para julio-2026.',
+  },
+  {
     id: 'initial_claims',
     label: 'Solicitudes Iniciales de Desempleo',
     shortLabel: 'Solicit. Iniciales',
