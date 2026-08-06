@@ -19,8 +19,11 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Sincronizar titulares (Finnhub)
-        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/headlines-sync
+        continue-on-error: true
+        run: curl -sS --max-time 60 -X POST https://hikman-prueba.vercel.app/api/headlines-sync
       - name: Traducir titulares pendientes
-        run: curl -sS -X POST https://hikman-prueba.vercel.app/api/translate-headlines
+        continue-on-error: true
+        run: curl -sS --max-time 60 -X POST https://hikman-prueba.vercel.app/api/translate-headlines
