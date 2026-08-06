@@ -70,9 +70,17 @@ import type { IndicatorMeta } from '../types';
 //    Manufacturero —que cubre servicios y construcción—, y Compuesto). El
 //    PMI de Caixin/S&P Global (la encuesta privada, más seguida por
 //    mercados FX en paralelo a la oficial) NO tiene API gratuita
-//    encontrada — queda fuera de esta primera pasada (a diferencia del
-//    resto de las divisas, ni siquiera queda como indicador manual porque
-//    el usuario pidió no agregar de más).
+//    encontrada — sigue sin auto-sync, pero el usuario pidió agregarlo
+//    igual (6-ago-2026) como carga manual, mismo patrón que Challenger
+//    (USD) o el CPI del GBP. Los 3 índices Caixin (Manufactura, Servicios,
+//    Compuesto) se cargaron con histórico may-2022 a jul-2026 (51 meses),
+//    cruzado entre investing.com y mql5 (coinciden en todos los meses
+//    superpuestos). **OJO — Caixin se renombró "RatingDog" desde ago-2025**
+//    (S&P Global vendió los derechos de nombre a otra firma; misma
+//    metodología/encuesta, mismo proveedor de compilación, solo cambió el
+//    nombre comercial) — investing.com y mql5 ya usan "RatingDog" para los
+//    meses recientes, por eso las fuentes de estos 3 indicadores dicen
+//    "Caixin/RatingDog".
 // 5. **PIB**: `china-gdp-growth-qoq` da el t/t desestacionalizado directo
 //    (China SÍ publica esta serie ajustada estacionalmente, a diferencia
 //    de la creencia común de que solo publica a/a). El a/a sale de
@@ -352,6 +360,51 @@ export const CNY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://chinadata.live/api/v2/data/china-pmi-composite',
     goodDirection: 'up',
     description: 'Combina manufactura y no manufactura de la NBS en un solo índice de actividad. Verificado: 50.6 para jun-2026, coincide exacto.',
+  },
+  // PMI Caixin/RatingDog — encuesta privada (no gubernamental), sin API
+  // gratuita encontrada, carga manual (ver lección 4 arriba).
+  {
+    id: 'cny_caixin_pmi_manuf',
+    label: 'PMI Manufactura (Caixin/RatingDog)',
+    shortLabel: 'PMI Manuf. Caixin',
+    section: 'crecimiento',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CNY',
+    source: 'Caixin/S&P Global (RatingDog desde ago-2025)',
+    sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
+    goodDirection: 'up',
+    description:
+      'PMI manufacturero privado, encuesta a ~500 empresas más chicas/exportadoras que la muestra oficial de la NBS — se sigue en paralelo al PMI oficial porque a veces diverge (ej. feb-2026: NBS 49.0 contracción vs. este índice 52.1 expansión). Carga manual, sin API gratuita. Verificado: 50.9 para julio-2026.',
+  },
+  {
+    id: 'cny_caixin_pmi_services',
+    label: 'PMI Servicios (Caixin/RatingDog)',
+    shortLabel: 'PMI Serv. Caixin',
+    section: 'crecimiento',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CNY',
+    source: 'Caixin/S&P Global (RatingDog desde ago-2025)',
+    sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
+    goodDirection: 'up',
+    description: 'PMI de servicios privado (encuesta Caixin/RatingDog). Carga manual, sin API gratuita. Verificado: 50.4 para julio-2026.',
+  },
+  {
+    id: 'cny_caixin_pmi_composite',
+    label: 'PMI Compuesto (Caixin/RatingDog)',
+    shortLabel: 'PMI Comp. Caixin',
+    section: 'crecimiento',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'CNY',
+    source: 'Caixin/S&P Global (RatingDog desde ago-2025)',
+    sourceUrl: 'https://www.pmi.spglobal.com/Public/Home/PressRelease',
+    goodDirection: 'up',
+    description: 'Combina manufactura y servicios de la encuesta privada Caixin/RatingDog en un solo índice. Carga manual, sin API gratuita. Verificado: 50.8 para julio-2026.',
   },
   {
     id: 'cny_gdp_qoq',
