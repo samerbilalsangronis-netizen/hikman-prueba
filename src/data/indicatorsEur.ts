@@ -488,7 +488,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/sts_trtu_m/default/table',
     goodDirection: 'up',
     description:
-      'Variación mensual de ventas minoristas de la Eurozona. Carga manual: la serie de Eurostat en vivo no coincidió con el valor de referencia al verificarla (probablemente por revisiones de vintage) — se prefiere no automatizar con un dato no verificado.',
+      'Variación mensual de ventas minoristas de la Eurozona. Carga manual: la serie de Eurostat en vivo no coincidió con el valor de referencia al verificarla (probablemente por revisiones de vintage) — se prefiere no automatizar con un dato no verificado. Corregido 6-ago-2026: 10 meses (sep-2025 a jun-2026) tenían fecha de periodo corrida +2 meses (ej. el dato de junio-2026 aparecía como julio) — reconstruido contra investing.com. Verificado: -0.3% para junio-2026.',
   },
   {
     id: 'eur_retail_sales_yoy',
@@ -502,7 +502,8 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     source: 'Eurostat',
     sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/sts_trtu_m/default/table',
     goodDirection: 'up',
-    description: 'Ventas minoristas respecto al mismo mes del año anterior. Carga manual (ver Ventas Minoristas m/m).',
+    description:
+      'Ventas minoristas respecto al mismo mes del año anterior. Carga manual (ver Ventas Minoristas m/m). Corregido 6-ago-2026: mismo desfase de fecha de periodo, reconstruido contra investing.com. Verificado: +0.7% para junio-2026.',
   },
   {
     id: 'eur_industrial_production',
