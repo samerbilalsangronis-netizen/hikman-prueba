@@ -7,11 +7,12 @@ import { createClient } from '@supabase/supabase-js';
 //
 // JPY se sincroniza desde tres fuentes sin key:
 // - e-Stat Dashboard API (dashboard.e-stat.go.jp) — CPI, Core CPI,
-//   desempleo, empleo, PIB, ventas minoristas y salarios (ingresos totales +
-//   horas extra, del Monthly Labour Survey del MHLW — a diferencia del resto,
-//   el Dashboard publica el a/a de estas dos series YA calculado, no hace
-//   falta derivarlo de un nivel). Distinta de la API principal de e-Stat
-//   (esa sí exige un appId registrado, se descarta).
+//   desempleo, empleo, PIB, ventas minoristas, salarios (ingresos totales +
+//   horas extra, del Monthly Labour Survey del MHLW) y gasto de los hogares
+//   (家計調査, hogares de 2+ personas, real) — a diferencia de CPI/ventas
+//   minoristas, el Dashboard publica el m/m y el a/a de salarios y gasto de
+//   hogares YA calculados, no hace falta derivarlos de un nivel. Distinta de
+//   la API principal de e-Stat (esa sí exige un appId registrado, se descarta).
 // - BOJ Time-Series Data Search (stat-search.boj.or.jp) — tasa de
 //   política (call rate, serie FM01). A diferencia de rbnz.govt.nz, el
 //   sitio del BOJ NO está bloqueado.
@@ -180,6 +181,15 @@ const GDP_QOQ_DIRECT = '0705020501000040000'; // PIB real t/t, SIN anualizar
 const RETAIL_SALES_LEVEL = '0601010201010010000'; // 小売業販売額（名目）, sin versión desestacionalizada
 const WAGE_YOY_DIRECT = '0302020000000030000'; // 現金給与総額（前年同月比）, a/a ya calculado
 const OVERTIME_PAY_YOY_DIRECT = '0302020003000030010'; // 所定外給与（前年同月比）, a/a ya calculado
+// Gasto de los hogares (二人以上の世帯 = hogares de 2+ personas, real, ya
+// ajustado por inflación) — mismas series que reporta la prensa/investing.com.
+// El m/m usa el índice desestacionalizado (IsSeasonalAdjustment='2', igual
+// convención que CPI_LEVEL); el a/a usa la serie cruda sin desestacionalizar
+// (IsSeasonalAdjustment='1', igual que WAGE_YOY_DIRECT) — así lo reporta el
+// MIC/Statistics Bureau, y así coincide con lo verificado (jun-2026: -6.4%
+// m/m, -3.3% a/a).
+const HOUSEHOLD_SPENDING_MOM_DIRECT = '0704010101000240000'; // （前月比）消費支出（季節調整済実質指数）
+const HOUSEHOLD_SPENDING_YOY_DIRECT = '0704010101000230000'; // （前年同月比）消費支出（実質）
 
 const MONTHLY_FROM = '20150100';
 const QUARTERLY_FROM = '20101Q00';
@@ -305,6 +315,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     {
       id: 'jpy_overtime_pay_yoy',
       run: async () => directPctSeries(await fetchDashboardSeries(OVERTIME_PAY_YOY_DIRECT, MONTHLY_FROM, '1')),
+    },
+    {
+      id: 'jpy_household_spending',
+      run: async () => directPctSeries(await fetchDashboardSeries(HOUSEHOLD_SPENDING_MOM_DIRECT, MONTHLY_FROM, '2')),
+    },
+    {
+      id: 'jpy_household_spending_yoy',
+      run: async () => directPctSeries(await fetchDashboardSeries(HOUSEHOLD_SPENDING_YOY_DIRECT, MONTHLY_FROM, '1')),
     },
   ];
 
