@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { SplashScreen } from './components/SplashScreen';
 import { MacroDataProvider } from './data/MacroDataContext';
 import { CurrencyProvider } from './data/CurrencyContext';
 import { Dashboard } from './pages/Dashboard';
@@ -17,6 +19,12 @@ import { Alemania } from './pages/Alemania';
 import { Francia } from './pages/Francia';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onDone={() => setShowSplash(false)} />;
+  }
+
   return (
     <CurrencyProvider>
       <MacroDataProvider>
