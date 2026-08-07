@@ -49,6 +49,7 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'personal_spending', seriesId: 'PCE', transform: 'pct_change' },
   { indicatorId: 'nfp', seriesId: 'PAYEMS', transform: 'diff_x1000' },
   { indicatorId: 'unemployment', seriesId: 'UNRATE', transform: 'level_pct' },
+  { indicatorId: 'participation_rate', seriesId: 'CIVPART', transform: 'level_pct' },
   { indicatorId: 'wage_pct', seriesId: 'CES0500000003', transform: 'pct_change' },
   { indicatorId: 'wage_pct_yoy', seriesId: 'CES0500000003', transform: 'pct_change_yoy' },
   // ECI: t/t usa la serie ajustada estacionalmente (SA, ECIALLCIV, la que

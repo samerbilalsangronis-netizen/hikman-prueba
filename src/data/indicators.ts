@@ -344,6 +344,20 @@ const USD_INDICATORS: IndicatorMeta[] = [
     description: 'Porcentaje de la fuerza laboral desempleada.',
   },
   {
+    id: 'participation_rate',
+    label: 'Tasa de Participación Laboral',
+    shortLabel: 'Participación',
+    section: 'empleo',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'line',
+    source: 'Bureau of Labor Statistics (FRED: CIVPART)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/CIVPART',
+    goodDirection: 'up',
+    description:
+      'Porcentaje de la población en edad de trabajar que está empleada o buscando activamente empleo. Clave para interpretar la Tasa de Desempleo: si cae junto con NFP negativo, sugiere que gente salió de la fuerza laboral (dejó de contarse como desempleada) en vez de que el mercado laboral mejoró — no son eventos independientes.',
+  },
+  {
     id: 'wage_pct',
     label: 'Ganancias Promedio por Hora (m/m)',
     shortLabel: 'AHE m/m',
