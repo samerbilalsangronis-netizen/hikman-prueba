@@ -3,6 +3,7 @@ import { useMacroData } from '../data/MacroDataContext';
 import { INDICATORS } from '../data/indicators';
 import { WeeklyBiasStrip } from '../components/WeeklyBiasStrip';
 import { WeeklyFeedCard } from '../components/WeeklyFeedCard';
+import { WeeklyMindMap } from '../components/WeeklyMindMap';
 import { IMPACT_LABELS } from '../lib/impact';
 import { computeImpact, startOfWeek } from '../lib/weeklyHub';
 import { supabaseEnabled } from '../lib/supabaseClient';
@@ -13,6 +14,7 @@ const INDICATORS_BY_ID = new Map(INDICATORS.map((m) => [m.id, m]));
 export function PizarraSemanal() {
   const { recentUpdates, forecasts } = useMacroData();
   const [filter, setFilter] = useState<ImpactLevel | 'todos'>('todos');
+  const [view, setView] = useState<'feed' | 'mapa'>('feed');
   const [impactOverrides, setImpactOverrides] = useState<Record<string, ImpactLevel>>({});
 
   const weekStart = useMemo(() => startOfWeek(new Date()), []);
@@ -61,24 +63,45 @@ export function PizarraSemanal() {
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap gap-1.5">
-            {(['todos', 'alto', 'medio', 'bajo'] as const).map((level) => (
-              <button
-                key={level}
-                onClick={() => setFilter(level)}
-                className="rounded-full px-3 py-1.5 text-xs font-semibold"
-                style={{
-                  background: filter === level ? 'var(--series-1)' : 'transparent',
-                  color: filter === level ? '#fff' : 'var(--text-secondary)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                {level === 'todos' ? 'Todos' : IMPACT_LABELS[level]}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-1.5 rounded-full p-1" style={{ background: 'var(--surface-2)' }}>
+              {(['feed', 'mapa'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                  style={{
+                    background: view === v ? 'var(--series-1)' : 'transparent',
+                    color: view === v ? '#fff' : 'var(--text-secondary)',
+                  }}
+                >
+                  {v === 'feed' ? '📋 Feed' : '🧠 Mapa Mental'}
+                </button>
+              ))}
+            </div>
+            {view === 'feed' && (
+              <div className="flex flex-wrap gap-1.5">
+                {(['todos', 'alto', 'medio', 'bajo'] as const).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setFilter(level)}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                    style={{
+                      background: filter === level ? 'var(--series-1)' : 'transparent',
+                      color: filter === level ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    {level === 'todos' ? 'Todos' : IMPACT_LABELS[level]}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {filtered.length === 0 ? (
+          {view === 'mapa' ? (
+            <WeeklyMindMap />
+          ) : filtered.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Sin novedades cargadas todavía esta semana{filter !== 'todos' ? ` con ${IMPACT_LABELS[filter]}` : ''}.
             </p>
