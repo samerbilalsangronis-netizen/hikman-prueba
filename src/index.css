@@ -117,3 +117,19 @@ body {
 .marquee-scroll-container {
   scrollbar-width: none;
 }
+
+/* Mapa Mental: los nodos de alto impacto "brillan" para destacar sobre el
+   resto — el color del glow lo pone cada nodo (color de su divisa) via
+   --glow-color, la animación es compartida. */
+@keyframes mindmap-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 1px var(--glow-color), 0 0 0 1px var(--glow-color);
+  }
+  50% {
+    box-shadow: 0 0 18px 5px var(--glow-color), 0 0 0 1px var(--glow-color);
+  }
+}
+.mindmap-node-glow {
+  animation: mindmap-glow 1.8s ease-in-out infinite;
+}
