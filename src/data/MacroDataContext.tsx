@@ -37,6 +37,13 @@ import type {
   Statement,
 } from '../types';
 
+export interface RecentUpdate {
+  indicatorId: string;
+  date: string;
+  value: number;
+  updatedAt: string;
+}
+
 type SeriesMap = Record<string, SeriesPoint[]>;
 type StageMap = Record<string, Record<string, 'preliminar' | 'final'>>; // id -> date -> stage
 type ForecastMap = Record<string, number>;
@@ -205,6 +212,9 @@ async function fetchAllRows<T>(
 
 interface MacroDataContextValue {
   getSeries: (id: string) => SeriesPoint[];
+  /** Puntos con override en Supabase, con su updated_at real (a diferencia de
+   * SeriesPoint, que solo tiene fecha de período). Vacío en modo local. */
+  recentUpdates: RecentUpdate[];
   addPoint: (id: string, date: string, value: number, stage?: 'preliminar' | 'final') => Promise<void>;
   removeLastPoint: (id: string) => Promise<void>;
   /** Etapa (preliminar/final) del último punto cargado a mano para este id,
@@ -256,6 +266,10 @@ const MacroDataContext = createContext<MacroDataContextValue | null>(null);
 
 export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [overrides, setOverrides] = useState<SeriesMap>({});
+  // Solo viene de Supabase (updated_at no existe en el JSON base) — usado por
+  // la Pizarra Semanal para armar el feed de "qué se cargó esta semana".
+  // Queda vacío en modo local (sin Supabase), la Pizarra lo explica.
+  const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [pointStages, setPointStages] = useState<StageMap>({});
   const [scoreRows, setScoreRows] = useState<ScoreRow[]>(SCORE_SEED);
   const [forecasts, setForecasts] = useState<ForecastMap>({});
@@ -294,8 +308,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     // viendo "Cargando…" para siempre en vez de degradar con lo que haya.
     try {
     const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await withTimeout(Promise.all([
-      fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null }>(async (from, to) =>
-        client.from('indicator_overrides').select('indicator_id, date, value, stage').range(from, to),
+      fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null; updated_at: string }>(async (from, to) =>
+        client.from('indicator_overrides').select('indicator_id, date, value, stage, updated_at').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
@@ -331,12 +345,15 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     {
       const map: SeriesMap = {};
       const stages: StageMap = {};
+      const recent: RecentUpdate[] = [];
       for (const row of pointsRows) {
         (map[row.indicator_id] ??= []).push([row.date, row.value]);
         if (row.stage) (stages[row.indicator_id] ??= {})[row.date] = row.stage;
+        recent.push({ indicatorId: row.indicator_id, date: row.date, value: row.value, updatedAt: row.updated_at });
       }
       setOverrides(map);
       setPointStages(stages);
+      setRecentUpdates(recent);
     }
 
     if (!scoreRes.error && scoreRes.data && scoreRes.data.length > 0) {
@@ -1004,6 +1021,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       getSeries,
+      recentUpdates,
       addPoint,
       removeLastPoint,
       getReleaseStage,
@@ -1044,6 +1062,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     }),
     [
       getSeries,
+      recentUpdates,
       addPoint,
       removeLastPoint,
       getReleaseStage,
