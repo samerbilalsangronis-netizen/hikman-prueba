@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Brush, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useMacroData } from '../data/MacroDataContext';
 import { INDICATORS } from '../data/indicators';
 import { CURRENCIES } from '../data/CurrencyContext';
@@ -15,6 +15,8 @@ const ANNOTATIONS_KEY = 'hikman-strength:annotations:v1';
 const DIGEST_WEEKS = 3;
 
 const RANGES = [
+  { key: '1d', label: '1D', days: 2 },
+  { key: '1s', label: '1S', days: 7 },
   { key: '1m', label: '1M', days: 30 },
   { key: '3m', label: '3M', days: 90 },
   { key: '6m', label: '6M', days: 182 },
@@ -430,8 +432,9 @@ export function CurrencyStrengthChart() {
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
         Fortaleza acumulada por divisa a partir de los datos cargados — económicos (sorpresa real vs. previsión) y
         titulares (📰, según las divisas que etiquetó el sync) — suman o restan puntos, y una divisa se mantiene en su
-        nivel hasta que un dato propio — o de una divisa relacionada — la mueve. Click en un nodo para ver o corregir
-        su puntaje.
+        nivel hasta que un dato propio — o de una divisa relacionada — la mueve. Pasá el mouse por cualquier punto de
+        la línea de tiempo para ver qué catalizadores hubo ese día; click en un nodo puntual para corregir su
+        puntaje. Usá la franja de abajo del gráfico para moverte por el histórico cargado.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -537,18 +540,53 @@ export function CurrencyStrengthChart() {
       </div>
 
       <div className="flex gap-3">
-        <div className="relative" style={{ flex: 1, minWidth: 0, height: 560, border: '1px solid var(--border)', borderRadius: 12, padding: 8 }} ref={chartAreaRef} onPointerMove={onAnnotationPointerMove} onPointerUp={onAnnotationPointerUp}>
+        <div className="relative" style={{ flex: 1, minWidth: 0, height: 600, border: '1px solid var(--border)', borderRadius: 12, padding: 8 }} ref={chartAreaRef} onPointerMove={onAnnotationPointerMove} onPointerUp={onAnnotationPointerUp}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--gridline)" />
               <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={{ stroke: 'var(--baseline)' }} tickLine={false} minTickGap={40} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={36} />
               <Tooltip
-                content={({ active, label }) => {
+                content={({ active, label, payload }) => {
                   if (!active) return null;
+                  const row = payload?.[0]?.payload as { events?: Partial<Record<Currency, StrengthEvent[]>> } | undefined;
+                  const events = row?.events ? Object.values(row.events).flat() : [];
                   return (
-                    <div className="rounded-md px-2.5 py-1.5 text-xs shadow-sm" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-                      {formatDate(label as string)}
+                    <div
+                      className="rounded-md px-2.5 py-1.5 text-xs shadow-sm"
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', maxWidth: 260 }}
+                    >
+                      <div style={{ color: 'var(--text-muted)', marginBottom: events.length ? 4 : 0, fontWeight: 600 }}>{formatDate(label as string)}</div>
+                      {events.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)' }}>Sin catalizadores este día</div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          {events.map((ev) => {
+                            const delta = overrides[ev.id] ?? ev.autoDeltaValue;
+                            return (
+                              <div key={ev.id} className="flex items-baseline gap-1.5">
+                                <span
+                                  className="shrink-0 rounded px-1 text-[9px] font-bold text-white"
+                                  style={{ background: CURRENCY_COLORS[ev.currency] }}
+                                >
+                                  {ev.currency}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">
+                                  {ev.kind === 'headline' ? '📰 ' : ''}
+                                  {ev.indicatorLabel}
+                                </span>
+                                <span
+                                  className="shrink-0 font-bold"
+                                  style={{ color: delta > 0 ? 'var(--status-good)' : delta < 0 ? 'var(--status-critical)' : 'var(--text-muted)' }}
+                                >
+                                  {delta > 0 ? '+' : ''}
+                                  {delta}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 }}
@@ -565,8 +603,18 @@ export function CurrencyStrengthChart() {
                   hide={hiddenCurrencies.has(c)}
                 />
               ))}
+              <Brush dataKey="date" height={26} tickFormatter={formatDate} travellerWidth={9} stroke="var(--series-1)" fill="var(--surface-2)" />
             </LineChart>
           </ResponsiveContainer>
+
+          {allEvents.length === 0 && (
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md px-3 py-1.5 text-xs"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            >
+              Sin catalizadores en {RANGES.find((r) => r.key === range)?.label.toLowerCase()} — probá un rango más amplio.
+            </div>
+          )}
 
           {annotations.map((a) => (
             <div
@@ -616,7 +664,7 @@ export function CurrencyStrengthChart() {
           ))}
         </div>
 
-        <div style={{ width: 300, flexShrink: 0, height: 560, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ width: 300, flexShrink: 0, height: 600, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
               🏆 Ranking actual
