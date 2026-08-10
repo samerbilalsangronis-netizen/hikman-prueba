@@ -48,6 +48,24 @@ function autoDelta(meta: IndicatorMeta, actual: number, forecast: number | undef
   return magnitude * sign;
 }
 
+// Muchos indicadores de tasas de política monetaria (sección "tasas") no
+// tienen previsión cargada en este proyecto — no hay "consenso" para eso,
+// lo que importa es si subió, bajó o se mantuvo respecto de la reunión
+// anterior, no una sorpresa contra un número que nadie estimó. Sin este
+// fallback, computeImpact trata "sin previsión" como "sin sorpresa" y el
+// puntaje queda siempre en 0 — que es justamente lo que se veía en producción
+// pese a haber datos reales cargándose (el resumen diario los mostraba, el
+// gráfico no se movía). Un cambio de nivel de tasa es alto impacto per se;
+// otro indicador sin previsión que igual cambió de valor, impacto medio.
+function previousValueDelta(meta: IndicatorMeta, actual: number, previousValue: number | undefined): number {
+  if (previousValue === undefined || meta.goodDirection === 'neutral') return 0;
+  const diff = actual - previousValue;
+  if (diff === 0) return 0;
+  const magnitude = meta.section === 'tasas' ? 2 : 1;
+  const sign = meta.goodDirection === 'up' ? Math.sign(diff) : -Math.sign(diff);
+  return magnitude * sign;
+}
+
 // Un titular no trae "real vs. previsión" — la magnitud sale de su impacto
 // (mismo criterio que Titulares) y la dirección solo se conoce si ya está
 // fijado como motivo del sesgo de esa divisa (Panel de Control). Si no está
@@ -70,6 +88,7 @@ interface StrengthEvent {
   indicatorLabel: string;
   actual?: number;
   forecast?: number;
+  previousValue?: number;
   format?: Format;
   headlineUrl?: string;
   headlineSource?: string;
@@ -170,6 +189,25 @@ export function CurrencyStrengthChart() {
     return d.toISOString().slice(0, 10);
   }, [rangeDays]);
 
+  // Valor anterior por (indicador, fecha) usando TODO el historial cargado
+  // (no solo la ventana visible) — hace falta para el fallback de indicadores
+  // sin previsión, incluso si su punto anterior quedó fuera de la ventana.
+  const previousValueByKey = useMemo(() => {
+    const byIndicator = new Map<string, { date: string; value: number }[]>();
+    for (const u of recentUpdates) {
+      if (!byIndicator.has(u.indicatorId)) byIndicator.set(u.indicatorId, []);
+      byIndicator.get(u.indicatorId)!.push({ date: u.date, value: u.value });
+    }
+    const result = new Map<string, number>();
+    for (const [id, list] of byIndicator) {
+      list.sort((a, b) => a.date.localeCompare(b.date));
+      for (let i = 1; i < list.length; i++) {
+        result.set(`${id}:${list[i].date}`, list[i - 1].value);
+      }
+    }
+    return result;
+  }, [recentUpdates]);
+
   // Un evento por dato real (dedupeado por indicador+fecha, se queda con el
   // más reciente si se recargó) dentro de la ventana elegida.
   const indicatorEvents = useMemo<StrengthEvent[]>(() => {
@@ -185,6 +223,8 @@ export function CurrencyStrengthChart() {
       const meta = INDICATORS_BY_ID.get(u.indicatorId);
       if (!meta) continue;
       const forecast = forecasts[u.indicatorId];
+      const previousValue = previousValueByKey.get(`${u.indicatorId}:${u.date}`);
+      const delta = forecast !== undefined ? autoDelta(meta, u.value, forecast) : previousValueDelta(meta, u.value, previousValue);
       events.push({
         id: `ev:${u.indicatorId}:${u.date}`,
         currency: meta.currency ?? 'USD',
@@ -193,13 +233,14 @@ export function CurrencyStrengthChart() {
         indicatorLabel: meta.shortLabel,
         actual: u.value,
         forecast,
+        previousValue: forecast === undefined ? previousValue : undefined,
         format: meta.format,
-        autoDeltaValue: autoDelta(meta, u.value, forecast),
+        autoDeltaValue: delta,
         isCross: false,
       });
     }
     return events;
-  }, [recentUpdates, forecasts, rangeStartIso]);
+  }, [recentUpdates, forecasts, rangeStartIso, previousValueByKey]);
 
   // Un evento por divisa etiquetada en cada titular (un mismo titular puede
   // tocar varias) dentro de la ventana elegida — mismas tags que ya clasifica
@@ -682,6 +723,9 @@ export function CurrencyStrengthChart() {
                       <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         Real: {formatValue(ev.actual!, ev.format!)}
                         {ev.forecast !== undefined && <> · Previsión: {formatValue(ev.forecast, ev.format!)}</>}
+                        {ev.forecast === undefined && ev.previousValue !== undefined && (
+                          <> · Anterior: {formatValue(ev.previousValue, ev.format!)} (sin previsión cargada — se compara contra el dato previo)</>
+                        )}
                       </p>
                     )}
                     <div className="mt-1.5 flex items-center gap-2">
