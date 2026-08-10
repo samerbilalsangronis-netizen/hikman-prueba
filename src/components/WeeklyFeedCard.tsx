@@ -10,12 +10,13 @@ interface WeeklyFeedCardProps {
   date: string;
   value: number;
   forecast?: number;
+  previous?: number;
   updatedAt: string;
   impact: ImpactLevel;
   onOverrideImpact: (level: ImpactLevel) => void;
 }
 
-export function WeeklyFeedCard({ meta, date, value, forecast, updatedAt, impact, onOverrideImpact }: WeeklyFeedCardProps) {
+export function WeeklyFeedCard({ meta, date, value, forecast, previous, updatedAt, impact, onOverrideImpact }: WeeklyFeedCardProps) {
   const { addBiasReason } = useMacroData();
   const [linked, setLinked] = useState(false);
   const currency = meta.currency ?? 'USD';
@@ -54,7 +55,10 @@ export function WeeklyFeedCard({ meta, date, value, forecast, updatedAt, impact,
         {meta.label}
       </h3>
 
-      <div className="flex items-baseline gap-3 text-sm">
+      <div className="flex flex-wrap items-baseline gap-3 text-sm">
+        <span style={{ color: 'var(--text-muted)' }}>
+          Anterior: <strong style={{ color: 'var(--text-secondary)' }}>{previous !== undefined ? formatValue(previous, meta.format) : '—'}</strong>
+        </span>
         <span style={{ color: 'var(--text-muted)' }}>
           Previsión: <strong style={{ color: 'var(--text-secondary)' }}>{forecast !== undefined ? formatValue(forecast, meta.format) : '—'}</strong>
         </span>

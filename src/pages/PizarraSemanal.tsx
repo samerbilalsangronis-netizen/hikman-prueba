@@ -7,6 +7,9 @@ import { CurrencyStrengthChart } from '../components/CurrencyStrengthChart';
 import { IMPACT_LABELS } from '../lib/impact';
 import { computeImpact, startOfWeek } from '../lib/weeklyHub';
 import { supabaseEnabled } from '../lib/supabaseClient';
+import { RESUMEN_INDICATOR_IDS } from '../lib/resumenIndicators';
+import { buildPreviousValueMap } from '../lib/previousValue';
+import { formatDate } from '../lib/format';
 import type { ImpactLevel } from '../types';
 
 const INDICATORS_BY_ID = new Map(INDICATORS.map((m) => [m.id, m]));
@@ -16,22 +19,38 @@ export function PizarraSemanal() {
   const [filter, setFilter] = useState<ImpactLevel | 'todos'>('todos');
   const [view, setView] = useState<'feed' | 'fortaleza'>('feed');
   const [impactOverrides, setImpactOverrides] = useState<Record<string, ImpactLevel>>({});
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = semana actual, 1 = semana pasada, ...
 
-  const weekStart = useMemo(() => startOfWeek(new Date()), []);
+  const weekStart = useMemo(() => {
+    const d = startOfWeek(new Date());
+    d.setDate(d.getDate() - 7 * weekOffset);
+    return d;
+  }, [weekOffset]);
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 7);
+    return d;
+  }, [weekStart]);
+
+  const previousValueByKey = useMemo(() => buildPreviousValueMap(recentUpdates), [recentUpdates]);
 
   const cards = useMemo(() => {
     return recentUpdates
-      .filter((u) => new Date(u.updatedAt) >= weekStart)
+      .filter((u) => {
+        const updatedAt = new Date(u.updatedAt);
+        return updatedAt >= weekStart && updatedAt < weekEnd && RESUMEN_INDICATOR_IDS.has(u.indicatorId);
+      })
       .map((u) => ({ update: u, meta: INDICATORS_BY_ID.get(u.indicatorId) }))
       .filter((c): c is { update: (typeof recentUpdates)[number]; meta: NonNullable<(typeof c)['meta']> } => Boolean(c.meta))
       .sort((a, b) => b.update.updatedAt.localeCompare(a.update.updatedAt));
-  }, [recentUpdates, weekStart]);
+  }, [recentUpdates, weekStart, weekEnd]);
 
   const withImpact = cards.map(({ update, meta }) => {
     const key = `${update.indicatorId}:${update.date}`;
     const forecast = forecasts[update.indicatorId];
+    const previous = previousValueByKey.get(`${update.indicatorId}:${update.date}`);
     const impact = impactOverrides[key] ?? computeImpact(update.value, forecast);
-    return { update, meta, forecast, impact, key };
+    return { update, meta, forecast, previous, impact, key };
   });
 
   const filtered = filter === 'todos' ? withImpact : withImpact.filter((c) => c.impact === filter);
@@ -43,9 +62,10 @@ export function PizarraSemanal() {
           Pizarra Semanal
         </h1>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
-          Catalizadores de la semana en curso, juntados de todas las divisas en un solo lugar — Real vs. Previsión de
-          cada dato cargado o sincronizado desde el lunes. El nivel de impacto es automático (por sorpresa vs.
-          previsión) y se puede corregir a mano en cada tarjeta.
+          Seguimiento semanal, sin ruido: solo los indicadores que ya se destacan en Resumen de cada divisa (el Score
+          Compuesto), juntados en un solo lugar — Anterior/Previsión/Real de cada dato cargado o sincronizado. El
+          nivel de impacto es automático (por sorpresa vs. previsión) y se puede corregir a mano en cada tarjeta.
+          Fortaleza usa esos mismos datos, pero con el histórico completo para ver la tendencia.
         </p>
       </div>
 
@@ -99,21 +119,51 @@ export function PizarraSemanal() {
             )}
           </div>
 
+          {view === 'feed' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="rounded-md px-2.5 py-1 text-xs font-semibold"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                ‹ Semana anterior
+              </button>
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {weekOffset === 0 ? 'Esta semana' : `Semana del ${formatDate(weekStart.toISOString().slice(0, 10))}`}
+              </span>
+              <button
+                onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                disabled={weekOffset === 0}
+                className="rounded-md px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Semana siguiente ›
+              </button>
+              {weekOffset > 0 && (
+                <button onClick={() => setWeekOffset(0)} className="text-xs font-semibold" style={{ color: 'var(--series-1)' }}>
+                  Volver a esta semana
+                </button>
+              )}
+            </div>
+          )}
+
           {view === 'fortaleza' ? (
             <CurrencyStrengthChart />
           ) : filtered.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Sin novedades cargadas todavía esta semana{filter !== 'todos' ? ` con ${IMPACT_LABELS[filter]}` : ''}.
+              Sin novedades cargadas {weekOffset === 0 ? 'todavía esta semana' : 'esa semana'}
+              {filter !== 'todos' ? ` con ${IMPACT_LABELS[filter]}` : ''}.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map(({ update, meta, forecast, impact, key }) => (
+              {filtered.map(({ update, meta, forecast, previous, impact, key }) => (
                 <WeeklyFeedCard
                   key={key}
                   meta={meta}
                   date={update.date}
                   value={update.value}
                   forecast={forecast}
+                  previous={previous}
                   updatedAt={update.updatedAt}
                   impact={impact}
                   onOverrideImpact={(level) => setImpactOverrides((prev) => ({ ...prev, [key]: level }))}

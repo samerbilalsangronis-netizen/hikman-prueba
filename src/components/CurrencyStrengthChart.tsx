@@ -7,7 +7,9 @@ import { CENTRAL_BANK_BY_CURRENCY } from '../lib/bias';
 import { CURRENCY_COLORS, crossCurrencyLinks } from '../lib/currencyColors';
 import { computeImpact, startOfWeek, surpriseColor } from '../lib/weeklyHub';
 import { formatDate, formatValue } from '../lib/format';
-import type { Currency, CurrencyBias, Format, Headline, IndicatorMeta } from '../types';
+import { RESUMEN_INDICATOR_IDS } from '../lib/resumenIndicators';
+import { buildPreviousValueMap } from '../lib/previousValue';
+import type { Currency, CurrencyBias, Format, Headline, IndicatorMeta, ScoreRow } from '../types';
 
 const INDICATORS_BY_ID = new Map(INDICATORS.map((m) => [m.id, m]));
 const OVERRIDES_KEY = 'hikman-strength:overrides:v1';
@@ -98,6 +100,7 @@ interface StrengthEvent {
   isCross: boolean;
   reason?: string;
   sourceCurrency?: Currency;
+  scoreRow?: ScoreRow;
 }
 
 interface Annotation {
@@ -173,13 +176,14 @@ function EventDot(props: {
 }
 
 export function CurrencyStrengthChart() {
-  const { recentUpdates, forecasts, headlines, biases } = useMacroData();
+  const { recentUpdates, forecasts, headlines, biases, scoreRows } = useMacroData();
   const [range, setRange] = useState<RangeKey>('3m');
   const [showEvents, setShowEvents] = useState(true);
   const [hiddenCurrencies, setHiddenCurrencies] = useState<Set<Currency>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, number>>(() => loadOverrides());
   const [annotations, setAnnotations] = useState<Annotation[]>(() => loadAnnotations());
   const [dotInfo, setDotInfo] = useState<DotClickInfo | null>(null);
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [stickerMenu, setStickerMenu] = useState<null | 'economia' | 'banqueros'>(null);
   const chartAreaRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<{ id: string; rect: DOMRect } | null>(null);
@@ -192,30 +196,21 @@ export function CurrencyStrengthChart() {
   }, [rangeDays]);
 
   // Valor anterior por (indicador, fecha) usando TODO el historial cargado
-  // (no solo la ventana visible) — hace falta para el fallback de indicadores
-  // sin previsión, incluso si su punto anterior quedó fuera de la ventana.
-  const previousValueByKey = useMemo(() => {
-    const byIndicator = new Map<string, { date: string; value: number }[]>();
-    for (const u of recentUpdates) {
-      if (!byIndicator.has(u.indicatorId)) byIndicator.set(u.indicatorId, []);
-      byIndicator.get(u.indicatorId)!.push({ date: u.date, value: u.value });
-    }
-    const result = new Map<string, number>();
-    for (const [id, list] of byIndicator) {
-      list.sort((a, b) => a.date.localeCompare(b.date));
-      for (let i = 1; i < list.length; i++) {
-        result.set(`${id}:${list[i].date}`, list[i - 1].value);
-      }
-    }
-    return result;
-  }, [recentUpdates]);
+  // (no solo la ventana visible), y valoración manual (Score Compuesto de
+  // Resumen) por indicador — ambos se muestran en el nodo junto a
+  // Real/Previsión, no solo como fallback.
+  const previousValueByKey = useMemo(() => buildPreviousValueMap(recentUpdates), [recentUpdates]);
+  const scoreRowById = useMemo(() => new Map(scoreRows.map((r) => [r.id, r])), [scoreRows]);
 
   // Un evento por dato real (dedupeado por indicador+fecha, se queda con el
-  // más reciente si se recargó) dentro de la ventana elegida.
+  // más reciente si se recargó) dentro de la ventana elegida — recortado a
+  // los indicadores que ya se muestran en Resumen (los "más importantes" de
+  // cada divisa), no a todo lo que haya cargado en el sistema.
   const indicatorEvents = useMemo<StrengthEvent[]>(() => {
     const byId = new Map<string, (typeof recentUpdates)[number]>();
     for (const u of recentUpdates) {
       if (u.date < rangeStartIso) continue;
+      if (!RESUMEN_INDICATOR_IDS.has(u.indicatorId)) continue;
       const key = `${u.indicatorId}:${u.date}`;
       const existing = byId.get(key);
       if (!existing || existing.updatedAt < u.updatedAt) byId.set(key, u);
@@ -235,14 +230,15 @@ export function CurrencyStrengthChart() {
         indicatorLabel: meta.shortLabel,
         actual: u.value,
         forecast,
-        previousValue: forecast === undefined ? previousValue : undefined,
+        previousValue,
         format: meta.format,
         autoDeltaValue: delta,
         isCross: false,
+        scoreRow: scoreRowById.get(u.indicatorId),
       });
     }
     return events;
-  }, [recentUpdates, forecasts, rangeStartIso, previousValueByKey]);
+  }, [recentUpdates, forecasts, rangeStartIso, previousValueByKey, scoreRowById]);
 
   // Un evento por divisa etiquetada en cada titular (un mismo titular puede
   // tocar varias) dentro de la ventana elegida — mismas tags que ya clasifica
@@ -377,6 +373,15 @@ export function CurrencyStrengthChart() {
     });
   }
 
+  function toggleEditing(id: string) {
+    setEditingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function toggleCurrency(c: Currency) {
     setHiddenCurrencies((prev) => {
       const next = new Set(prev);
@@ -430,11 +435,11 @@ export function CurrencyStrengthChart() {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        Fortaleza acumulada por divisa a partir de los datos cargados — económicos (sorpresa real vs. previsión) y
-        titulares (📰, según las divisas que etiquetó el sync) — suman o restan puntos, y una divisa se mantiene en su
-        nivel hasta que un dato propio — o de una divisa relacionada — la mueve. Pasá el mouse por cualquier punto de
-        la línea de tiempo para ver qué catalizadores hubo ese día; click en un nodo puntual para corregir su
-        puntaje. Usá la franja de abajo del gráfico para moverte por el histórico cargado.
+        Tendencia de fortaleza por divisa con el histórico completo, a partir de los mismos datos que ya se destacan
+        en Resumen de cada divisa (los indicadores del Score Compuesto) — no de todo lo cargado en el sistema. Pasá
+        el mouse por cualquier punto para ver los catalizadores de ese día; click en un nodo para ver el dato completo
+        (previsión, anterior, actual y valoración de Resumen) y, si hace falta, editar su puntaje. Usá la franja de
+        abajo del gráfico para moverte por el histórico.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -744,12 +749,22 @@ export function CurrencyStrengthChart() {
             <div className="flex flex-col gap-3">
               {dotInfo.events.map((ev) => {
                 const current = overrides[ev.id] ?? ev.autoDeltaValue;
+                const editing = editingIds.has(ev.id);
                 return (
                   <div key={ev.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-2)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {ev.kind === 'headline' ? '📰 ' : ''}
-                      {ev.indicatorLabel}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {ev.kind === 'headline' ? '📰 ' : ''}
+                        {ev.indicatorLabel}
+                      </p>
+                      <button
+                        onClick={() => toggleEditing(ev.id)}
+                        className="shrink-0 text-[10px] font-semibold"
+                        style={{ color: 'var(--series-1)' }}
+                      >
+                        {editing ? 'Cerrar' : '✏️ Editar'}
+                      </button>
+                    </div>
                     {ev.isCross ? (
                       <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         Eco del dato de {ev.sourceCurrency} — {ev.reason}
@@ -765,40 +780,70 @@ export function CurrencyStrengthChart() {
                             </a>
                           </>
                         )}
-                        {current === 0 && overrides[ev.id] === undefined && ' · sin dirección fijada: puntaje en 0 hasta que lo corrijas'}
+                        {current === 0 && overrides[ev.id] === undefined && ' · sin dirección fijada'}
                       </p>
                     ) : (
-                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        Real: {formatValue(ev.actual!, ev.format!)}
-                        {ev.forecast !== undefined && <> · Previsión: {formatValue(ev.forecast, ev.format!)}</>}
-                        {ev.forecast === undefined && ev.previousValue !== undefined && (
-                          <> · Anterior: {formatValue(ev.previousValue, ev.format!)} (sin previsión cargada — se compara contra el dato previo)</>
-                        )}
+                      <div className="mt-1 grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                            Anterior
+                          </div>
+                          <div className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                            {ev.previousValue !== undefined ? formatValue(ev.previousValue, ev.format!) : '—'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                            Previsión
+                          </div>
+                          <div className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                            {ev.forecast !== undefined ? formatValue(ev.forecast, ev.format!) : '—'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                            Actual
+                          </div>
+                          <div className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                            {formatValue(ev.actual!, ev.format!)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {ev.scoreRow && (
+                      <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        Valoración en Resumen ({ev.scoreRow.label}):{' '}
+                        <strong style={{ color: 'var(--text-secondary)' }}>
+                          {ev.scoreRow.valoracion > 0 ? '+' : ''}
+                          {ev.scoreRow.valoracion}
+                        </strong>
                       </p>
                     )}
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                        Puntaje:
-                      </span>
-                      <select
-                        value={current}
-                        onChange={(e) => setOverride(ev.id, Number(e.target.value))}
-                        className="rounded px-1.5 py-0.5 text-xs"
-                        style={{ border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text-primary)' }}
-                      >
-                        {[-2, -1, 0, 1, 2].map((n) => (
-                          <option key={n} value={n}>
-                            {n > 0 ? `+${n}` : n}
-                          </option>
-                        ))}
-                      </select>
-                      {overrides[ev.id] !== undefined && (
-                        <button onClick={() => setOverride(ev.id, null)} className="text-[10px] font-semibold" style={{ color: 'var(--series-1)' }}>
-                          Restablecer automático ({ev.autoDeltaValue > 0 ? '+' : ''}
-                          {ev.autoDeltaValue})
-                        </button>
-                      )}
-                    </div>
+                    {editing && (
+                      <div className="mt-2 flex items-center gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                          Puntaje del nodo:
+                        </span>
+                        <select
+                          value={current}
+                          onChange={(e) => setOverride(ev.id, Number(e.target.value))}
+                          className="rounded px-1.5 py-0.5 text-xs"
+                          style={{ border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text-primary)' }}
+                        >
+                          {[-2, -1, 0, 1, 2].map((n) => (
+                            <option key={n} value={n}>
+                              {n > 0 ? `+${n}` : n}
+                            </option>
+                          ))}
+                        </select>
+                        {overrides[ev.id] !== undefined && (
+                          <button onClick={() => setOverride(ev.id, null)} className="text-[10px] font-semibold" style={{ color: 'var(--series-1)' }}>
+                            Restablecer ({ev.autoDeltaValue > 0 ? '+' : ''}
+                            {ev.autoDeltaValue})
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
