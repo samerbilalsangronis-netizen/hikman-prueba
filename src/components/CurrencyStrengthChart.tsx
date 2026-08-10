@@ -7,7 +7,7 @@ import { CENTRAL_BANK_BY_CURRENCY } from '../lib/bias';
 import { CURRENCY_COLORS, crossCurrencyLinks } from '../lib/currencyColors';
 import { computeImpact, startOfWeek, surpriseColor } from '../lib/weeklyHub';
 import { formatDate, formatValue } from '../lib/format';
-import type { Currency, Format, IndicatorMeta } from '../types';
+import type { Currency, CurrencyBias, Format, Headline, IndicatorMeta } from '../types';
 
 const INDICATORS_BY_ID = new Map(INDICATORS.map((m) => [m.id, m]));
 const OVERRIDES_KEY = 'hikman-strength:overrides:v1';
@@ -48,14 +48,31 @@ function autoDelta(meta: IndicatorMeta, actual: number, forecast: number | undef
   return magnitude * sign;
 }
 
+// Un titular no trae "real vs. previsión" — la magnitud sale de su impacto
+// (mismo criterio que Titulares) y la dirección solo se conoce si ya está
+// fijado como motivo del sesgo de esa divisa (Panel de Control). Si no está
+// fijado, arranca en 0 — el usuario lo corrige a mano en el nodo, no
+// inventamos un tono que nadie clasificó.
+function headlineAutoDelta(headline: Headline, currency: Currency, biases: Partial<Record<Currency, CurrencyBias>>): number {
+  const magnitude = headline.impact === 'alto' ? 2 : headline.impact === 'medio' ? 1 : 0;
+  if (magnitude === 0) return 0;
+  const reason = biases[currency]?.current.reasons.find((r) => r.headlineId === headline.id);
+  if (!reason) return 0;
+  const sign = reason.color === 'hawkish' || reason.color === 'neutral_alcista' ? 1 : reason.color === 'dovish' || reason.color === 'neutral_bajista' ? -1 : 0;
+  return magnitude * sign;
+}
+
 interface StrengthEvent {
   id: string;
   currency: Currency;
   date: string;
+  kind: 'indicator' | 'headline';
   indicatorLabel: string;
-  actual: number;
-  forecast: number | undefined;
-  format: Format;
+  actual?: number;
+  forecast?: number;
+  format?: Format;
+  headlineUrl?: string;
+  headlineSource?: string;
   autoDeltaValue: number;
   isCross: boolean;
   reason?: string;
@@ -135,7 +152,7 @@ function EventDot(props: {
 }
 
 export function CurrencyStrengthChart() {
-  const { recentUpdates, forecasts } = useMacroData();
+  const { recentUpdates, forecasts, headlines, biases } = useMacroData();
   const [range, setRange] = useState<RangeKey>('3m');
   const [showEvents, setShowEvents] = useState(true);
   const [hiddenCurrencies, setHiddenCurrencies] = useState<Set<Currency>>(new Set());
@@ -155,7 +172,7 @@ export function CurrencyStrengthChart() {
 
   // Un evento por dato real (dedupeado por indicador+fecha, se queda con el
   // más reciente si se recargó) dentro de la ventana elegida.
-  const baseEvents = useMemo<StrengthEvent[]>(() => {
+  const indicatorEvents = useMemo<StrengthEvent[]>(() => {
     const byId = new Map<string, (typeof recentUpdates)[number]>();
     for (const u of recentUpdates) {
       if (u.date < rangeStartIso) continue;
@@ -172,6 +189,7 @@ export function CurrencyStrengthChart() {
         id: `ev:${u.indicatorId}:${u.date}`,
         currency: meta.currency ?? 'USD',
         date: u.date,
+        kind: 'indicator',
         indicatorLabel: meta.shortLabel,
         actual: u.value,
         forecast,
@@ -180,24 +198,60 @@ export function CurrencyStrengthChart() {
         isCross: false,
       });
     }
-    return events.sort((a, b) => a.date.localeCompare(b.date));
+    return events;
   }, [recentUpdates, forecasts, rangeStartIso]);
 
+  // Un evento por divisa etiquetada en cada titular (un mismo titular puede
+  // tocar varias) dentro de la ventana elegida — mismas tags que ya clasifica
+  // el sync de Finnhub, no inventamos relevancia nueva.
+  const headlineEvents = useMemo<StrengthEvent[]>(() => {
+    const events: StrengthEvent[] = [];
+    for (const h of headlines) {
+      const date = h.publishedAt.slice(0, 10);
+      if (date < rangeStartIso) continue;
+      for (const tag of h.tags) {
+        if (!(CURRENCIES as readonly string[]).includes(tag)) continue;
+        const currency = tag as Currency;
+        events.push({
+          id: `hl:${h.id}:${currency}`,
+          currency,
+          date,
+          kind: 'headline',
+          indicatorLabel: h.titleEs ?? h.title,
+          headlineUrl: h.url,
+          headlineSource: h.source,
+          autoDeltaValue: headlineAutoDelta(h, currency, biases),
+          isCross: false,
+        });
+      }
+    }
+    return events;
+  }, [headlines, biases, rangeStartIso]);
+
+  const baseEvents = useMemo(
+    () => [...indicatorEvents, ...headlineEvents].sort((a, b) => a.date.localeCompare(b.date)),
+    [indicatorEvents, headlineEvents],
+  );
+
   // Efectivo = lo que el usuario haya sobrescrito, si no el automático. Si un
-  // dato de alto impacto (efectivo, no solo el automático) pega en su propia
-  // divisa, también genera un eco menor en las divisas con vínculo conocido.
+  // dato ECONÓMICO de alto impacto (efectivo, no solo el automático) pega en
+  // su propia divisa, también genera un eco menor en las divisas con vínculo
+  // conocido — los titulares no: el clasificador de Finnhub ya etiqueta
+  // directamente todas las divisas que toca, sumar un eco encima sería
+  // contar dos veces lo mismo.
   const allEvents = useMemo<StrengthEvent[]>(() => {
     const withCross: StrengthEvent[] = [];
     for (const ev of baseEvents) {
       withCross.push(ev);
       const effective = overrides[ev.id] ?? ev.autoDeltaValue;
-      if (Math.abs(effective) >= 2) {
+      if (ev.kind === 'indicator' && Math.abs(effective) >= 2) {
         for (const link of crossCurrencyLinks(ev.currency)) {
           const crossId = `cross:${ev.id}:${link.currency}`;
           withCross.push({
             id: crossId,
             currency: link.currency,
             date: ev.date,
+            kind: 'indicator',
             indicatorLabel: ev.indicatorLabel,
             actual: ev.actual,
             forecast: ev.forecast,
@@ -333,9 +387,10 @@ export function CurrencyStrengthChart() {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        Fortaleza acumulada por divisa a partir de los datos cargados: cada sorpresa (real vs. previsión) suma o resta
-        puntos, y una divisa se mantiene en su nivel hasta que un dato propio — o de una divisa relacionada — la
-        mueve. Click en un nodo para ver o corregir su puntaje.
+        Fortaleza acumulada por divisa a partir de los datos cargados — económicos (sorpresa real vs. previsión) y
+        titulares (📰, según las divisas que etiquetó el sync) — suman o restan puntos, y una divisa se mantiene en su
+        nivel hasta que un dato propio — o de una divisa relacionada — la mueve. Click en un nodo para ver o corregir
+        su puntaje.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -603,16 +658,30 @@ export function CurrencyStrengthChart() {
                 return (
                   <div key={ev.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-2)' }}>
                     <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {ev.kind === 'headline' ? '📰 ' : ''}
                       {ev.indicatorLabel}
                     </p>
                     {ev.isCross ? (
                       <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         Eco del dato de {ev.sourceCurrency} — {ev.reason}
                       </p>
+                    ) : ev.kind === 'headline' ? (
+                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        {ev.headlineSource}
+                        {ev.headlineUrl && (
+                          <>
+                            {' · '}
+                            <a href={ev.headlineUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--series-1)' }}>
+                              ver fuente
+                            </a>
+                          </>
+                        )}
+                        {current === 0 && overrides[ev.id] === undefined && ' · sin dirección fijada: puntaje en 0 hasta que lo corrijas'}
+                      </p>
                     ) : (
                       <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        Real: {formatValue(ev.actual, ev.format)}
-                        {ev.forecast !== undefined && <> · Previsión: {formatValue(ev.forecast, ev.format)}</>}
+                        Real: {formatValue(ev.actual!, ev.format!)}
+                        {ev.forecast !== undefined && <> · Previsión: {formatValue(ev.forecast, ev.format!)}</>}
                       </p>
                     )}
                     <div className="mt-1.5 flex items-center gap-2">
