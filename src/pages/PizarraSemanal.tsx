@@ -3,7 +3,7 @@ import { useMacroData } from '../data/MacroDataContext';
 import { INDICATORS } from '../data/indicators';
 import { WeeklyBiasStrip } from '../components/WeeklyBiasStrip';
 import { WeeklyFeedCard } from '../components/WeeklyFeedCard';
-import { WeeklyMindMap } from '../components/WeeklyMindMap';
+import { CurrencyStrengthChart } from '../components/CurrencyStrengthChart';
 import { IMPACT_LABELS } from '../lib/impact';
 import { computeImpact, startOfWeek } from '../lib/weeklyHub';
 import { supabaseEnabled } from '../lib/supabaseClient';
@@ -14,7 +14,7 @@ const INDICATORS_BY_ID = new Map(INDICATORS.map((m) => [m.id, m]));
 export function PizarraSemanal() {
   const { recentUpdates, forecasts } = useMacroData();
   const [filter, setFilter] = useState<ImpactLevel | 'todos'>('todos');
-  const [view, setView] = useState<'feed' | 'mapa'>('feed');
+  const [view, setView] = useState<'feed' | 'fortaleza'>('feed');
   const [impactOverrides, setImpactOverrides] = useState<Record<string, ImpactLevel>>({});
 
   const weekStart = useMemo(() => startOfWeek(new Date()), []);
@@ -65,7 +65,7 @@ export function PizarraSemanal() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-1.5 rounded-full p-1" style={{ background: 'var(--surface-2)' }}>
-              {(['feed', 'mapa'] as const).map((v) => (
+              {(['feed', 'fortaleza'] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -75,7 +75,7 @@ export function PizarraSemanal() {
                     color: view === v ? '#fff' : 'var(--text-secondary)',
                   }}
                 >
-                  {v === 'feed' ? '📋 Feed' : '🧠 Mapa Mental'}
+                  {v === 'feed' ? '📋 Feed' : '💪 Fortaleza'}
                 </button>
               ))}
             </div>
@@ -99,8 +99,8 @@ export function PizarraSemanal() {
             )}
           </div>
 
-          {view === 'mapa' ? (
-            <WeeklyMindMap />
+          {view === 'fortaleza' ? (
+            <CurrencyStrengthChart />
           ) : filtered.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Sin novedades cargadas todavía esta semana{filter !== 'todos' ? ` con ${IMPACT_LABELS[filter]}` : ''}.
