@@ -368,6 +368,20 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Encuesta de expectativas económicas a 6 meses entre analistas e inversores institucionales. Sin API gratis — carga manual.',
   },
+  {
+    id: 'eur_sentix',
+    label: 'Sentix Confianza Inversora',
+    shortLabel: 'Sentix',
+    section: 'confianza',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'EUR',
+    source: 'sentix GmbH',
+    sourceUrl: 'https://www.sentix.de/index.php/en/sentix-Economic-News/',
+    goodDirection: 'up',
+    description: 'Encuesta mensual a ~2800 inversores/analistas sobre la situación actual y expectativas a 6 meses de la Eurozona. Índice privado (sentix GmbH), no publicado por Eurostat ni FRED — sin API gratis, carga manual.',
+  },
   // Crecimiento
   {
     id: 'eur_gdp_qoq',
