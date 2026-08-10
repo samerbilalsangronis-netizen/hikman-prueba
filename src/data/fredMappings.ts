@@ -169,12 +169,10 @@ export const CAD_AUTO_INDICATOR_IDS = [
 // quedan manuales, igual que en el resto de las divisas.
 export const AUD_AUTO_INDICATOR_IDS = [
   'aud_rba_rate',
-  'aud_cpi',
-  'aud_cpi_yoy',
-  'aud_cpi_monthly',
   'aud_cpi_monthly_yoy',
   'aud_core_cpi',
   'aud_core_cpi_yoy',
+  'aud_core_cpi_monthly_yoy',
   'aud_weighted_median',
   'aud_weighted_median_yoy',
   'aud_ppi_qoq',

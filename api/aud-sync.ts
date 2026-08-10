@@ -115,21 +115,6 @@ async function gdpYoySeries(): Promise<Observation[]> {
   return out;
 }
 
-// CPI headline a/a (base trimestral "pre-October 2025", ver
-// indicatorsAud.ts): la ABS no publica esta tasa directo para la serie
-// trimestral — se deriva del índice de nivel comparando 4 trimestres
-// atrás. Verificado: 4.1% para el primer trimestre de 2026.
-async function cpiYoySeries(): Promise<Observation[]> {
-  const points = await fetchAbsSeries('CPI', '1.10001.10.50.Q', ABS_START_PERIOD_Q);
-  const byPeriod = new Map(points.map((p) => [p.period, p.value]));
-  const out: Observation[] = [];
-  for (const p of points) {
-    const prev = byPeriod.get(shiftQuarters(p.period, 4));
-    if (prev !== undefined && prev !== 0) out.push({ date: periodToDate(p.period), value: p.value / prev - 1 });
-  }
-  return out;
-}
-
 // Balanza comercial: ABS ITGS (International Trade in Goods), ya en
 // millones de AUD, desestacionalizado — se guarda tal cual (mismo patrón
 // que USD/CAD, format 'trade').
@@ -188,14 +173,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Indicadores trimestrales de esta divisa (ver indicatorsAud.ts, frequency:
   // 'quarterly') — sus fechas siempre caen en enero/abril/julio/octubre. Si
   // alguna vez quedaron filas de un intento con otra granularidad (pasó con
-  // aud_cpi/aud_core_cpi/aud_weighted_median: una fuente mensual descartada
-  // dejó filas huérfanas en meses "fuera de ciclo" que el frontend tomaba
-  // como el dato más reciente por tener fecha más nueva que el trimestre
-  // real, mostrando un número viejo/equivocado como si fuera el actual — ver
+  // aud_core_cpi/aud_weighted_median: una fuente mensual descartada dejó
+  // filas huérfanas en meses "fuera de ciclo" que el frontend tomaba como
+  // el dato más reciente por tener fecha más nueva que el trimestre real,
+  // mostrando un número viejo/equivocado como si fuera el actual — ver
   // HANDOFF.md), se borran acá para que no puedan volver a colarse como "el
-  // último punto" de la serie.
+  // último punto" de la serie. aud_cpi/aud_cpi_yoy se sacaron de este set
+  // al eliminar esos dos indicadores (ago-2026, ver indicatorsAud.ts
+  // lección 8) — no hace falta la limpieza si ya no se sincronizan.
   const QUARTERLY_IDS = new Set([
-    'aud_cpi', 'aud_cpi_yoy', 'aud_core_cpi', 'aud_core_cpi_yoy',
+    'aud_core_cpi', 'aud_core_cpi_yoy',
     'aud_weighted_median', 'aud_weighted_median_yoy',
     'aud_ppi_qoq', 'aud_ppi_yoy', 'aud_gdp_qoq', 'aud_gdp_yoy',
   ]);
@@ -226,20 +213,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     { id: 'aud_rba_rate', run: fetchRbaCashRate },
-    // CPI/Trimmed Mean/Weighted Median: base trimestral "pre-October 2025"
-    // (dataflow CPI para headline, CPI_Q para las dos subyacentes) — la
-    // que sigue la fuente de referencia del usuario. Ver indicatorsAud.ts.
-    { id: 'aud_cpi', run: () => pctSeries('CPI', '2.10001.10.50.Q', ABS_START_PERIOD_Q) },
-    { id: 'aud_cpi_yoy', run: cpiYoySeries },
-    // CPI Mensual nuevo (ABS, "primary measure" desde oct-2025) — corre en
-    // PARALELO al trimestral de arriba, no lo reemplaza. Mismo dataflow
-    // 'CPI' (v2.0.0) pero con FREQ=M, donde el a/a SÍ viene directo
-    // (MEASURE=3) a diferencia de la combinación trimestral. Ver
-    // indicatorsAud.ts / HANDOFF.md lección AUD #21/22.
-    { id: 'aud_cpi_monthly', run: () => pctSeries('CPI', '2.10001.10.50.M', ABS_START_PERIOD_M) },
+    // CPI headline trimestral (aud_cpi/aud_cpi_yoy) y CPI Mensual m/m
+    // (aud_cpi_monthly) sacados del tablero a pedido del usuario (ago-2026,
+    // ver indicatorsAud.ts lección 8) — Trimmed Mean/Weighted Median
+    // (dataflow CPI_Q) y CPI Mensual Interanual (dataflow CPI v2.0.0,
+    // FREQ=M) quedan.
     { id: 'aud_cpi_monthly_yoy', run: () => pctSeries('CPI', '3.10001.10.50.M', ABS_START_PERIOD_M) },
     { id: 'aud_core_cpi', run: () => pctSeries('CPI_Q', '2.999902.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_core_cpi_yoy', run: () => pctSeries('CPI_Q', '3.999902.20.50.Q', ABS_START_PERIOD_Q) },
+    // Trimmed Mean MENSUAL a/a — mismo dataflow 'CPI' (no CPI_Q) que el
+    // headline mensual de arriba, INDEX=999902 en vez de 10001. Verificado
+    // contra la API en vivo antes de agregarla (ver lección 8). Solo el
+    // a/a, no se pidió el m/m (MEASURE=2, también existe si hiciera falta).
+    { id: 'aud_core_cpi_monthly_yoy', run: () => pctSeries('CPI', '3.999902.20.50.M', ABS_START_PERIOD_M) },
     { id: 'aud_weighted_median', run: () => pctSeries('CPI_Q', '2.999903.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_weighted_median_yoy', run: () => pctSeries('CPI_Q', '3.999903.20.50.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_ppi_qoq', run: () => pctSeries('PPI_FD', '2.TOT.TOT.TOTXE.Q', ABS_START_PERIOD_Q) },

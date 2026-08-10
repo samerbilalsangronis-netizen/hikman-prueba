@@ -65,6 +65,18 @@ import type { IndicatorMeta } from '../types';
 //    trimestral, key MEASURE.INDEX.SOURCE.DESTINATION.FREQ con
 //    INDEX=TOT/SOURCE=TOT/DESTINATION=TOTXE ("Total All Industries").
 //    Verificado: 3.0% a/a para el primer trimestre de 2026.
+//
+// 8. **Decisión explícita del usuario (ago-2026), revisando este tablero
+//    contra el de su profesor de fundamentales**: se sacaron aud_cpi
+//    (t/t), aud_cpi_yoy (a/a) y aud_cpi_monthly (m/m) — quedan solo las
+//    subyacentes trimestrales (Trimmed Mean/Weighted Median, ver lección
+//    6) y aud_cpi_monthly_yoy como referencia de headline. Además se
+//    confirmó contra la API de la ABS que la Trimmed Mean TAMBIÉN tiene
+//    una versión mensual a/a dentro del mismo dataflow 'CPI' (v2.0.0,
+//    INDEX=999902, no el CPI_Q usado para la trimestral) — es la medida
+//    que usa el tablero del profesor del usuario como "subyacente" mes a
+//    mes. Se agregó como aud_core_cpi_monthly_yoy, solo el a/a (no se
+//    pidió el m/m, aunque también existe en la API con MEASURE=2).
 export const AUD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBA — una sola tasa (cash rate target), como la Fed/BoE/BoC.
   {
@@ -81,62 +93,13 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description: 'Tasa objetivo de efectivo (cash rate target) del RBA — su tasa de referencia.',
   },
-  // Inflación — CPI TRIMESTRAL, base "pre-October 2025" (la que sigue
-  // publicando la ABS cada trimestre dentro de la publicación mensual de
-  // marzo/junio/septiembre/diciembre, y la que sigue la fuente de
-  // referencia del usuario tipo Investing.com). Orden: cada medida va
-  // t/t seguido de su a/a (no todos los t/t juntos y luego todos los
-  // a/a) para que se lean emparejados en pantalla.
-  {
-    id: 'aud_cpi',
-    label: 'CPI (Inflación al Consumidor, t/t)',
-    shortLabel: 'CPI',
-    section: 'inflacion',
-    format: 'pct1',
-    frequency: 'quarterly',
-    chart: 'bar',
-    currency: 'AUD',
-    source: 'Australian Bureau of Statistics (CPI trimestral, serie Original)',
-    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
-    goodDirection: 'neutral',
-    description: 'Variación trimestral del CPI de Australia (serie Original, base "pre-October 2025"). Verificado contra la fuente de referencia del usuario: +1.4% para el primer trimestre de 2026.',
-  },
-  {
-    id: 'aud_cpi_yoy',
-    label: 'CPI Interanual (a/a)',
-    shortLabel: 'CPI a/a',
-    section: 'inflacion',
-    format: 'pct',
-    frequency: 'quarterly',
-    chart: 'line',
-    currency: 'AUD',
-    source: 'Australian Bureau of Statistics (CPI trimestral, serie Original)',
-    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
-    goodDirection: 'neutral',
-    description:
-      'Variación del CPI respecto al mismo trimestre del año anterior. La ABS no publica esta tasa directo para la serie trimestral — se deriva del índice de nivel comparando 4 trimestres atrás. Verificado: 4.1% para el primer trimestre de 2026, coincide con la fuente de referencia del usuario. No coincide con el 4.6% que reporta la ABS para aud_cpi_monthly_yoy (la serie MENSUAL nueva) del mismo trimestre — son dos mediciones oficiales distintas que corren en paralelo, no un error de una de las dos.',
-  },
-  // CPI MENSUAL nuevo (ABS, "Australia's primary measure of headline
-  // inflation" desde oct-2025/publicado 26-nov-2025) — mide TODO el mes,
-  // a diferencia de aud_cpi/_yoy de arriba (base trimestral "pre-October
-  // 2025"). Corren en PARALELO, no es una reemplaza a la otra — ver
-  // lección AUD #21/22 en HANDOFF.md. Dataflow ABS 'CPI' v2.0.0 (el mismo
-  // que la base trimestral, pero ahora también con FREQ=M), MEASURE=2/3.
-  {
-    id: 'aud_cpi_monthly',
-    label: 'CPI Mensual (m/m)',
-    shortLabel: 'CPI Mensual',
-    section: 'inflacion',
-    format: 'pct1',
-    frequency: 'monthly',
-    chart: 'bar',
-    currency: 'AUD',
-    source: 'Australian Bureau of Statistics (Monthly CPI Indicator, cobertura completa desde oct-2025)',
-    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/monthly-consumer-price-index-indicator/latest-release',
-    goodDirection: 'neutral',
-    description:
-      'Variación mensual del nuevo CPI Mensual de la ABS — mide todos los ítems del canasto cada mes (a diferencia del CPI trimestral "Original" de arriba), la medida "primaria" de inflación de Australia desde oct-2025. Serie corta (arranca abr-2025) porque el producto es nuevo.',
-  },
+  // Inflación — a pedido del usuario (ago-2026) se sacaron del tablero el
+  // CPI trimestral headline (aud_cpi/_yoy) y el CPI Mensual m/m
+  // (aud_cpi_monthly): quedan solo las medidas subyacentes (Trimmed
+  // Mean/Weighted Median, trimestrales) y el CPI Mensual Interanual
+  // (aud_cpi_monthly_yoy) como referencia de headline. Si hace falta la
+  // serie trimestral original para comparar contra otra fuente, están en
+  // el historial de git (borradas, no reemplazadas por nada).
   {
     id: 'aud_cpi_monthly_yoy',
     label: 'CPI Mensual Interanual (a/a)',
@@ -150,7 +113,7 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/monthly-consumer-price-index-indicator/latest-release',
     goodDirection: 'neutral',
     description:
-      'CPI Mensual respecto al mismo mes del año anterior — la cifra que reporta la ABS en su comunicado ("CPI rose X% in the year to..."). Verificado: 4.6% marzo-2026, 4.0% mayo-2026. NO coincide con aud_cpi_yoy (la base trimestral) para el mismo período — son dos mediciones oficiales distintas que corren en paralelo, ver descripción de aud_cpi_yoy.',
+      'CPI Mensual respecto al mismo mes del año anterior — la cifra que reporta la ABS en su comunicado ("CPI rose X% in the year to..."). Verificado: 4.6% marzo-2026, 4.0% mayo-2026. Medida "primaria" de inflación de Australia desde oct-2025.',
   },
   {
     id: 'aud_core_cpi',
@@ -179,6 +142,26 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     goodDirection: 'neutral',
     description: 'Trimmed Mean respecto al mismo trimestre del año anterior. Verificado: 3.5% para el primer trimestre de 2026, coincide con la fuente de referencia del usuario.',
+  },
+  // Trimmed Mean MENSUAL — igual que el CPI headline, la ABS también
+  // publica el a/a de la Trimmed Mean dentro del mismo CPI Mensual
+  // (dataflow 'CPI' v2.0.0, no CPI_Q), un dato paralelo al trimestral de
+  // arriba. Solo se agrega la medida interanual (a pedido del usuario,
+  // ago-2026) — no el m/m, que sí existe en la API pero no se pidió.
+  {
+    id: 'aud_core_cpi_monthly_yoy',
+    label: 'Core CPI Mensual Interanual — Trimmed Mean (a/a)',
+    shortLabel: 'Core CPI Mensual a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'AUD',
+    source: 'Australian Bureau of Statistics (Monthly CPI Indicator, cobertura completa desde oct-2025)',
+    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/monthly-consumer-price-index-indicator/latest-release',
+    goodDirection: 'neutral',
+    description:
+      'Media recortada (Trimmed Mean) del CPI Mensual respecto al mismo mes del año anterior — la misma medida subyacente que aud_core_cpi_yoy, pero calculada mes a mes en vez de por trimestre. Verificado contra la API de la ABS: 3.3%/3.2%/3.3%/3.1%/3.0%/2.8% en los últimos meses cargados.',
   },
   {
     id: 'aud_weighted_median',

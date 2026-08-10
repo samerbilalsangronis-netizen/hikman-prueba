@@ -4265,3 +4265,94 @@ copias del contenido — quedó sin `key` tras el cambio a cantidad dinámica
 de copias).
 
 **Archivos**: `src/components/MarqueeTicker.tsx`.
+
+## Sesión 10-ago-2026: Fortaleza de Divisa (reemplaza el mapa mental), Sentix EUR, estilo de gráficos, limpieza CPI AUD
+
+Sesión larga, varios pedidos independientes del usuario. Detalle completo
+de cada uno en los mensajes de commit correspondientes (`git log`); acá
+solo el resumen para no duplicar todo el texto.
+
+- **Pizarra Semanal, pestaña "🧠 Mapa Mental" → "💪 Fortaleza"**: se probó
+  un mapa mental tipo grafo (nodos conectables, @xyflow/react) en varias
+  iteraciones y el usuario no quedó conforme — pidió explícitamente un
+  gráfico de fortaleza acumulada por divisa en su lugar (mostró una
+  captura de referencia tipo "Currency Strength"). Se sacó
+  `WeeklyMindMap.tsx` y la dependencia `@xyflow/react` por completo, se
+  agregó `CurrencyStrengthChart.tsx`: una línea `stepAfter` (recharts)
+  por divisa, acumulando un delta de puntaje (-2..+2, misma escala que
+  `ScorePanel`) por cada sorpresa real-vs-previsión; el nodo anclado en
+  cada punto es editable a mano (`localStorage`, no toca `score_overrides`
+  de Supabase — es un concepto más fino, por dato puntual no por
+  indicador). Alto impacto además empuja divisas relacionadas vía
+  `src/lib/currencyColors.ts` (`crossCurrencyLinks`, tabla curada de
+  pares/bancos centrales/dependencia de commodities). Toggle
+  mostrar/ocultar nodos, stickers en desplegable (Economía + Banqueros,
+  avatares genéricos con sigla del banco — nunca nombre/foto real, los
+  cargos cambian), herramienta de texto libre arrastrable, ranking +
+  resumen diario al costado.
+- **Bug real encontrado en producción tras el deploy**: todas las líneas
+  quedaban en 0 pese a haber datos reales cargándose (visible en el
+  resumen diario). Causa: los indicadores de tasas de bancos centrales
+  (uno por divisa) nunca tienen previsión cargada en este proyecto —
+  `computeImpact` trata "sin previsión" como "sin sorpresa" = 0 siempre.
+  Fix: cuando no hay previsión, se compara contra el valor anterior REAL
+  del mismo indicador (todo el historial, no solo la ventana visible).
+  Las 9 tasas de bancos centrales siguen en 0 a propósito (todas tienen
+  `goodDirection: 'neutral'` — decisión ya existente en el proyecto, un
+  hike no es mecánicamente "bueno" para la divisa sin contexto) pero
+  ahora muestran "Real: X · Anterior: Y" para que el usuario las puntúe
+  a mano.
+- **Titulares wireados al gráfico de Fortaleza**: antes solo consumía
+  `recentUpdates` (datos económicos). Ahora también genera un evento por
+  cada divisa que un titular tiene en `tags` (mismas tags que ya
+  clasifica el sync de Finnhub). El signo del puntaje solo sale de un
+  motivo de sesgo YA FIJADO para ese titular (Panel de Control) — si no
+  está fijado, arranca en 0 y editable, no se infiere sentimiento del
+  texto.
+- **Indicador Sentix nuevo (EUR)**: el usuario preguntó si estaba en
+  FRED/Eurostat — confirmado que no (índice privado de sentix GmbH, sin
+  API gratis), mismo patrón de carga manual que ya usa ZEW. Se sembraron
+  10 lecturas reales mensuales (nov-2025 a ago-2026, verificadas
+  cruzando `investing.com` contra `investinglive.com`) en
+  `historical-series.json`. Solo alimenta la tarjeta de
+  Confianza/Sentimiento — no `recentUpdates` (no se escribió directo en
+  Supabase de producción desde la sesión).
+- **Estilo de gráficos**: `type="monotone"` (curvas suavizadas) →
+  `type="linear"` + puntos visibles (`dot`) en `IndicatorChart.tsx` —
+  pedido explícito con una captura de referencia (línea recta + nodos,
+  no curva). De paso se encontró y arregló un glitch real: con la
+  animación de entrada de recharts activa, los puntos se pintaban en su
+  posición final antes de que el trazo de la línea terminara de
+  animarse, así que un screenshot (o el primer paint en una máquina
+  lenta) podía mostrar los últimos 2-3 puntos "flotando" sin conectar.
+  Fix: `isAnimationActive={false}` en Bar/Area/Line, mismo criterio que
+  ya tenía `CurrencyStrengthChart`.
+- **Limpieza de CPI de AUD**: el usuario comparó este tablero contra el
+  de su profesor de fundamentales y nos dimos cuenta de dos cosas — (1)
+  la "CPI YoY" del profesor es nuestro `aud_cpi_monthly_yoy`, no el
+  `aud_cpi_yoy` trimestral; (2) su "Core CPI" es mensual, no coincide
+  con nuestro `aud_core_cpi_yoy` (trimestral) — es la Trimmed Mean
+  dentro del MISMO CPI Mensual de la ABS (dataflow `CPI` v2.0.0,
+  INDEX=999902, no `CPI_Q`), confirmado en vivo contra la API real de
+  la ABS antes de tocar nada. A pedido explícito del usuario: se
+  eliminaron `aud_cpi` (t/t), `aud_cpi_yoy` (a/a trimestral derivado) y
+  `aud_cpi_monthly` (m/m) — de `indicatorsAud.ts`, `api/aud-sync.ts`
+  (jobs + `QUARTERLY_IDS` + función `cpiYoySeries` que quedó sin uso) y
+  `fredMappings.ts` (`AUD_AUTO_INDICATOR_IDS`), más sus 232 puntos en
+  `historical-series.json` (borrados con cirugía de líneas, no
+  round-trip de todo el JSON, para no reformatear un archivo de 200k+
+  líneas por 3 claves). Quedan las subyacentes trimestrales (Trimmed
+  Mean/Weighted Median) y el CPI Mensual Interanual. Se agregó
+  `aud_core_cpi_monthly_yoy` (solo el a/a, no se pidió el m/m aunque
+  también existe en la API con MEASURE=2) — key ABS
+  `3.999902.20.50.M`, sembrado con 15 puntos reales (abr-2025 a
+  jun-2026) obtenidos replicando exactamente la lógica de
+  `fetchAbsSeries`/`pctSeries` contra la API real, no inventados.
+  Ver lección 8 en `indicatorsAud.ts` para el detalle completo.
+
+**Archivos**: `src/components/CurrencyStrengthChart.tsx` (nuevo),
+`src/components/WeeklyMindMap.tsx` (borrado), `src/lib/currencyColors.ts`,
+`src/pages/PizarraSemanal.tsx`, `src/components/IndicatorChart.tsx`,
+`src/data/indicatorsAud.ts`, `src/data/indicatorsEur.ts`,
+`src/data/fredMappings.ts`, `src/data/historical-series.json`,
+`api/aud-sync.ts`, `package.json` (se sacó `@xyflow/react`).
