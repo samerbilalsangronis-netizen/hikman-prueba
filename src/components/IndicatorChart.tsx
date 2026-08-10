@@ -70,7 +70,7 @@ export function IndicatorChart({ meta, data, height }: IndicatorChartProps) {
               tickFormatter={(v) => formatValue(v, meta.format)}
             />
             <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ fill: 'var(--gridline)' }} />
-            <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={14} />
+            <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={14} isAnimationActive={false} />
           </BarChart>
         ) : meta.chart === 'area' ? (
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -97,7 +97,16 @@ export function IndicatorChart({ meta, data, height }: IndicatorChartProps) {
               tickFormatter={(v) => formatValue(v, meta.format)}
             />
             <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ stroke: 'var(--baseline)' }} />
-            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#grad-${meta.id})`} />
+            <Area
+              type="linear"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#grad-${meta.id})`}
+              dot={{ r: 2.5, fill: color, strokeWidth: 0 }}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+            />
           </AreaChart>
         ) : (
           <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -118,7 +127,15 @@ export function IndicatorChart({ meta, data, height }: IndicatorChartProps) {
               tickFormatter={(v) => formatValue(v, meta.format)}
             />
             <Tooltip content={<ChartTooltip format={meta.format} />} cursor={{ stroke: 'var(--baseline)' }} />
-            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
+            <Line
+              type="linear"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: color, strokeWidth: 0 }}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+            />
           </LineChart>
         )}
       </ResponsiveContainer>
