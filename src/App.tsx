@@ -12,7 +12,7 @@ import { Sentimiento } from './pages/Sentimiento';
 import { Crecimiento } from './pages/Crecimiento';
 import { Banqueros } from './pages/Banqueros';
 import { Titulares } from './pages/Titulares';
-import { PizarraSemanal } from './pages/PizarraSemanal';
+import { Fortaleza } from './pages/Fortaleza';
 import { RentaVariable } from './pages/RentaVariable';
 import { Actualizar } from './pages/Actualizar';
 import { PanelControl } from './pages/PanelControl';
@@ -43,7 +43,7 @@ function App() {
               <Route path="francia" element={<Francia />} />
               <Route path="banqueros" element={<Banqueros />} />
               <Route path="titulares" element={<Titulares />} />
-              <Route path="pizarra-semanal" element={<PizarraSemanal />} />
+              <Route path="fortaleza" element={<Fortaleza />} />
               <Route path="renta-variable" element={<RentaVariable />} />
               <Route path="actualizar" element={<Actualizar />} />
             </Route>
