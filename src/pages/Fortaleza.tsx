@@ -1,5 +1,20 @@
-import { useMemo, useState } from 'react';
-import { Brush, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import {
+  Brush,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  useXAxisScale,
+  useYAxisScale,
+  useYAxisInverseScale,
+} from 'recharts';
+import type { InverseScaleFunction, MouseHandlerDataParam } from 'recharts';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES } from '../data/CurrencyContext';
 import { CURRENCY_COLORS } from '../lib/currencyColors';
@@ -8,7 +23,7 @@ import { formatDate } from '../lib/format';
 import type { Currency } from '../types';
 
 // Un tipo de cambio spot diario por divisa (ya normalizado a "USD por 1
-// unidad de la divisa" en api/fx-sync.ts, sea cual sea la convención de
+// unidad de la divisa" en api/fred-sync.ts, sea cual sea la convención de
 // cotización real de la Fed para esa serie) — USD no tiene fila propia,
 // vale 1 por definición.
 const FX_INDICATOR_ID: Partial<Record<Currency, string>> = {
@@ -34,10 +49,117 @@ const RANGES = [
 ] as const;
 type RangeKey = (typeof RANGES)[number]['key'];
 
+// Herramientas de edición al estilo "backtest" manual: marcar niveles,
+// trazar tendencias y medir variación % / días entre dos puntos del propio
+// gráfico, sin salir de la app.
+type DrawTool = 'cursor' | 'horizontal' | 'trend' | 'measure';
+
+const TOOLS: { key: DrawTool; label: string; hint: string }[] = [
+  { key: 'cursor', label: '🖱 Cursor', hint: 'Modo normal — solo hover para ver el detalle' },
+  { key: 'horizontal', label: '— Nivel', hint: 'Clic para marcar un nivel horizontal (%)' },
+  { key: 'trend', label: '📈 Tendencia', hint: 'Clic en dos puntos para trazar una línea entre ellos' },
+  { key: 'measure', label: '📏 Medir', hint: 'Clic en dos puntos para medir variación % y días' },
+];
+
+interface Point {
+  date: string;
+  value: number;
+}
+
+type Drawing =
+  | { id: string; type: 'horizontal'; value: number }
+  | { id: string; type: 'trend'; a: Point; b: Point }
+  | { id: string; type: 'measure'; a: Point; b: Point };
+
+let drawingSeq = 0;
+function nextDrawingId(): string {
+  drawingSeq += 1;
+  return `draw-${drawingSeq}`;
+}
+
+// Puente hacia adentro del contexto del gráfico: los hooks de escala de
+// recharts (useYAxisInverseScale, etc.) solo funcionan en un componente
+// renderizado DENTRO de <LineChart>, no en el padre que simplemente lo
+// declara — este componente no dibuja nada, solo publica la función de
+// escala inversa vigente en cada render hacia una ref que el handler de
+// clic (que sí vive en el padre) puede leer de forma imperativa.
+function ScaleBridge({ yInverseRef }: { yInverseRef: MutableRefObject<InverseScaleFunction | undefined> }) {
+  const yInverse = useYAxisInverseScale();
+  useEffect(() => {
+    yInverseRef.current = yInverse;
+  });
+  return null;
+}
+
+// Dibuja las líneas de tendencia y de medición como SVG puro, convirtiendo
+// cada punto (fecha, %) a píxeles con las escalas vigentes del gráfico en
+// cada render — así se mantienen alineadas aunque la ventana cambie de
+// tamaño (a diferencia de guardar coordenadas de píxel fijas al momento
+// del clic).
+function TrendDrawingsLayer({ drawings }: { drawings: Drawing[] }) {
+  const xScale = useXAxisScale();
+  const yScale = useYAxisScale();
+  const segments = drawings.filter((d): d is Extract<Drawing, { type: 'trend' | 'measure' }> => d.type !== 'horizontal');
+  if (!xScale || !yScale || segments.length === 0) return null;
+
+  return (
+    <g>
+      {segments.map((d) => {
+        const x1 = xScale(d.a.date);
+        const y1 = yScale(d.a.value);
+        const x2 = xScale(d.b.date);
+        const y2 = yScale(d.b.value);
+        if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+        const isMeasure = d.type === 'measure';
+        const color = isMeasure ? 'var(--status-warning)' : 'var(--series-1)';
+        const deltaPct = d.b.value - d.a.value;
+        const days = Math.round((new Date(d.b.date).getTime() - new Date(d.a.date).getTime()) / 86400000);
+        return (
+          <g key={d.id}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={2} strokeDasharray={isMeasure ? '5 3' : undefined} />
+            <circle cx={x1} cy={y1} r={3.5} fill={color} />
+            <circle cx={x2} cy={y2} r={3.5} fill={color} />
+            {isMeasure && (
+              <text
+                x={(x1 + x2) / 2}
+                y={(y1 + y2) / 2 - 8}
+                textAnchor="middle"
+                fontSize={11}
+                fontWeight={700}
+                fill="var(--text-primary)"
+                stroke="var(--surface-1)"
+                strokeWidth={4}
+                paintOrder="stroke"
+              >
+                {deltaPct >= 0 ? '+' : ''}
+                {deltaPct.toFixed(2)}% · {days}d
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function Fortaleza() {
   const { getSeries } = useMacroData();
   const [range, setRange] = useState<RangeKey>('1m');
   const [hiddenCurrencies, setHiddenCurrencies] = useState<Set<Currency>>(new Set());
+  const [expanded, setExpanded] = useState(false);
+  const [tool, setTool] = useState<DrawTool>('cursor');
+  const [pendingPoint, setPendingPoint] = useState<Point | null>(null);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const yInverseRef = useRef<InverseScaleFunction | undefined>(undefined);
+
+  useEffect(() => {
+    if (!expanded) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setExpanded(false);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expanded]);
 
   // Precio spot diario suavizado (EMA) por divisa, indexado por fecha —
   // USD queda afuera del mapa, se trata como caso especial (vale 1 siempre).
@@ -133,17 +255,70 @@ export function Fortaleza() {
     });
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Fortaleza de Divisa
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
-          Rendimiento de cada divisa contra el promedio de las otras 8 (triangulando los cruces, no solo vs. USD), a
-          partir del tipo de cambio spot real de la Reserva Federal (FRED, H.10) — no de datos económicos cargados en
-          el sistema. Precio suavizado con una EMA de {EMA_PERIOD} ruedas antes de calcular el retorno.
-        </p>
+  function selectTool(next: DrawTool) {
+    setTool(next);
+    setPendingPoint(null);
+  }
+
+  function handleChartClick(state: MouseHandlerDataParam) {
+    if (tool === 'cursor') return;
+    const { activeLabel, activeCoordinate } = state;
+    if (activeLabel === undefined || !activeCoordinate || !yInverseRef.current) return;
+    const rawValue = yInverseRef.current(activeCoordinate.y);
+    if (typeof rawValue !== 'number' || Number.isNaN(rawValue)) return;
+    const value = Number(rawValue.toFixed(3));
+
+    if (tool === 'horizontal') {
+      setDrawings((prev) => [...prev, { id: nextDrawingId(), type: 'horizontal', value }]);
+      return;
+    }
+
+    const point: Point = { date: String(activeLabel), value };
+    if (!pendingPoint) {
+      setPendingPoint(point);
+      return;
+    }
+    setDrawings((prev) => [...prev, { id: nextDrawingId(), type: tool, a: pendingPoint, b: point }]);
+    setPendingPoint(null);
+  }
+
+  function handleUndo() {
+    if (pendingPoint) {
+      setPendingPoint(null);
+      return;
+    }
+    setDrawings((prev) => prev.slice(0, -1));
+  }
+
+  function handleClearDrawings() {
+    setDrawings([]);
+    setPendingPoint(null);
+  }
+
+  const hasDrawingState = drawings.length > 0 || pendingPoint !== null;
+  const chartAreaHeight = expanded ? 'calc(100vh - 230px)' : 560;
+
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Fortaleza de Divisa
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--text-muted)' }}>
+            Rendimiento de cada divisa contra el promedio de las otras 8 (triangulando los cruces, no solo vs. USD), a
+            partir del tipo de cambio spot real de la Reserva Federal (FRED, H.10) — no de datos económicos cargados en
+            el sistema. Precio suavizado con una EMA de {EMA_PERIOD} ruedas antes de calcular el retorno.
+          </p>
+        </div>
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          title={expanded ? 'Reducir (Esc)' : 'Ampliar a pantalla completa'}
+        >
+          {expanded ? '✕ Reducir' : '⛶ Ampliar'}
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -159,6 +334,47 @@ export function Fortaleza() {
             </button>
           ))}
         </div>
+
+        <div className="flex gap-1 rounded-full p-1" style={{ background: 'var(--surface-2)' }}>
+          {TOOLS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => selectTool(t.key)}
+              title={t.hint}
+              className="rounded-full px-2.5 py-1 text-xs font-semibold"
+              style={{ background: tool === t.key ? 'var(--series-1)' : 'transparent', color: tool === t.key ? '#fff' : 'var(--text-secondary)' }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={handleUndo}
+          disabled={!hasDrawingState}
+          className="rounded-full px-2.5 py-1 text-xs font-semibold"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', opacity: hasDrawingState ? 1 : 0.4 }}
+        >
+          ↩ Deshacer
+        </button>
+        <button
+          onClick={handleClearDrawings}
+          disabled={!hasDrawingState}
+          className="rounded-full px-2.5 py-1 text-xs font-semibold"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', opacity: hasDrawingState ? 1 : 0.4 }}
+        >
+          🗑 Borrar todo
+        </button>
+
+        {tool !== 'cursor' && (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {tool === 'horizontal'
+              ? 'Clic en el gráfico para fijar un nivel horizontal.'
+              : pendingPoint
+                ? 'Ahora clic en el segundo punto.'
+                : 'Clic en el primer punto.'}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 rounded-lg px-3 py-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
@@ -174,14 +390,24 @@ export function Fortaleza() {
       </div>
 
       <div className="flex gap-3">
-        <div style={{ flex: 1, minWidth: 0, height: 560, border: '1px solid var(--border)', borderRadius: 12, padding: 8 }}>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: chartAreaHeight,
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 8,
+            cursor: tool !== 'cursor' ? 'crosshair' : 'default',
+          }}
+        >
           {chartData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Todavía no hay tipo de cambio sincronizado para este rango — el sync de FRED corre cada 30 min.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }} onClick={handleChartClick}>
                 <CartesianGrid vertical={false} stroke="var(--gridline)" />
                 <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={{ stroke: 'var(--baseline)' }} tickLine={false} minTickGap={40} />
                 <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `${v}%`} />
@@ -214,6 +440,22 @@ export function Fortaleza() {
                 {CURRENCIES.map((c) => (
                   <Line key={c} type="linear" dataKey={c} stroke={CURRENCY_COLORS[c]} strokeWidth={2} dot={false} isAnimationActive={false} hide={hiddenCurrencies.has(c)} />
                 ))}
+                <ScaleBridge yInverseRef={yInverseRef} />
+                {drawings
+                  .filter((d): d is Extract<Drawing, { type: 'horizontal' }> => d.type === 'horizontal')
+                  .map((d) => (
+                    <ReferenceLine
+                      key={d.id}
+                      y={d.value}
+                      stroke="var(--series-1)"
+                      strokeDasharray="4 2"
+                      label={{ value: `${d.value >= 0 ? '+' : ''}${d.value}%`, position: 'insideTopRight', fill: 'var(--text-secondary)', fontSize: 10 }}
+                    />
+                  ))}
+                <TrendDrawingsLayer drawings={drawings} />
+                {pendingPoint && tool !== 'horizontal' && (
+                  <ReferenceDot x={pendingPoint.date} y={pendingPoint.value} r={4} fill="var(--series-1)" stroke="var(--surface-1)" strokeWidth={2} />
+                )}
                 <Brush dataKey="date" height={26} tickFormatter={formatDate} travellerWidth={9} stroke="var(--series-1)" fill="var(--surface-2)" />
               </LineChart>
             </ResponsiveContainer>
@@ -242,6 +484,16 @@ export function Fortaleza() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
+
+  if (expanded) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col gap-4 overflow-auto p-4" style={{ background: 'var(--page)' }}>
+        {content}
+      </div>
+    );
+  }
+
+  return <div className="flex flex-col gap-4">{content}</div>;
 }
