@@ -93,6 +93,56 @@ const CBBS_MAPPING = {
   gdpSeriesId: 'GDP',
 };
 
+// Tipo de cambio SPOT diario de cada divisa contra el USD (H.10 de la Fed),
+// para el índice de Fortaleza de Divisa "estilo EMA" (Fortaleza.tsx) — a
+// diferencia del resto de este archivo, esto NO son indicadores económicos
+// (releases puntuales), es precio de mercado continuo. Va acá adentro (y no
+// en su propio api/fx-sync.ts, como se armó originalmente) porque Vercel
+// Hobby tiene un tope de 12 Serverless Functions por deployment y ya
+// estábamos en el límite exacto — un archivo más lo pasaba y tumbaba el
+// deploy entero (confirmado en el log de build: "No more than 12 Serverless
+// Functions can be added to a Deployment on the Hobby plan").
+//
+// Ojo con la convención de cada serie — la Fed no es consistente: algunas
+// cotizan USD por 1 unidad de la divisa (EUR/GBP/AUD/NZD), otras cotizan la
+// divisa por 1 USD (JPY/CAD/CHF/CNY). Se guardan TODAS ya normalizadas a
+// "USD por 1 unidad de la divisa" (invirtiendo estas últimas 4) para que el
+// frontend no tenga que pensar en la convención de cada una — verificado
+// serie por serie contra la página pública de FRED antes de escribir esto
+// (unidades exactas, no wikipedia/memoria):
+//   DEXUSEU "U.S. Dollars to One Euro"            -> USD/EUR directo
+//   DEXUSUK "U.S. Dollars to One U.K. Pound"       -> USD/GBP directo
+//   DEXUSAL "U.S. Dollars to One Australian Dollar"-> USD/AUD directo
+//   DEXUSNZ "U.S. Dollars to One New Zealand Dollar"-> USD/NZD directo
+//   DEXJPUS "Japanese Yen to One U.S. Dollar"      -> JPY/USD, invertir
+//   DEXCAUS "Canadian Dollars to One U.S. Dollar"  -> CAD/USD, invertir
+//   DEXSZUS "Swiss Francs to One U.S. Dollar"      -> CHF/USD, invertir
+//   DEXCHUS "Chinese Yuan Renminbi to One U.S. Dollar" -> CNY/USD, invertir
+// USD mismo no necesita fila — vale 1 por definición, el frontend lo trata
+// como caso especial.
+interface FxMapping {
+  indicatorId: string;
+  seriesId: string;
+  invert: boolean;
+}
+
+const FX_MAPPINGS: FxMapping[] = [
+  { indicatorId: 'fx_eur_usd', seriesId: 'DEXUSEU', invert: false },
+  { indicatorId: 'fx_gbp_usd', seriesId: 'DEXUSUK', invert: false },
+  { indicatorId: 'fx_aud_usd', seriesId: 'DEXUSAL', invert: false },
+  { indicatorId: 'fx_nzd_usd', seriesId: 'DEXUSNZ', invert: false },
+  { indicatorId: 'fx_jpy_usd', seriesId: 'DEXJPUS', invert: true },
+  { indicatorId: 'fx_cad_usd', seriesId: 'DEXCAUS', invert: true },
+  { indicatorId: 'fx_chf_usd', seriesId: 'DEXSZUS', invert: true },
+  { indicatorId: 'fx_cny_usd', seriesId: 'DEXCHUS', invert: true },
+];
+// El precio spot pide mucha más ventana que un indicador económico mensual:
+// ~4 meses de días hábiles alcanza para la ventana más larga que ofrece
+// Fortaleza.tsx (1A se completa solo con el correr de los días, corriendo
+// cada 30min; lo importante es no quedarse corto para 1M/3M).
+const FX_FETCH_LIMIT = 260;
+const FX_BACKFILL_LIMIT = 250;
+
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 // Cuántas observaciones traer de FRED para poder recalcular una ventana de
 // histórico (no solo el último punto) y así darle a los gráficos más
@@ -259,6 +309,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (err) {
     errors.push({ indicatorId: CBBS_MAPPING.indicatorId, error: (err as Error).message });
+  }
+
+  for (const mapping of FX_MAPPINGS) {
+    try {
+      const obs = await fetchObservations(mapping.seriesId, fredKey, FX_FETCH_LIMIT);
+      const series = obs.map((o) => ({ date: o.date, value: mapping.invert ? 1 / o.value : o.value })).slice(-FX_BACKFILL_LIMIT);
+      if (series.length === 0) continue;
+      const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: mapping.indicatorId, date: latest.date, value: latest.value, points: series.length });
+    } catch (err) {
+      errors.push({ indicatorId: mapping.indicatorId, error: (err as Error).message });
+    }
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });

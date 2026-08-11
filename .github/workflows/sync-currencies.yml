@@ -62,6 +62,6 @@ jobs:
       - name: CNY (NBS/GACC vía chinadata.live)
         continue-on-error: true
         run: curl -sS --max-time 90 -X POST https://hikman-prueba.vercel.app/api/cny-sync
-      - name: FX spot (FRED H.10, para Fortaleza de Divisa)
-        continue-on-error: true
-        run: curl -sS --max-time 90 -X POST https://hikman-prueba.vercel.app/api/fx-sync
+      # FX spot (H.10) va adentro de USD/fred-sync ahora, no en su propio
+      # paso — Vercel Hobby tiene tope de 12 Serverless Functions y ya
+      # estábamos en el límite.
