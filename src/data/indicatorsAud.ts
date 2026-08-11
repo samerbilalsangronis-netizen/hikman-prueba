@@ -262,7 +262,28 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     source: 'NAB Business Survey',
     sourceUrl: 'https://business.nab.com.au/category/nab-monthly-business-survey/',
     goodDirection: 'up',
-    description: 'Encuesta de confianza empresarial de NAB. Sin API pública — carga manual.',
+    description:
+      'Encuesta mensual de confianza empresarial de NAB (~350 empresas). Sin API pública — carga manual. Verificado: -6 puntos para julio-2026 (cayó desde -29 en marzo-2026, el segundo mayor desplome mensual de la serie).',
+  },
+  // Segundo índice headline de la misma encuesta NAB — condiciones ACTUALES
+  // (compuesto de trading, rentabilidad y empleo), a diferencia de Confianza
+  // que son expectativas a futuro. NAB no publica un índice mensual separado
+  // llamado "Business Expectations"; este es el que casi toda la prensa
+  // financiera reporta junto a Confidence como el par headline de la encuesta.
+  {
+    id: 'aud_business_conditions',
+    label: 'Condiciones de Negocios',
+    shortLabel: 'Cond. Negocios',
+    section: 'confianza',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'AUD',
+    source: 'NAB Business Survey',
+    sourceUrl: 'https://business.nab.com.au/category/nab-monthly-business-survey/',
+    goodDirection: 'up',
+    description:
+      'Índice de condiciones actuales (trading, rentabilidad, empleo) de la misma encuesta mensual de NAB. Sin API pública — carga manual. Verificado: +4 puntos para julio-2026.',
   },
   {
     id: 'aud_consumer_confidence',
