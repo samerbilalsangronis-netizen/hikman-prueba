@@ -112,6 +112,24 @@ import type { IndicatorMeta } from '../types';
 //    agregadores) y +3.3% calculado para mayo-2026 vs +3.2% oficial
 //    (~0.1pp de margen, mismo tipo de diferencia normal ya documentado
 //    en la lección 3). Histórico completo desde 2015-01.
+//
+// 10. **PPI (equivalente japonés: Corporate Goods Price Index, CGPI,
+//     企業物価指数)** no lo publica e-Stat — es un dato del propio BOJ,
+//     agregado a pedido del usuario (12-ago-2026). Mismo sitio y mismo
+//     formato de CSV plano que ya usamos para la tasa de política (serie
+//     FM01), esta vez serie PR01: `stat-search.boj.or.jp/ssi/mtshtml/csv/
+//     pr01_m_1.csv`. El archivo trae 9 columnas de datos por fila (4 tasas
+//     a/a ya calculadas + 5 niveles, base 2020=100) — la primera columna es
+//     "[国内企業物価指数] 総平均（前年比）" (CGPI doméstico, total, a/a),
+//     exactamente el "Japan PPI y/y" que reporta la prensa; la quinta
+//     columna es su nivel, del que se deriva el m/m (el BOJ no publica el
+//     m/m ya calculado, misma limitación que CPI — ver lección 3). El CSV
+//     viene en Shift-JIS pero, igual que FM01, las filas de datos son ASCII
+//     puro y decodificar como UTF-8 alcanza (los encabezados en japonés
+//     simplemente no matchean el regex y se ignoran). Verificado: 7.2% a/a
+//     para julio-2026, coincide exacto con lo reportado (venía de 7.3% en
+//     junio) — a diferencia del resto de PPI de esta app (siempre
+//     derivado), este SÍ es el a/a oficial ya calculado por el BOJ.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -231,6 +249,38 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     description:
       'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía"). Verificado contra junio-2026: 1.72% calculado vs 1.6% oficial — ~0.1pp de margen de imprecisión por ser derivado del índice del Dashboard en vez de la tasa oficial ya calculada (mismo tipo de margen que cny_cpi_yoy, documentado y esperado, no un bug si no coincide exacto con otra fuente).',
     releaseStage: 'preliminar',
+  },
+  // PPI — equivalente japonés: Corporate Goods Price Index (CGPI) del BOJ,
+  // no de e-Stat. Ver lección 10.
+  {
+    id: 'jpy_ppi',
+    label: 'PPI (Índice de Precios Corporativos, m/m)',
+    shortLabel: 'PPI',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'JPY',
+    source: 'Bank of Japan (Corporate Goods Price Index, serie PR01, doméstico total)',
+    sourceUrl: 'https://www.stat-search.boj.or.jp/index_en.html',
+    goodDirection: 'neutral',
+    description:
+      'Variación mensual del Corporate Goods Price Index (CGPI) doméstico total — el equivalente japonés al PPI. Se deriva del nivel — el BOJ no publica el % m/m como serie separada.',
+  },
+  {
+    id: 'jpy_ppi_yoy',
+    label: 'PPI Interanual (a/a)',
+    shortLabel: 'PPI a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'Bank of Japan (Corporate Goods Price Index, serie PR01, doméstico total)',
+    sourceUrl: 'https://www.stat-search.boj.or.jp/index_en.html',
+    goodDirection: 'neutral',
+    description:
+      'CGPI doméstico total respecto al mismo mes del año anterior — a diferencia del resto de PPI de esta app, este a/a lo publica el BOJ ya calculado (no se deriva). Verificado: 7.2% para julio-2026, coincide exacto con lo reportado (bajó desde 7.3% en junio).',
   },
   // Empleo
   {

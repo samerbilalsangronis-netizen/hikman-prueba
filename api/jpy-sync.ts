@@ -140,6 +140,41 @@ async function fetchBojRate(): Promise<Observation[]> {
   return [...byMonth.entries()].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// --- BOJ Time-Series Data Search — Corporate Goods Price Index (CGPI) -----
+
+// PPI japonés (Corporate Goods Price Index, 企業物価指数) — mismo sitio y
+// mismo formato de CSV plano que fetchBojRate (serie FM01), esta vez serie
+// PR01. El CSV trae 9 columnas de datos por fila: la 1ra es "[国内企業物価
+// 指数] 総平均（前年比）" (CGPI doméstico total, a/a, YA calculado — el
+// "Japan PPI y/y" que reporta la prensa) y la 5ta es su nivel (2020=100),
+// del que se deriva el m/m (el BOJ no publica el m/m como serie separada,
+// misma limitación que CPI). Igual que FM01: el CSV viene en Shift-JIS pero
+// las filas de datos son ASCII puro, decodificar como UTF-8 alcanza.
+async function fetchCgpi(): Promise<{ level: Map<string, number>; yoyDirect: Map<string, number> }> {
+  const res = await fetch('https://www.stat-search.boj.or.jp/ssi/mtshtml/csv/pr01_m_1.csv', { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`BOJ PR01 (CGPI): HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const text = new TextDecoder('utf-8').decode(buf);
+  const level = new Map<string, number>();
+  const yoyDirect = new Map<string, number>();
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(\d{4})\/(\d{2}),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)\s*$/);
+    if (!m) continue;
+    const [, y, mo, yoyStr, , , , levelStr] = m;
+    const date = `${y}-${mo}-01`;
+    if (yoyStr !== '') {
+      const v = Number(yoyStr);
+      if (!Number.isNaN(v)) yoyDirect.set(date, v);
+    }
+    if (levelStr !== '') {
+      const v = Number(levelStr);
+      if (!Number.isNaN(v)) level.set(date, v);
+    }
+  }
+  if (level.size === 0) throw new Error('BOJ PR01 (CGPI): no se encontraron filas de datos en el CSV');
+  return { level, yoyDirect };
+}
+
 // --- Aduanas de Japón / Ministry of Finance (CSV público, sin key) ---------
 
 // Balanza comercial real (exportaciones menos importaciones), NO la que
@@ -226,6 +261,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let employedLevel: Map<string, number> | undefined;
   let gdpLevel: Map<string, number> | undefined;
   let retailLevel: Map<string, number> | undefined;
+  let cgpi: Awaited<ReturnType<typeof fetchCgpi>> | undefined;
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     { id: 'jpy_boj_rate', run: fetchBojRate },
@@ -308,6 +344,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     },
     { id: 'jpy_trade_balance', run: fetchTradeBalance },
+    {
+      id: 'jpy_ppi',
+      run: async () => {
+        cgpi ??= await fetchCgpi();
+        return pctChangeSeries(cgpi.level, 1);
+      },
+    },
+    {
+      id: 'jpy_ppi_yoy',
+      run: async () => {
+        cgpi ??= await fetchCgpi();
+        return directPctSeries(cgpi.yoyDirect);
+      },
+    },
     {
       id: 'jpy_wage_yoy',
       run: async () => directPctSeries(await fetchDashboardSeries(WAGE_YOY_DIRECT, MONTHLY_FROM, '1')),
