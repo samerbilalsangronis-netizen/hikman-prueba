@@ -62,6 +62,27 @@ create table if not exists banker_statements (
   updated_at timestamptz not null default now()
 );
 
+-- Apartado "Banco Central" del Resumen de cada divisa (Dashboard.tsx, debajo
+-- del Score Compuesto) — a diferencia de banker_statements (un banquero
+-- puntual), esto es UNA fila por divisa: postura institucional del banco
+-- central. Solo current, sin "previous" — a diferencia de banker_statements,
+-- acá alcanza con "la última", no hace falta ver el cambio comunicado a
+-- comunicado. inflation_expectations/growth_expectations quedan como texto
+-- libre porque no todos los bancos centrales las publican igual.
+create table if not exists central_bank_notes (
+  currency text primary key,
+  rate_decision_date date,
+  rate_decision_stance text check (rate_decision_stance in ('hawkish', 'dovish', 'neutral')),
+  rate_decision_summary text,
+  rate_decision_source_url text,
+  press_conference_date date,
+  press_conference_summary text,
+  press_conference_source_url text,
+  inflation_expectations text,
+  growth_expectations text,
+  updated_at timestamptz not null default now()
+);
+
 -- Titulares de alto impacto (sección Titulares): mezcla de lo que trae
 -- /api/headlines-sync.ts (noticias de Finnhub, filtradas a G10 + CNY +
 -- bonos/renta variable — solo noticias, no calendario económico programado,
@@ -205,6 +226,7 @@ alter table score_overrides enable row level security;
 alter table indicator_forecasts enable row level security;
 alter table fomc_watch enable row level security;
 alter table banker_statements enable row level security;
+alter table central_bank_notes enable row level security;
 alter table headlines enable row level security;
 alter table currency_bias enable row level security;
 alter table currency_bias_history enable row level security;
@@ -250,6 +272,12 @@ create policy "public read/write fomc_watch"
 drop policy if exists "public read/write banker_statements" on banker_statements;
 create policy "public read/write banker_statements"
   on banker_statements for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write central_bank_notes" on central_bank_notes;
+create policy "public read/write central_bank_notes"
+  on central_bank_notes for all
   using (true)
   with check (true);
 

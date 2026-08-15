@@ -3,6 +3,7 @@ import { useMacroData } from '../data/MacroDataContext';
 import { useCurrency } from '../data/CurrencyContext';
 import { ChartCard } from '../components/ChartCard';
 import { ScorePanel } from '../components/ScorePanel';
+import { CentralBankPanel } from '../components/CentralBankPanel';
 import { getFreshness } from '../lib/freshness';
 import { INDICATORS } from '../data/indicators';
 
@@ -34,6 +35,8 @@ export function Dashboard() {
           onChangeValoracion={(id, valoracion) => updateScoreValoracion(id, valoracion)}
         />
       )}
+
+      <CentralBankPanel currency={currency} />
 
       {(['crecimiento', 'empleo', 'inflacion', 'confianza', 'tasas'] as const)
         .filter((section) => indicatorsBySection(section, currency).length > 0)

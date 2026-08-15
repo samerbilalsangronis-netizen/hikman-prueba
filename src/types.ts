@@ -99,6 +99,19 @@ export interface BankerNote {
   previous?: Statement;
 }
 
+/** Apartado "Banco Central" del Resumen de cada divisa — a diferencia de
+ * BankerNote (por banquero individual, ver Banqueros.tsx), esto es UNA nota
+ * por divisa: la postura institucional del banco central, no de una persona
+ * puntual. Expectativas de inflación/crecimiento quedan como texto libre
+ * porque no todos los bancos centrales las publican con el mismo formato
+ * (algunos dan un rango numérico, otros solo lenguaje cualitativo). */
+export interface CentralBankNote {
+  rateDecision?: Statement;
+  pressConference?: Statement;
+  inflationExpectations?: string;
+  growthExpectations?: string;
+}
+
 /** 'alto' = rojo, 'medio' = naranja, 'bajo' = gris (insignias de Titulares). */
 export type ImpactLevel = 'alto' | 'medio' | 'bajo';
 

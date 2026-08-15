@@ -26,6 +26,7 @@ import type {
   BankerNote,
   BiasLevel,
   BiasReason,
+  CentralBankNote,
   Currency,
   CurrencyBias,
   DocumentEntry,
@@ -50,6 +51,7 @@ type ForecastMap = Record<string, number>;
 type FomcWatchMap = Record<string, FomcProbabilities>;
 type BankerNotesMap = Record<string, BankerNote>;
 type BiasMap = Record<Currency, CurrencyBias>;
+type CentralBankNoteMap = Record<Currency, CentralBankNote>;
 
 const OVERRIDES_KEY = 'macro-dashboard:overrides:v1';
 const POINT_STAGES_KEY = 'macro-dashboard:point-stages:v1';
@@ -59,6 +61,7 @@ const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
 const BANKER_NOTES_KEY = 'macro-dashboard:banker-notes:v1';
 const HEADLINES_KEY = 'macro-dashboard:headlines:v1';
 const BIAS_KEY = 'macro-dashboard:bias:v1';
+const CENTRAL_BANK_NOTES_KEY = 'macro-dashboard:central-bank-notes:v1';
 const REPORTS_KEY = 'macro-dashboard:reports:v1';
 const MENTOR_NOTES_KEY = 'macro-dashboard:mentor-notes:v1';
 
@@ -73,6 +76,12 @@ function defaultBiasMap(): BiasMap {
       history: [],
     };
   }
+  return map;
+}
+
+function defaultCentralBankNoteMap(): CentralBankNoteMap {
+  const map = {} as CentralBankNoteMap;
+  for (const currency of CURRENCIES) map[currency] = {};
   return map;
 }
 
@@ -145,6 +154,15 @@ function loadLocalBias(): BiasMap {
     return raw ? { ...defaultBiasMap(), ...(JSON.parse(raw) as BiasMap) } : defaultBiasMap();
   } catch {
     return defaultBiasMap();
+  }
+}
+
+function loadLocalCentralBankNotes(): CentralBankNoteMap {
+  try {
+    const raw = localStorage.getItem(CENTRAL_BANK_NOTES_KEY);
+    return raw ? { ...defaultCentralBankNoteMap(), ...(JSON.parse(raw) as CentralBankNoteMap) } : defaultCentralBankNoteMap();
+  } catch {
+    return defaultCentralBankNoteMap();
   }
 }
 
@@ -231,6 +249,11 @@ interface MacroDataContextValue {
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
   bankerNotes: BankerNotesMap;
   addBankerStatement: (bankerId: string, statement: Statement) => Promise<void>;
+  centralBankNotes: CentralBankNoteMap;
+  updateCentralBankRateDecision: (currency: Currency, statement: Statement) => Promise<void>;
+  updateCentralBankPressConference: (currency: Currency, statement: Statement) => Promise<void>;
+  updateCentralBankInflationExpectations: (currency: Currency, text: string) => Promise<void>;
+  updateCentralBankGrowthExpectations: (currency: Currency, text: string) => Promise<void>;
   headlines: Headline[];
   addManualHeadline: (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => Promise<void>;
   toggleHeadlinePin: (id: string, pinned: boolean) => Promise<void>;
@@ -275,6 +298,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
   const [bankerNotes, setBankerNotes] = useState<BankerNotesMap>({});
+  const [centralBankNotes, setCentralBankNotes] = useState<CentralBankNoteMap>(defaultCentralBankNoteMap());
   const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [biases, setBiases] = useState<BiasMap>(defaultBiasMap());
   const [reports, setReports] = useState<DocumentEntry[]>([]);
@@ -292,6 +316,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
       setBankerNotes(loadLocalBankerNotes());
+      setCentralBankNotes(loadLocalCentralBankNotes());
       setHeadlines(loadLocalHeadlines());
       setBiases(loadLocalBias());
       setReports(loadLocalReports());
@@ -307,20 +332,25 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     // de llegar al setLoading(false) de más abajo — el usuario se queda
     // viendo "Cargando…" para siempre en vez de degradar con lo que haya.
     try {
-    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await withTimeout(Promise.all([
+    const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, centralBankRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await withTimeout(Promise.all([
       fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null; updated_at: string }>(async (from, to) =>
         client.from('indicator_overrides').select('indicator_id, date, value, stage, updated_at').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
       supabase.from('fomc_watch').select('meeting_date, prob_cut, prob_hold, prob_hike, note'),
-      // banker_statements y headlines son tablas nuevas — si todavía no
-      // corriste el SQL en Supabase (ver supabase/schema.sql), esto
-      // simplemente da error y se ignora, sin romper el resto de la carga.
+      // banker_statements, central_bank_notes y headlines son tablas nuevas —
+      // si todavía no corriste el SQL en Supabase (ver supabase/schema.sql),
+      // esto simplemente da error y se ignora, sin romper el resto de la carga.
       supabase
         .from('banker_statements')
         .select(
           'banker_id, current_statement_date, current_stance, current_summary, current_source_url, previous_statement_date, previous_stance, previous_summary, previous_source_url',
+        ),
+      supabase
+        .from('central_bank_notes')
+        .select(
+          'currency, rate_decision_date, rate_decision_stance, rate_decision_summary, rate_decision_source_url, press_conference_date, press_conference_summary, press_conference_source_url, inflation_expectations, growth_expectations',
         ),
       supabase
         .from('headlines')
@@ -419,6 +449,39 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         };
       }
       setBankerNotes(map);
+    }
+
+    if (!centralBankRes.error && centralBankRes.data) {
+      const map = defaultCentralBankNoteMap();
+      for (const row of centralBankRes.data as {
+        currency: Currency;
+        rate_decision_date: string | null;
+        rate_decision_stance: 'hawkish' | 'dovish' | 'neutral' | null;
+        rate_decision_summary: string | null;
+        rate_decision_source_url: string | null;
+        press_conference_date: string | null;
+        press_conference_summary: string | null;
+        press_conference_source_url: string | null;
+        inflation_expectations: string | null;
+        growth_expectations: string | null;
+      }[]) {
+        map[row.currency] = {
+          rateDecision: {
+            date: row.rate_decision_date ?? undefined,
+            stance: row.rate_decision_stance ?? undefined,
+            summary: row.rate_decision_summary ?? undefined,
+            sourceUrl: row.rate_decision_source_url ?? undefined,
+          },
+          pressConference: {
+            date: row.press_conference_date ?? undefined,
+            summary: row.press_conference_summary ?? undefined,
+            sourceUrl: row.press_conference_source_url ?? undefined,
+          },
+          inflationExpectations: row.inflation_expectations ?? undefined,
+          growthExpectations: row.growth_expectations ?? undefined,
+        };
+      }
+      setCentralBankNotes(map);
     }
 
     if (!headlinesRes.error && headlinesRes.data) {
@@ -664,6 +727,53 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       });
     },
     [bankerNotes],
+  );
+
+  // Apartado "Banco Central" del Resumen — a diferencia de addBankerStatement
+  // (arriba), acá solo se guarda "lo último" de cada campo, no un
+  // current/previous, porque el usuario pidió "las últimas declaraciones",
+  // no un historial de cambios de postura como con los banqueros.
+  const saveCentralBankNote = useCallback(
+    async (currency: Currency, patch: Partial<CentralBankNote>) => {
+      const nextNote: CentralBankNote = { ...centralBankNotes[currency], ...patch };
+      if (supabaseEnabled && supabase) {
+        await supabase.from('central_bank_notes').upsert({
+          currency,
+          rate_decision_date: nextNote.rateDecision?.date || null,
+          rate_decision_stance: nextNote.rateDecision?.stance || null,
+          rate_decision_summary: nextNote.rateDecision?.summary || null,
+          rate_decision_source_url: nextNote.rateDecision?.sourceUrl || null,
+          press_conference_date: nextNote.pressConference?.date || null,
+          press_conference_summary: nextNote.pressConference?.summary || null,
+          press_conference_source_url: nextNote.pressConference?.sourceUrl || null,
+          inflation_expectations: nextNote.inflationExpectations || null,
+          growth_expectations: nextNote.growthExpectations || null,
+        });
+      }
+      setCentralBankNotes((prev) => {
+        const next = { ...prev, [currency]: nextNote };
+        if (!supabaseEnabled) localStorage.setItem(CENTRAL_BANK_NOTES_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [centralBankNotes],
+  );
+
+  const updateCentralBankRateDecision = useCallback(
+    (currency: Currency, statement: Statement) => saveCentralBankNote(currency, { rateDecision: statement }),
+    [saveCentralBankNote],
+  );
+  const updateCentralBankPressConference = useCallback(
+    (currency: Currency, statement: Statement) => saveCentralBankNote(currency, { pressConference: statement }),
+    [saveCentralBankNote],
+  );
+  const updateCentralBankInflationExpectations = useCallback(
+    (currency: Currency, text: string) => saveCentralBankNote(currency, { inflationExpectations: text }),
+    [saveCentralBankNote],
+  );
+  const updateCentralBankGrowthExpectations = useCallback(
+    (currency: Currency, text: string) => saveCentralBankNote(currency, { growthExpectations: text }),
+    [saveCentralBankNote],
   );
 
   const addManualHeadline = useCallback(async (headline: Omit<Headline, 'id' | 'isManual' | 'pinned'>) => {
@@ -1033,6 +1143,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      centralBankNotes,
+      updateCentralBankRateDecision,
+      updateCentralBankPressConference,
+      updateCentralBankInflationExpectations,
+      updateCentralBankGrowthExpectations,
       headlines,
       addManualHeadline,
       toggleHeadlinePin,
@@ -1074,6 +1189,11 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateFomcWatch,
       bankerNotes,
       addBankerStatement,
+      centralBankNotes,
+      updateCentralBankRateDecision,
+      updateCentralBankPressConference,
+      updateCentralBankInflationExpectations,
+      updateCentralBankGrowthExpectations,
       headlines,
       addManualHeadline,
       toggleHeadlinePin,
