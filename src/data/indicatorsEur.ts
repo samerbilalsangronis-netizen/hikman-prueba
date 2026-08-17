@@ -532,7 +532,7 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/sts_inpr_m/default/table',
     goodDirection: 'up',
     description:
-      'Variación mensual de producción industrial de la Eurozona. Carga manual: mismo motivo que Ventas Minoristas — la serie en vivo de Eurostat no coincidió con el valor de referencia al verificarla.',
+      'Variación mensual de producción industrial de la Eurozona (Eurostat sts_inpr_m, índice desestacionalizado). Automatizado 17-ago-2026 — la carga manual anterior tenía parámetros de consulta equivocados y no coincidía con el dato real para casi toda su historia, se corrigió y reemplazó por completo. Verificado: 0.0% para junio-2026 (estable, coincide con el comunicado de Eurostat).',
   },
   {
     id: 'eur_trade_balance',

@@ -235,6 +235,43 @@ async function fetchEurostatUnemployment(): Promise<Observation[]> {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Producción industrial de la Eurozona: dataset sts_inpr_m, índice de nivel
+// (I21, 2021=100), ajustado por estacionalidad y calendario (SCA), industria
+// total sin construcción (nace_r2 B-D), Eurozona vigente (EA21, mismo
+// motivo que EUROSTAT_UNEMPLOYMENT_URL). El m/m se deriva del nivel —
+// Eurostat no lo publica ya calculado en este dataset (pctChangeByMonth,
+// misma función que ya usa computeSeries para FRED).
+//
+// Reemplaza la carga manual anterior (17-ago-2026) — el usuario reportó el
+// dato desactualizado, y al investigar resultó que la serie manual estaba
+// MAL para prácticamente toda su historia (71 de 77 meses recientes no
+// coincidían con este mismo dataset), no solo desactualizada. La causa más
+// probable: el intento anterior de automatizar esto uso indic_bt='PROD'
+// (código inválido para este dataset — la API lo acepta sin error mostrando
+// la categoría vacía, en vez de rechazar la consulta) en vez de 'PRD', y
+// geo='EA20' (código de Eurozona ya viejo) en vez de 'EA21' — exactamente
+// el "no coincidió con el valor de referencia" que dejó anotado el código.
+// Verificado 17-ago-2026 contra el comunicado oficial de Eurostat
+// (13-ago-2026): jun-2026 0.0% m/m (estable) y may-2026 revisado a +0.3%
+// (antes -0.2%) — ambos coinciden exacto con esta consulta.
+const EUROSTAT_INDUSTRIAL_PRODUCTION_URL =
+  'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/sts_inpr_m' +
+  '?format=JSON&lang=EN&geo=EA21&s_adj=SCA&indic_bt=PRD&nace_r2=B-D&unit=I21&sinceTimePeriod=2015-01';
+
+async function fetchEurostatIndustrialProductionLevel(): Promise<Observation[]> {
+  const res = await fetch(EUROSTAT_INDUSTRIAL_PRODUCTION_URL);
+  if (!res.ok) throw new Error(`Eurostat sts_inpr_m: HTTP ${res.status}`);
+  const json = (await res.json()) as EurostatJsonStat;
+  const timeIndex = json.dimension.time.category.index;
+  const out: Observation[] = [];
+  for (const [period, idx] of Object.entries(timeIndex)) {
+    const raw = json.value[String(idx)];
+    if (raw === undefined) continue;
+    out.push({ date: `${period}-01`, value: raw });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -333,6 +370,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (err) {
     errors.push({ indicatorId: 'eur_unemployment', error: (err as Error).message });
+  }
+
+  try {
+    const level = await fetchEurostatIndustrialProductionLevel();
+    const series = pctChangeByMonth(level, 1).slice(-BACKFILL_LIMIT);
+    if (series.length > 0) {
+      const rows = series.map((p) => ({ indicator_id: 'eur_industrial_production', date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: 'eur_industrial_production', date: latest.date, value: latest.value, points: series.length });
+    }
+  } catch (err) {
+    errors.push({ indicatorId: 'eur_industrial_production', error: (err as Error).message });
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });
