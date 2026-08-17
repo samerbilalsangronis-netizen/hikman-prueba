@@ -58,6 +58,16 @@ export const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'initial_claims', seriesId: 'ICSA', transform: 'level' },
   { indicatorId: 'continuing_claims', seriesId: 'CCSA', transform: 'level' },
   // Confianza / Sentimiento
+  // OJO: FRED publica esta serie con ~1 MES de demora respecto al dato real
+  // (a pedido de la propia Universidad de Michigan, según nota oficial de
+  // FRED en la página de la serie) — no es un fallo del sync, fred-sync
+  // siempre trae exactamente lo último que FRED tiene. Confirmado
+  // 17-ago-2026: FRED seguía en jun-2026 (49.5) cuando el dato real ya
+  // había publicado julio final (55.2) y agosto preliminar (51.0) — se
+  // cargaron esos dos puntos a mano en historical-series.json como parche
+  // temporal (se auto-corrigen solos: en cuanto fred-sync traiga esas
+  // mismas fechas desde FRED, el override de Supabase pisa el seed sin que
+  // haga falta tocar nada).
   { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento
   // A diferencia de CPI/PPI (BLS usa NSA para el a/a), Census y la Fed

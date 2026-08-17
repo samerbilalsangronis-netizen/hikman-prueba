@@ -64,6 +64,9 @@ const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'initial_claims', seriesId: 'ICSA', transform: 'level' },
   { indicatorId: 'continuing_claims', seriesId: 'CCSA', transform: 'level' },
   // Confianza / Sentimiento
+  // FRED publica esta serie con ~1 mes de demora respecto al dato real (a
+  // pedido de la propia U. Michigan) — no es un bug de este sync, ver
+  // src/data/fredMappings.ts para el detalle completo.
   { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento
   // A diferencia de CPI/PPI (BLS usa NSA para el a/a), Census y la Fed
