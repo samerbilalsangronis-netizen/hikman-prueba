@@ -201,7 +201,7 @@ export const AUD_AUTO_INDICATOR_IDS = [
 // todo el dominio) — OCR queda manual. Desempleo/Empleo (HLFS, ZIP de
 // ~400MB sin comprimir) y Balanza Comercial (solo XLSX) también quedan
 // manuales — ver indicatorsNzd.ts para el detalle de cada decisión.
-export const NZD_AUTO_INDICATOR_IDS = ['nzd_cpi', 'nzd_cpi_yoy', 'nzd_gdp_qoq', 'nzd_gdp_yoy', 'nzd_retail_sales', 'nzd_retail_sales_yoy'];
+export const NZD_AUTO_INDICATOR_IDS = ['nzd_cpi', 'nzd_cpi_yoy', 'nzd_gdp_qoq', 'nzd_gdp_yoy', 'nzd_retail_sales_total', 'nzd_retail_sales_total_yoy'];
 
 // JPY — se sincroniza desde el e-Stat Dashboard API (dashboard.e-stat.go.jp,
 // sin key — distinta de la API principal de e-Stat, que sí exige un appId

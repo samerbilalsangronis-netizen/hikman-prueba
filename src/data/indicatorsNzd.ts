@@ -65,18 +65,18 @@ import type { IndicatorMeta } from '../types';
 //    coincide con el dato oficial ("GDP rose 0.8 percent in the March 2026
 //    quarter").
 //
-// 8. **"Ventas Minoristas" tiene DOS series igual de oficiales en el mismo
+// 8. **"Ventas Minoristas" tenía DOS series igual de oficiales en el mismo
 //    Electronic Card Transactions de Stats NZ — "RTS core industries"
-//    (ECTM.S19S2/S19S2PC, ya cargada como nzd_retail_sales) y "RTS total
-//    industries" (ECTM.S19S1PC m/m, ECTM.S19A1AC a/a ya calculado por
-//    Stats NZ)**. investing.com/la prensa siguen la de TOTAL, no la core
-//    — confirmado 18-ago-2026: julio-2026 core dio +2.2% m/m / +3.1% a/a
-//    (nuestro dato, correcto para "core"), pero investing.com mostraba
-//    +1.3% m/m / +3.4% a/a — coincide exacto con "total industries", no
-//    con "core". Se agregaron nzd_retail_sales_total(_yoy) aparte en vez
-//    de reemplazar los "core" existentes — ambas series son igual de
-//    oficiales, solo difieren en alcance (core excluye rubros volátiles
-//    tipo vehículos/combustible que sí entran en "total").
+//    (ECTM.S19S2/S19S2PC) y "RTS total industries" (ECTM.S19S1PC m/m,
+//    ECTM.S19A1AC a/a ya calculado por Stats NZ)**. investing.com/la
+//    prensa siguen la de TOTAL, no la core — confirmado 18-ago-2026:
+//    julio-2026 core daba +2.2% m/m / +3.1% a/a, pero investing.com
+//    mostraba +1.3% m/m / +3.4% a/a, coincide exacto con "total
+//    industries". Se agregó nzd_retail_sales_total(_yoy) primero al lado
+//    de la "core" existente, y a pedido del usuario (18-ago-2026) se
+//    sacó la "core" del todo — "Ventas Minoristas con Tarjeta de
+//    Crédito" (nzd_retail_sales_total/_yoy, mismo nombre que usa
+//    investing.com) es ahora la única serie de ventas minoristas de NZD.
 export const NZD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBNZ — una sola tasa (Official Cash Rate), como el resto de los
   // bancos centrales no-USD. Sin fuente automatizable (ver lección 1) —
@@ -409,42 +409,15 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     description: 'Subcomponente del PMI Servicios de Nueva Zelanda. Presión de precios en insumos. Carga manual.',
     parentId: 'nzd_pmi_serv',
   },
-  {
-    id: 'nzd_retail_sales',
-    label: 'Ventas Minoristas (m/m)',
-    shortLabel: 'Ventas Min.',
-    section: 'crecimiento',
-    format: 'pct1',
-    frequency: 'monthly',
-    chart: 'bar',
-    currency: 'NZD',
-    source: 'Stats NZ (Electronic Card Transactions, core retail, desestacionalizado)',
-    sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
-    goodDirection: 'up',
-    description:
-      'Variación mensual del gasto minorista "core" con tarjeta electrónica, desestacionalizado — la cifra de "ventas minoristas" que efectivamente sigue el mercado para Nueva Zelanda (el Retail Trade Survey trimestral es menos seguido). Verificado: -1.5% para junio-2026.',
-  },
-  {
-    id: 'nzd_retail_sales_yoy',
-    label: 'Ventas Minoristas Interanual (a/a)',
-    shortLabel: 'Ventas Min. a/a',
-    section: 'crecimiento',
-    format: 'pct',
-    frequency: 'monthly',
-    chart: 'line',
-    currency: 'NZD',
-    source: 'Stats NZ (Electronic Card Transactions, core retail, desestacionalizado)',
-    sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
-    goodDirection: 'up',
-    description: 'Gasto minorista "core" respecto al mismo mes del año anterior — derivado del nivel (Stats NZ no publica el a/a directo). Verificado: +0.6% para junio-2026.',
-  },
-  // "Total industries" — la serie que efectivamente sigue investing.com/la
-  // prensa para "Electronic Card Retail Sales" (no la "core" de arriba).
-  // Ver lección 8.
+  // "Ventas Minoristas con Tarjeta de Crédito" — mismo nombre que usa
+  // investing.com ("Electronic Card Retail Sales"). Serie "RTS total
+  // industries" del Electronic Card Transactions de Stats NZ — ver lección 8
+  // (existió una versión "core" que se sacó del sistema a pedido del
+  // usuario por no coincidir con lo que efectivamente reporta la prensa).
   {
     id: 'nzd_retail_sales_total',
-    label: 'Ventas Minoristas Totales (m/m)',
-    shortLabel: 'Ventas Min. Totales',
+    label: 'Ventas Minoristas con Tarjeta de Crédito (m/m)',
+    shortLabel: 'Ventas c/ Tarjeta',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'monthly',
@@ -454,12 +427,12 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
     goodDirection: 'up',
     description:
-      'Variación mensual del gasto minorista total con tarjeta electrónica (incluye vehículos/combustible, a diferencia de "core"), desestacionalizado — la serie que efectivamente sigue investing.com. Verificado: +1.3% para julio-2026, coincide exacto con investing.com.',
+      'Variación mensual del gasto minorista total con tarjeta electrónica, desestacionalizado — "Electronic Card Retail Sales" en investing.com, la cifra que efectivamente sigue el mercado para Nueva Zelanda. Verificado: +1.3% para julio-2026, coincide exacto con investing.com.',
   },
   {
     id: 'nzd_retail_sales_total_yoy',
-    label: 'Ventas Minoristas Totales Interanual (a/a)',
-    shortLabel: 'Ventas Min. Totales a/a',
+    label: 'Ventas Minoristas con Tarjeta de Crédito Interanual (a/a)',
+    shortLabel: 'Ventas c/ Tarjeta a/a',
     section: 'crecimiento',
     format: 'pct',
     frequency: 'monthly',
@@ -469,7 +442,7 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/topics/retail-trade/',
     goodDirection: 'up',
     description:
-      'Gasto minorista total con tarjeta electrónica respecto al mismo mes del año anterior — a diferencia de la versión "core", este a/a lo publica Stats NZ ya calculado (no se deriva de un nivel). Verificado: +3.4% para julio-2026, coincide exacto con investing.com.',
+      'Gasto minorista con tarjeta electrónica respecto al mismo mes del año anterior — Stats NZ publica esta tasa ya calculada (no se deriva de un nivel). Verificado: +3.4% para julio-2026, coincide exacto con investing.com.',
   },
   {
     id: 'nzd_gdp_qoq',

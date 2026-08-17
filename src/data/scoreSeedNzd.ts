@@ -19,7 +19,7 @@ export const NZD_SCORE_SEED: ScoreRow[] = [
   { id: 'nzd_employment_change', label: 'Cambios en el Empleo', valoracion: 0, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
   { id: 'nzd_pmi_manuf', label: 'PMI Manufactura', valoracion: -2, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
   { id: 'nzd_pmi_serv', label: 'PMI de Servicios', valoracion: 0, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
-  { id: 'nzd_retail_sales', label: 'Ventas Minoristas', valoracion: 0, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
+  { id: 'nzd_retail_sales_total', label: 'Ventas Minoristas con Tarjeta de Crédito', valoracion: 0, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
   { id: 'nzd_business_confidence', label: 'Confianza Empresarial', valoracion: 0, weight: 'Máx(1) / Mín(-1)', currency: 'NZD' },
   { id: 'nzd_consumer_confidence', label: 'Confianza del Consumidor', valoracion: -2, weight: 'Máx(2) / Mín(-2)', currency: 'NZD' },
   { id: 'nzd_gdp_yoy', label: 'PIB', valoracion: 2, weight: 'Máx(3) / Mín(-3)', currency: 'NZD' },
