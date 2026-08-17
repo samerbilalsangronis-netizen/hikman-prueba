@@ -147,6 +147,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let cpiMom: Map<string, number> | undefined;
 
+  // OJO CPI/PPI: chinadata.live (agregador de terceros, ver nota arriba) va
+  // con su propio rezago frente a la NBS — no republica el mes nuevo el
+  // mismo día que la NBS lo publica, sino unos días/semanas después según
+  // cuándo el propio chinadata.live actualice su base. Confirmado
+  // 17-ago-2026: la NBS publicó julio-2026 el 9-ago (CPI -0.1% m/m / +0.5%
+  // a/a, PPI -0.7% m/m / +3.5% a/a — verificado contra el comunicado
+  // oficial), pero chinadata.live seguía en junio-2026 para las 4 series.
+  // Se cargó julio a mano en historical-series.json como parche temporal —
+  // se autocorrige solo apenas chinadata.live se ponga al día (el override
+  // de Supabase con esa misma fecha pisa el seed).
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     {
       id: 'cny_cpi',
