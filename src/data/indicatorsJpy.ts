@@ -130,6 +130,40 @@ import type { IndicatorMeta } from '../types';
 //     para julio-2026, coincide exacto con lo reportado (venía de 7.3% en
 //     junio) — a diferencia del resto de PPI de esta app (siempre
 //     derivado), este SÍ es el a/a oficial ya calculado por el BOJ.
+//
+// 11. **PIB — la prensa/investing.com titula el PIB "interanual" de Japón
+//     con la tasa ANUALIZADA del trimestre**, no con una interanual real
+//     (comparar contra el mismo trimestre del año pasado) — confirmado
+//     18-ago-2026 contra el comunicado oficial del Cabinet Office (PDF
+//     "Quarterly Estimates of GDP for April-June 2026", esri.cao.go.jp):
+//     Japón reporta oficialmente t/t (0.3% para Q2-2026) y su anualizado
+//     ("前期比の年率換算" — qué pasaría si el ritmo del trimestre se
+//     repitiera 4 trimestres seguidos: (1+t/t)^4−1, con el t/t SIN
+//     redondear, no el 0.3% ya redondeado — verificado: 1.1% para
+//     Q2-2026 y 1.9% para Q1-2026, coincide exacto con investing.com y
+//     con el PDF oficial), no una interanual real. jpy_gdp_yoy (ya
+//     existía, correcta, derivada del nivel real contra 4 trimestres
+//     atrás) sigue siendo la interanual real — se agregó
+//     jpy_gdp_annualized_qoq aparte para la que efectivamente cita la
+//     prensa, sin tocar la que ya estaba bien.
+//
+//     De paso, revisando el mismo PDF oficial para actualizar los
+//     subcomponentes: el Dashboard de e-Stat NO tiene una serie de
+//     "contribución al PIB" desglosada por consumo/inversión/gasto
+//     público con datos recientes (los códigos por componente con base
+//     2011/2015 dejaron de actualizarse) — solo tiene el desglose de 2
+//     vías Demanda Externa (exportaciones netas) / Demanda Interna
+//     (0705020501000020050, base 2020, SÍ vigente — automatizado acá,
+//     coincide exacto con "GDP External Demand" de investing.com: 0.5pp
+//     Q2-2026, 0.3pp Q1-2026). jpy_gdp_consumption/investment/government
+//     quedaron redefinidos como el crecimiento t/t DEL PROPIO componente
+//     (lo que de hecho cita investing.com como "Capital Expenditure QoQ"
+//     etc.), no como contribución al PIB — con 5 trimestres de historia
+//     real cargados a mano desde el PDF oficial (no hay fuente
+//     automatizable vigente para esto). Verificado Q2-2026: Consumo
+//     Privado -0.0% (primera caída en 8 trimestres), Inversión (Capital
+//     Expenditure / 民間企業設備) -1.2% (coincide exacto con investing.com),
+//     Gasto Público +1.6%.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -611,6 +645,27 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
       'Crecimiento del PIB real, variación trimestral SIN anualizar (Japón también publica una versión anualizada — no se usa acá para mantener la misma convención que el resto de las divisas no-USD). Verificado: +0.5% para el primer trimestre de 2026, coincide exacto con el dato oficial revisado.',
     releaseStage: 'final',
   },
+  // La tasa que efectivamente titulan la prensa e investing.com como "PIB
+  // (a/a)" de Japón — es la anualización del t/t (qué pasaría si el ritmo
+  // del trimestre se repitiera 4 trimestres seguidos), NO una interanual
+  // real. Ver lección 11. jpy_gdp_yoy (más abajo) sigue siendo la
+  // interanual real de verdad.
+  {
+    id: 'jpy_gdp_annualized_qoq',
+    label: 'PIB Trimestral Anualizado',
+    shortLabel: 'PIB Anualizado',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'JPY',
+    source: 'e-Stat Dashboard (PIB real, desestacionalizado) — derivado',
+    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    goodDirection: 'up',
+    description:
+      'La cifra que investing.com y la prensa citan como "PIB (a/a)" de Japón — en realidad es el t/t anualizado ((1+t/t)^4−1), no una interanual real. Se deriva del mismo nivel real que jpy_gdp_qoq/jpy_gdp_yoy. Verificado: +1.1% para el segundo trimestre de 2026, coincide exacto con investing.com y con el comunicado oficial del Cabinet Office (esri.cao.go.jp).',
+    releaseStage: 'final',
+  },
   {
     id: 'jpy_gdp_deflator',
     label: 'Deflactor del PIB',
@@ -628,47 +683,50 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'jpy_gdp_consumption',
-    label: 'PIB — Consumo',
+    label: 'PIB — Consumo Privado (t/t)',
     shortLabel: 'Consumo',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'JPY',
-    source: 'e-Stat Dashboard',
-    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    source: 'Cabinet Office (esri.cao.go.jp) — Quarterly Estimates of GDP',
+    sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
-    description: 'Contribución del consumo privado al crecimiento del PIB de Japón. Carga manual.',
+    description:
+      'Crecimiento trimestral (t/t) del consumo privado (民間最終消費支出) — su propia variación, no su contribución al PIB total (ver lección 11: el Dashboard de e-Stat no tiene contribución por componente vigente, solo el desglose Demanda Externa/Interna). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: -0.0% para el segundo trimestre de 2026 (primera caída en 8 trimestres), coincide con lo reportado.',
     parentId: 'jpy_gdp_qoq',
   },
   {
     id: 'jpy_gdp_investment',
-    label: 'PIB — Inversión',
-    shortLabel: 'Inversión',
+    label: 'PIB — Inversión Empresarial / Capex (t/t)',
+    shortLabel: 'Capex',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'JPY',
-    source: 'e-Stat Dashboard',
-    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    source: 'Cabinet Office (esri.cao.go.jp) — Quarterly Estimates of GDP',
+    sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
-    description: 'Contribución de la inversión (formación bruta de capital) al crecimiento del PIB de Japón. Carga manual.',
+    description:
+      'Crecimiento trimestral (t/t) de la inversión privada no residencial (民間企業設備 — "Capital Expenditure", así lo titula investing.com) — su propia variación, no su contribución al PIB (ver lección 11). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: -1.2% para el segundo trimestre de 2026, coincide exacto con investing.com.',
     parentId: 'jpy_gdp_qoq',
   },
   {
     id: 'jpy_gdp_government',
-    label: 'PIB — Gasto Público',
+    label: 'PIB — Gasto Público (t/t)',
     shortLabel: 'Gasto Público',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'JPY',
-    source: 'e-Stat Dashboard',
-    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    source: 'Cabinet Office (esri.cao.go.jp) — Quarterly Estimates of GDP',
+    sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
-    description: 'Contribución del gasto público al crecimiento del PIB de Japón. Carga manual.',
+    description:
+      'Crecimiento trimestral (t/t) del consumo del gobierno (政府最終消費支出) — su propia variación, no su contribución al PIB (ver lección 11). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: +1.6% para el segundo trimestre de 2026.',
     parentId: 'jpy_gdp_qoq',
   },
   {
@@ -680,10 +738,11 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'JPY',
-    source: 'e-Stat Dashboard',
+    source: 'e-Stat Dashboard (寄与度・実質・2020年基準)',
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'up',
-    description: 'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de Japón. Carga manual.',
+    description:
+      'Contribución de las exportaciones netas (Demanda Externa) al crecimiento del PIB de Japón — "GDP External Demand" en investing.com. Automatizado 18-ago-2026 (única contribución por componente que el Dashboard de e-Stat sigue publicando vigente, ver lección 11). Verificado: +0.5pp para el segundo trimestre de 2026, coincide exacto con investing.com y con el comunicado oficial.',
     parentId: 'jpy_gdp_qoq',
   },
   {

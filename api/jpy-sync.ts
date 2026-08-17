@@ -108,6 +108,21 @@ function directPctSeries(level: Map<string, number>): Observation[] {
   return [...level.entries()].map(([date, value]) => ({ date, value: value / 100 })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Anualiza el t/t trimestral: qué pasaría si el ritmo de ESTE trimestre se
+// repitiera 4 trimestres seguidos — (1+t/t)^4−1, calculado sobre el t/t SIN
+// redondear (a partir del nivel), no sobre el 0.3%/etc. ya redondeado a 1
+// decimal que se muestra en pantalla. Es la cifra que Japón destaca como
+// "PIB" en su propio comunicado y la que cita la prensa/investing.com como
+// si fuera la interanual — ver lección 11 en indicatorsJpy.ts.
+function annualizedQoqSeries(level: Map<string, number>): Observation[] {
+  const out: Observation[] = [];
+  for (const [date, value] of level) {
+    const prev = level.get(shiftDateByMonths(date, 3));
+    if (prev !== undefined && prev !== 0) out.push({ date, value: (value / prev) ** 4 - 1 });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // --- BOJ Time-Series Data Search (CSV público, sin key, serie FM01) --------
 
 // La tasa a un día sin garantía (uncollateralized overnight call rate) — la
@@ -213,6 +228,13 @@ const UNEMPLOYMENT = '0301010000020020010'; // 完全失業率（男女計）
 const EMPLOYED_LEVEL = '0301010000010010010'; // 就業者（男女計）, en 万人
 const GDP_LEVEL = '0705020501000010000'; // PIB real, nivel
 const GDP_QOQ_DIRECT = '0705020501000040000'; // PIB real t/t, SIN anualizar
+// Contribución de la Demanda Externa (exportaciones netas) al crecimiento del
+// PIB, real, base 2020 — único desglose por componente que el Dashboard de
+// e-Stat sigue publicando vigente (ver lección 11 en indicatorsJpy.ts; NO
+// hay un código equivalente para consumo/inversión/gasto público con datos
+// recientes, esos quedan manuales). Ya viene en puntos porcentuales, no
+// hace falta derivar de un nivel.
+const GDP_NET_EXPORTS_CONTRIB = '0705020501000020050';
 const RETAIL_SALES_LEVEL = '0601010201010010000'; // 小売業販売額（名目）, sin versión desestacionalizada
 const WAGE_YOY_DIRECT = '0302020000000030000'; // 現金給与総額（前年同月比）, a/a ya calculado
 const OVERTIME_PAY_YOY_DIRECT = '0302020003000030010'; // 所定外給与（前年同月比）, a/a ya calculado
@@ -342,6 +364,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         gdpLevel ??= await fetchDashboardSeries(GDP_LEVEL, QUARTERLY_FROM, '2');
         return pctChangeSeries(gdpLevel, 12);
       },
+    },
+    {
+      id: 'jpy_gdp_annualized_qoq',
+      run: async () => {
+        gdpLevel ??= await fetchDashboardSeries(GDP_LEVEL, QUARTERLY_FROM, '2');
+        return annualizedQoqSeries(gdpLevel);
+      },
+    },
+    {
+      id: 'jpy_gdp_net_exports',
+      run: async () => directPctSeries(await fetchDashboardSeries(GDP_NET_EXPORTS_CONTRIB, QUARTERLY_FROM, '2')),
     },
     { id: 'jpy_trade_balance', run: fetchTradeBalance },
     {

@@ -287,16 +287,29 @@ function gdpYoySeries(level: Map<string, number>): Observation[] {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-// --- Ventas Minoristas (mensual) — Electronic Card Transactions, "RTS core
-// industries" desestacionalizado (ECTM.S19S2 = nivel, ECTM.S19S2PC = m/m%) -
+// --- Ventas Minoristas (mensual) — Electronic Card Transactions. Dos series
+// igual de oficiales en el mismo archivo, distinto alcance (ver lección 8 en
+// indicatorsNzd.ts):
+// - "RTS core industries" (ECTM.S19S2 = nivel, ECTM.S19S2PC = m/m% — el a/a
+//   NO viene directo, se deriva del nivel más abajo).
+// - "RTS total industries" (ECTM.S19S1PC = m/m% directo, ECTM.S19A1AC = a/a%
+//   directo — Stats NZ SÍ publica el a/a ya calculado para esta, a
+//   diferencia de "core") — la que efectivamente sigue investing.com.
 
-async function fetchEctSeries(): Promise<{ level: Map<string, number>; pctChange: Map<string, number> }> {
+async function fetchEctSeries(): Promise<{
+  level: Map<string, number>;
+  pctChange: Map<string, number>;
+  totalPctChange: Map<string, number>;
+  totalYoy: Map<string, number>;
+}> {
   const { text } = await fetchLatestMonthlyZipCsv(
     (year, monthName) =>
       `https://www.stats.govt.nz/assets/Uploads/Electronic-card-transactions/Electronic-card-transactions-${monthName}-${year}/Download-data/electronic-card-transactions-${monthName.toLowerCase()}-${year}.zip`,
   );
   const level = new Map<string, number>();
   const pctChange = new Map<string, number>();
+  const totalPctChange = new Map<string, number>();
+  const totalYoy = new Map<string, number>();
   for (const line of text.split('\n')) {
     const cols = parseCsvLine(line);
     const ref = cols[0];
@@ -305,9 +318,12 @@ async function fetchEctSeries(): Promise<{ level: Map<string, number>; pctChange
     if (!period || Number.isNaN(value)) continue;
     if (ref === 'ECTM.S19S2') level.set(period, value);
     if (ref === 'ECTM.S19S2PC') pctChange.set(period, value / 100);
+    if (ref === 'ECTM.S19S1PC') totalPctChange.set(period, value / 100);
+    if (ref === 'ECTM.S19A1AC') totalYoy.set(period, value / 100);
   }
   if (level.size === 0 || pctChange.size === 0) throw new Error('Electronic Card Transactions: no se encontraron las series ECTM.S19S2 / ECTM.S19S2PC');
-  return { level, pctChange };
+  if (totalPctChange.size === 0 || totalYoy.size === 0) throw new Error('Electronic Card Transactions: no se encontraron las series ECTM.S19S1PC / ECTM.S19A1AC');
+  return { level, pctChange, totalPctChange, totalYoy };
 }
 
 function retailSalesMomSeries(pctChange: Map<string, number>): Observation[] {
@@ -352,7 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let cpiLevel: Map<string, number> | undefined;
   let gdpLevel: Map<string, number> | undefined;
-  let ect: { level: Map<string, number>; pctChange: Map<string, number> } | undefined;
+  let ect: Awaited<ReturnType<typeof fetchEctSeries>> | undefined;
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     {
@@ -395,6 +411,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () => {
         ect ??= await fetchEctSeries();
         return retailSalesYoySeries(ect.level);
+      },
+    },
+    {
+      id: 'nzd_retail_sales_total',
+      run: async () => {
+        ect ??= await fetchEctSeries();
+        return retailSalesMomSeries(ect.totalPctChange);
+      },
+    },
+    {
+      id: 'nzd_retail_sales_total_yoy',
+      run: async () => {
+        ect ??= await fetchEctSeries();
+        return retailSalesMomSeries(ect.totalYoy);
       },
     },
   ];
