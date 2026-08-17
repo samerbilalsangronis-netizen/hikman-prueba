@@ -535,6 +535,21 @@ export const EUR_INDICATORS: IndicatorMeta[] = [
       'Variación mensual de producción industrial de la Eurozona (Eurostat sts_inpr_m, índice desestacionalizado). Automatizado 17-ago-2026 — la carga manual anterior tenía parámetros de consulta equivocados y no coincidía con el dato real para casi toda su historia, se corrigió y reemplazó por completo. Verificado: 0.0% para junio-2026 (estable, coincide con el comunicado de Eurostat).',
   },
   {
+    id: 'eur_industrial_production_yoy',
+    label: 'Producción Industrial Interanual (a/a)',
+    shortLabel: 'Prod. Industrial a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'EUR',
+    source: 'Eurostat',
+    sourceUrl: 'https://ec.europa.eu/eurostat/databrowser/view/sts_inpr_m/default/table',
+    goodDirection: 'up',
+    description:
+      'Producción industrial de la Eurozona respecto al mismo mes del año anterior (Eurostat sts_inpr_m, mismo índice que la variación mensual). Verificado: +0.1% para junio-2026, coincide exacto con el comunicado de Eurostat.',
+  },
+  {
     id: 'eur_trade_balance',
     label: 'Balanza Comercial',
     shortLabel: 'Balanza Com.',

@@ -372,18 +372,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     errors.push({ indicatorId: 'eur_unemployment', error: (err as Error).message });
   }
 
+  // m/m y a/a comparten el mismo nivel — se pide una sola vez y se derivan
+  // los dos, cada uno con su propio try/catch para que un error de escritura
+  // en uno no tumbe al otro (mismo criterio que el resto de este archivo).
   try {
     const level = await fetchEurostatIndustrialProductionLevel();
-    const series = pctChangeByMonth(level, 1).slice(-BACKFILL_LIMIT);
-    if (series.length > 0) {
-      const rows = series.map((p) => ({ indicator_id: 'eur_industrial_production', date: p.date, value: p.value }));
-      const { error } = await supabase.from('indicator_overrides').upsert(rows);
-      if (error) throw new Error(error.message);
-      const latest = series[series.length - 1];
-      updated.push({ indicatorId: 'eur_industrial_production', date: latest.date, value: latest.value, points: series.length });
+    try {
+      const series = pctChangeByMonth(level, 1).slice(-BACKFILL_LIMIT);
+      if (series.length > 0) {
+        const rows = series.map((p) => ({ indicator_id: 'eur_industrial_production', date: p.date, value: p.value }));
+        const { error } = await supabase.from('indicator_overrides').upsert(rows);
+        if (error) throw new Error(error.message);
+        const latest = series[series.length - 1];
+        updated.push({ indicatorId: 'eur_industrial_production', date: latest.date, value: latest.value, points: series.length });
+      }
+    } catch (err) {
+      errors.push({ indicatorId: 'eur_industrial_production', error: (err as Error).message });
+    }
+    try {
+      const series = pctChangeByMonth(level, 12).slice(-BACKFILL_LIMIT);
+      if (series.length > 0) {
+        const rows = series.map((p) => ({ indicator_id: 'eur_industrial_production_yoy', date: p.date, value: p.value }));
+        const { error } = await supabase.from('indicator_overrides').upsert(rows);
+        if (error) throw new Error(error.message);
+        const latest = series[series.length - 1];
+        updated.push({ indicatorId: 'eur_industrial_production_yoy', date: latest.date, value: latest.value, points: series.length });
+      }
+    } catch (err) {
+      errors.push({ indicatorId: 'eur_industrial_production_yoy', error: (err as Error).message });
     }
   } catch (err) {
     errors.push({ indicatorId: 'eur_industrial_production', error: (err as Error).message });
+    errors.push({ indicatorId: 'eur_industrial_production_yoy', error: (err as Error).message });
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });
