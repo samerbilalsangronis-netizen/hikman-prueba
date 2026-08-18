@@ -13,8 +13,10 @@ import type { IndicatorMeta } from '../types';
 // retail-sales-index sigue en su versión de feb-2026 pese a que el
 // next_release anunciado (27-mar-2026) ya pasó. Automatizar contra eso
 // arriesgaría mostrar un dato viejo sin avisar — el bug exacto que este
-// proyecto existe para evitar. Automatizables: gbp_boe_rate y
-// gbp_trade_balance (ver api/gbp-sync.ts).
+// proyecto existe para evitar. Pero no TODO el ONS beta está congelado —
+// ver lección 13 (el dataset LMS sí está vivo). Automatizables:
+// gbp_boe_rate, gbp_trade_balance, gbp_unemployment y
+// gbp_employment_change (ver api/gbp-sync.ts).
 //
 // lección 12 (ago-2026): el usuario reportó "datos de empleo faltantes"
 // (evolución trimestral del empleo, evolución del desempleo). Investigado:
@@ -23,15 +25,21 @@ import type { IndicatorMeta } from '../types';
 // estaba guardado bajo la fecha 2026-04 en vez de 2026-02/2026-01) y un
 // valor erróneo en 2026-04 (5.0% guardado vs 4.9% real), además de estar
 // desactualizado. No existía ningún indicador de nivel/variación de empleo.
-// Se automatizaron ambos vía FRED (que republica LFS del ONS con fechas de
-// período consistentes, sin el desfase del Excel):
-//   - gbp_unemployment: FRED LRHUTTTTGBM156S (tasa de desempleo ILO, LFS,
-//     3 meses móviles) — reemplaza el histórico completo.
-//   - gbp_employment_change (nuevo): derivado de FRED LFEMTTTTGBQ647S
-//     (nivel de empleados, trimestral, SA, personas) como diferencia
-//     t − (t-1). Verificado: (34,392,000 − 34,244,000) = +148,000 para
-//     Q1-2026, reproduce exacto el comunicado del ONS ("an increase in
-//     employment of 148,000 people over the quarter to March 2026").
+// Se automatizó gbp_unemployment vía FRED LRHUTTTTGBM156S (tasa de
+// desempleo ILO, LFS, 3 meses móviles) — reemplaza el histórico completo.
+// Se agregó gbp_employment_change (nuevo), inicialmente derivado de FRED
+// LFEMTTTTGBQ647S (nivel de empleados, trimestral) como diferencia
+// t − (t-1). Ver lección 13 para el reemplazo de esa fuente.
+//
+// lección 13 (ago-2026): el usuario señaló que "Evolución Trimestral del
+// Empleo" (agregado en la lección 12) debía ser MENSUAL — investing.com la
+// publica como "Employment Change 3M/3M (MoM)": una variación de 3 meses
+// contra los 3 meses anteriores, pero PUBLICADA cada mes (ventana móvil),
+// no una vez por trimestre. FRED LFEMTTTTGBQ647S solo daba 4 puntos/año.
+// Se reemplazó por la serie nativa del ONS que YA es esa variación 3m/3m
+// publicada mensualmente (dataset LMS, CDID FV2A) — verificado que el
+// dataset SÍ está vivo (releaseDate 2026-08-17, el mismo día), a diferencia
+// de cpih01/retail-sales-index.
 export const GBP_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoE — a diferencia de la Fed y el BCE, el BoE mueve una sola
   // tasa (Bank Rate), no un corredor. Único indicador GBP automatizado.
@@ -123,17 +131,17 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'gbp_employment_change',
-    label: 'Evolución Trimestral del Empleo',
-    shortLabel: 'Empleo t/t',
+    label: 'Evolución del Empleo (3m/3m)',
+    shortLabel: 'Empleo 3m/3m',
     section: 'empleo',
     format: 'thousands',
-    frequency: 'quarterly',
+    frequency: 'monthly',
     chart: 'bar',
     currency: 'GBP',
-    source: 'FRED (LFEMTTTTGBQ647S, vía ONS — Labour Force Survey)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/LFEMTTTTGBQ647S',
+    source: 'Office for National Statistics (dataset LMS, CDID FV2A)',
+    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/timeseries/fv2a/lms',
     goodDirection: 'up',
-    description: 'Variación trimestral del número de personas empleadas en el Reino Unido (nivel t menos nivel t-1). Automatizado — verificado: +148,000 en Q1-2026, reproduce exacto el comunicado del ONS.',
+    description: 'Variación del número de personas empleadas en el Reino Unido, ventana móvil de 3 meses contra los 3 meses anteriores — publicada mensualmente ("Employment Change 3M/3M" en investing.com). Automatizado directo desde la API del ONS — ver lección 13.',
   },
   {
     id: 'gbp_ccc',
