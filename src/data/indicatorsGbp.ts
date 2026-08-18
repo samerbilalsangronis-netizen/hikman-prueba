@@ -13,8 +13,25 @@ import type { IndicatorMeta } from '../types';
 // retail-sales-index sigue en su versión de feb-2026 pese a que el
 // next_release anunciado (27-mar-2026) ya pasó. Automatizar contra eso
 // arriesgaría mostrar un dato viejo sin avisar — el bug exacto que este
-// proyecto existe para evitar. Único automatizable: gbp_boe_rate, vía el
-// IADB del Banco de Inglaterra (ver api/gbp-sync.ts).
+// proyecto existe para evitar. Automatizables: gbp_boe_rate y
+// gbp_trade_balance (ver api/gbp-sync.ts).
+//
+// lección 12 (ago-2026): el usuario reportó "datos de empleo faltantes"
+// (evolución trimestral del empleo, evolución del desempleo). Investigado:
+// gbp_unemployment tenía carga manual con las fechas desalineadas respecto
+// a su propio período de referencia (ej. el dato de la ventana Dic25-Feb26
+// estaba guardado bajo la fecha 2026-04 en vez de 2026-02/2026-01) y un
+// valor erróneo en 2026-04 (5.0% guardado vs 4.9% real), además de estar
+// desactualizado. No existía ningún indicador de nivel/variación de empleo.
+// Se automatizaron ambos vía FRED (que republica LFS del ONS con fechas de
+// período consistentes, sin el desfase del Excel):
+//   - gbp_unemployment: FRED LRHUTTTTGBM156S (tasa de desempleo ILO, LFS,
+//     3 meses móviles) — reemplaza el histórico completo.
+//   - gbp_employment_change (nuevo): derivado de FRED LFEMTTTTGBQ647S
+//     (nivel de empleados, trimestral, SA, personas) como diferencia
+//     t − (t-1). Verificado: (34,392,000 − 34,244,000) = +148,000 para
+//     Q1-2026, reproduce exacto el comunicado del ONS ("an increase in
+//     employment of 148,000 people over the quarter to March 2026").
 export const GBP_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoE — a diferencia de la Fed y el BCE, el BoE mueve una sola
   // tasa (Bank Rate), no un corredor. Único indicador GBP automatizado.
@@ -99,10 +116,24 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'GBP',
-    source: 'Office for National Statistics (Labour Force Survey)',
-    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
+    source: 'FRED (LRHUTTTTGBM156S, vía ONS — Labour Force Survey)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/LRHUTTTTGBM156S',
     goodDirection: 'down',
-    description: 'Tasa de desempleo del Reino Unido (ILO), promedio móvil de 3 meses. Carga manual.',
+    description: 'Tasa de desempleo del Reino Unido (ILO), promedio móvil de 3 meses. Automatizado — ver lección 12 en el comentario de cabecera.',
+  },
+  {
+    id: 'gbp_employment_change',
+    label: 'Evolución Trimestral del Empleo',
+    shortLabel: 'Empleo t/t',
+    section: 'empleo',
+    format: 'thousands',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'GBP',
+    source: 'FRED (LFEMTTTTGBQ647S, vía ONS — Labour Force Survey)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/LFEMTTTTGBQ647S',
+    goodDirection: 'up',
+    description: 'Variación trimestral del número de personas empleadas en el Reino Unido (nivel t menos nivel t-1). Automatizado — verificado: +148,000 en Q1-2026, reproduce exacto el comunicado del ONS.',
   },
   {
     id: 'gbp_ccc',
