@@ -14,9 +14,9 @@ import type { IndicatorMeta } from '../types';
 // next_release anunciado (27-mar-2026) ya pasó. Automatizar contra eso
 // arriesgaría mostrar un dato viejo sin avisar — el bug exacto que este
 // proyecto existe para evitar. Pero no TODO el ONS beta está congelado —
-// ver lección 13 (el dataset LMS sí está vivo). Automatizables:
-// gbp_boe_rate, gbp_trade_balance, gbp_unemployment y
-// gbp_employment_change (ver api/gbp-sync.ts).
+// ver lecciones 13/14 (el dataset LMS sí está vivo). Automatizables:
+// gbp_boe_rate, gbp_trade_balance, gbp_unemployment, gbp_employment_change,
+// gbp_wage_incl_bonus_yoy y gbp_wage_excl_bonus_yoy (ver api/gbp-sync.ts).
 //
 // lección 12 (ago-2026): el usuario reportó "datos de empleo faltantes"
 // (evolución trimestral del empleo, evolución del desempleo). Investigado:
@@ -40,6 +40,21 @@ import type { IndicatorMeta } from '../types';
 // publicada mensualmente (dataset LMS, CDID FV2A) — verificado que el
 // dataset SÍ está vivo (releaseDate 2026-08-17, el mismo día), a diferencia
 // de cpih01/retail-sales-index.
+//
+// lección 14 (ago-2026): el usuario reportó que desempleo, evolución del
+// empleo y salarios seguían mostrando el dato de un mes atrás (mayo cuando
+// el ONS ya había publicado junio). Dos causas distintas, ambas en
+// api/gbp-sync.ts:
+//   - gbp_unemployment vía FRED (LRHUTTTTGBM156S) tenía varias semanas de
+//     retraso frente a la publicación original del ONS — se reemplaza por
+//     la serie nativa del ONS (dataset LMS, CDID MGSX), sin ese retraso.
+//   - Las series LFS de 3 meses móviles del ONS (MGSX, FV2A) fechan cada
+//     punto por el MES MEDIO de su ventana de 3 meses, no por el mes final
+//     (la convención de investing.com/FRED que usa el resto del
+//     dashboard) — se corrige sumando 1 mes al parsear.
+// Se agregó además gbp_wage_incl_bonus_yoy / gbp_wage_excl_bonus_yoy (no
+// tenían ninguna automatización) vía ONS KAC3/KAI9 — estas SÍ fechan por
+// el mes final directamente, sin el desfase de las series LFS.
 export const GBP_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoE — a diferencia de la Fed y el BCE, el BoE mueve una sola
   // tasa (Bank Rate), no un corredor. Único indicador GBP automatizado.
@@ -124,10 +139,10 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'GBP',
-    source: 'FRED (LRHUTTTTGBM156S, vía ONS — Labour Force Survey)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/LRHUTTTTGBM156S',
+    source: 'Office for National Statistics (dataset LMS, CDID MGSX)',
+    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms',
     goodDirection: 'down',
-    description: 'Tasa de desempleo del Reino Unido (ILO), promedio móvil de 3 meses. Automatizado — ver lección 12 en el comentario de cabecera.',
+    description: 'Tasa de desempleo del Reino Unido (ILO), promedio móvil de 3 meses. Automatizado directo desde la API del ONS (más al día que FRED) — ver lección 14.',
   },
   {
     id: 'gbp_employment_change',
@@ -166,10 +181,10 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'GBP',
-    source: 'Office for National Statistics',
-    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
+    source: 'Office for National Statistics (dataset LMS, CDID KAC3)',
+    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/earningsandworkinghours/timeseries/kac3/lms',
     goodDirection: 'up',
-    description: 'Crecimiento interanual del salario promedio semanal (Average Weekly Earnings) incluyendo bonos. Carga manual.',
+    description: 'Crecimiento interanual del salario promedio semanal (Average Weekly Earnings), Total Pay, incluyendo bonos. Automatizado directo desde la API del ONS — ver lección 14.',
   },
   {
     id: 'gbp_wage_excl_bonus_yoy',
@@ -180,10 +195,10 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'GBP',
-    source: 'Office for National Statistics',
-    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
+    source: 'Office for National Statistics (dataset LMS, CDID KAI9)',
+    sourceUrl: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/earningsandworkinghours/timeseries/kai9/lms',
     goodDirection: 'up',
-    description: 'Crecimiento interanual del salario promedio semanal excluyendo bonos — mide mejor la tendencia subyacente. Carga manual.',
+    description: 'Crecimiento interanual del salario promedio semanal (Average Weekly Earnings), Regular Pay, excluyendo bonos — mide mejor la tendencia subyacente. Automatizado directo desde la API del ONS — ver lección 14.',
   },
   // Confianza / Sentimiento
   {

@@ -7,38 +7,58 @@ import { createClient } from '@supabase/supabase-js';
 //
 // GBP es distinto de USD/EUR: casi todos sus indicadores quedan manuales (ver
 // src/data/indicatorsGbp.ts — la API de ONS está congelada/desactualizada
-// para varios datasets clave, aunque no para todos — ver lección 13).
+// para varios datasets clave, aunque no para todos — ver lecciones 13/14).
 // Automatizados: la Bank Rate del Banco de Inglaterra, vía su IADB (no FRED
 // — FRED tiene la serie de la Bank Rate discontinuada desde 2016); la
-// Balanza Comercial, que sí está viva en FRED (republicada desde ONS); la
-// Tasa de Desempleo (lección 12), vía FRED (que republica la Labour Force
-// Survey del ONS con fechas de período consistentes — el dato manual que
-// reemplazó tenía las fechas desalineadas respecto a su propio período de
-// referencia); y la Evolución del Empleo (lección 13), vía la propia API de
-// ONS (dataset LMS, serie FV2A).
+// Balanza Comercial, vía FRED (republicada desde ONS, sin retraso relevante);
+// y (dataset LMS del ONS, vivo — ver lecciones 13/14) la Tasa de Desempleo,
+// la Evolución del Empleo (3m/3m) y el crecimiento salarial (con y sin
+// bonus).
 //
 // lección 13 (ago-2026): el usuario señaló que "Evolución Trimestral del
-// Empleo" (agregado en la lección 12) debía ser MENSUAL, no trimestral —
+// Empleo" (agregada en la lección 12) debía ser MENSUAL, no trimestral —
 // investing.com la publica como "Employment Change 3M/3M (MoM)": es una
 // variación de 3 meses contra los 3 meses anteriores, pero se PUBLICA cada
 // mes (ventana móvil), no una vez por trimestre. El indicador se había
 // automatizado con FRED LFEMTTTTGBQ647S (nivel, solo 4 puntos/año) y se
-// derivaba la diferencia entre trimestres — approximaba el valor pero con
+// derivaba la diferencia entre trimestres — aproximaba el valor pero con
 // la cadencia equivocada. Se reemplaza por la serie nativa del ONS que YA
-// es esa variación 3m/3m publicada mensualmente (dataset LMS, CDID FV2A:
-// "LFS: Employment quarterly change: UK: All: Aged 16 and over (thousands):
-// SA") — a diferencia de cpih01/retail-sales-index (congelados), este
-// dataset SÍ está vivo: verificado con releaseDate 2026-08-17 (mismo día).
+// es esa variación 3m/3m publicada mensualmente (dataset LMS, CDID FV2A) —
+// a diferencia de cpih01/retail-sales-index (congelados), este dataset SÍ
+// está vivo.
+//
+// lección 14 (ago-2026): el usuario reportó que desempleo, evolución del
+// empleo y salarios seguían "atrasados un mes" (dato de hoy era de junio,
+// el dashboard mostraba mayo). Causa real, verificada contra el propio ONS:
+//   - gbp_unemployment (FRED LRHUTTTTGBM156S) tiene un retraso de
+//     republicación de varias semanas frente a la API nativa del ONS — se
+//     reemplaza por ONS MGSX directo (misma serie, sin el retraso de FRED).
+//   - Las series LFS de 3 meses móviles del ONS (MGSX, FV2A) fechan cada
+//     punto con el MES MEDIO de la ventana de 3 meses (confirmado con el
+//     campo "monthLabelStyle": "three month average" y el "label" de rango,
+//     ej. fecha "2026 MAY" → label "2026 APR-JUN"), no con el mes final —
+//     que es la convención que usa investing.com/FRED. Se suma 1 mes al
+//     parsear ambas series para alinear la fecha con esa convención.
+//   - gbp_wage_incl_bonus_yoy / gbp_wage_excl_bonus_yoy (Average Weekly
+//     Earnings) no tenían ninguna automatización — se agregan vía ONS
+//     KAC3 (Total Pay, incl. bonus) y KAI9 (Regular Pay, excl. bonus), que
+//     SÍ fechan por el mes final directamente (sin desfase) — verificado:
+//     KAC3 jun-2026 = 4.1% y KAI9 jun-2026 = 3.5%, coinciden exacto con
+//     investing.com.
 const BOE_INDICATOR_ID = 'gbp_boe_rate';
 const BOE_SERIES_CODE = 'IUDBEDR';
 const BOE_IADB_URL = 'https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp';
 const TRADE_BALANCE_INDICATOR_ID = 'gbp_trade_balance';
 const TRADE_BALANCE_FRED_SERIES = 'XTNTVA01GBM664S'; // Trade Balance: Commodities, GBP, SA
+const ONS_LMS_BASE = 'https://api.beta.ons.gov.uk/v1/data?uri=/employmentandlabourmarket';
 const UNEMPLOYMENT_INDICATOR_ID = 'gbp_unemployment';
-const UNEMPLOYMENT_FRED_SERIES = 'LRHUTTTTGBM156S'; // Unemployment Rate, ILO, LFS, 3m rolling, SA
+const UNEMPLOYMENT_ONS_URI = `${ONS_LMS_BASE}/peoplenotinwork/unemployment/timeseries/mgsx/lms`;
 const EMPLOYMENT_CHANGE_INDICATOR_ID = 'gbp_employment_change';
-const EMPLOYMENT_CHANGE_ONS_URI =
-  'https://api.beta.ons.gov.uk/v1/data?uri=/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/timeseries/fv2a/lms';
+const EMPLOYMENT_CHANGE_ONS_URI = `${ONS_LMS_BASE}/peopleinwork/employmentandemployeetypes/timeseries/fv2a/lms`;
+const WAGE_INCL_BONUS_INDICATOR_ID = 'gbp_wage_incl_bonus_yoy';
+const WAGE_INCL_BONUS_ONS_URI = `${ONS_LMS_BASE}/peopleinwork/earningsandworkinghours/timeseries/kac3/lms`;
+const WAGE_EXCL_BONUS_INDICATOR_ID = 'gbp_wage_excl_bonus_yoy';
+const WAGE_EXCL_BONUS_ONS_URI = `${ONS_LMS_BASE}/peopleinwork/earningsandworkinghours/timeseries/kai9/lms`;
 const BACKFILL_MONTHS = 36;
 
 interface Observation {
@@ -111,13 +131,6 @@ async function fetchTradeBalance(fredApiKey: string): Promise<Observation[]> {
   return obs.map((o) => ({ date: o.date, value: o.value / 1_000_000 }));
 }
 
-// FRED reporta el porcentaje en unidades enteras (4.9), no fracción —
-// dividimos por 100 para la convención 'pct1' del dashboard.
-async function fetchUnemploymentRate(fredApiKey: string): Promise<Observation[]> {
-  const obs = await fetchFredObservations(UNEMPLOYMENT_FRED_SERIES, fredApiKey, BACKFILL_MONTHS);
-  return obs.map((o) => ({ date: o.date, value: o.value / 100 }));
-}
-
 const ONS_MONTHS: Record<string, string> = {
   January: '01', February: '02', March: '03', April: '04', May: '05', June: '06',
   July: '07', August: '08', September: '09', October: '10', November: '11', December: '12',
@@ -125,24 +138,51 @@ const ONS_MONTHS: Record<string, string> = {
 
 interface OnsMonthPoint { date: string; month: string; year: string; value: string }
 
-// FV2A ya es la variación 3m/3m en miles de personas — solo convertimos a
-// personas crudas (× 1000) para la convención 'thousands' del dashboard
-// (ver lib/format.ts), sin derivar nada nosotros (ver lección 13).
-async function fetchEmploymentChange(): Promise<Observation[]> {
-  const res = await fetch(EMPLOYMENT_CHANGE_ONS_URI, { headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' } });
-  if (!res.ok) throw new Error(`ONS FV2A: HTTP ${res.status}`);
+// Fetcher genérico para series mensuales del ONS (dataset LMS). monthShift
+// corrige el desfase de convención de fecha descrito en la lección 14:
+// las series LFS de 3 meses móviles (MGSX, FV2A) fechan por el mes MEDIO
+// de la ventana (shift 1 → mes final, la convención de investing.com/FRED);
+// las de Average Weekly Earnings (KAC3, KAI9) ya fechan por el mes final
+// (shift 0).
+async function fetchOnsSeries(uri: string, monthShift: number): Promise<{ date: string; value: number }[]> {
+  const res = await fetch(uri, { headers: { 'User-Agent': 'Mozilla/5.0 (HikmanDashboard sync bot)' } });
+  if (!res.ok) throw new Error(`ONS: HTTP ${res.status} (${uri})`);
   const json = (await res.json()) as { months?: OnsMonthPoint[] };
   const months = json.months ?? [];
-  if (months.length === 0) throw new Error('ONS FV2A: respuesta sin datos mensuales (¿cambió el endpoint?)');
+  if (months.length === 0) throw new Error(`ONS: respuesta sin datos mensuales (¿cambió el endpoint?) (${uri})`);
   return months
     .map((m) => {
       const mm = ONS_MONTHS[m.month];
-      if (!mm) throw new Error(`ONS FV2A: mes no reconocido "${m.month}"`);
-      return { date: `${m.year}-${mm}-01`, value: Number(m.value) * 1000 };
+      if (!mm) throw new Error(`ONS: mes no reconocido "${m.month}"`);
+      const d = new Date(Date.UTC(Number(m.year), Number(mm) - 1 + monthShift, 1));
+      const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      return { date, value: Number(m.value) };
     })
     .filter((o) => !Number.isNaN(o.value))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-BACKFILL_MONTHS);
+}
+
+// MGSX reporta el porcentaje en unidades enteras (4.9), no fracción —
+// dividimos por 100 para la convención 'pct1' del dashboard.
+async function fetchUnemploymentRate(): Promise<Observation[]> {
+  const obs = await fetchOnsSeries(UNEMPLOYMENT_ONS_URI, 1);
+  return obs.map((o) => ({ date: o.date, value: o.value / 100 }));
+}
+
+// FV2A ya es la variación 3m/3m en miles de personas — solo convertimos a
+// personas crudas (× 1000) para la convención 'thousands' del dashboard
+// (ver lib/format.ts), sin derivar nada nosotros.
+async function fetchEmploymentChange(): Promise<Observation[]> {
+  const obs = await fetchOnsSeries(EMPLOYMENT_CHANGE_ONS_URI, 1);
+  return obs.map((o) => ({ date: o.date, value: o.value * 1000 }));
+}
+
+// KAC3/KAI9 reportan el % interanual en unidades enteras — dividimos por
+// 100 para la convención 'pct' del dashboard.
+async function fetchWageGrowth(uri: string): Promise<Observation[]> {
+  const obs = await fetchOnsSeries(uri, 0);
+  return obs.map((o) => ({ date: o.date, value: o.value / 100 }));
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -180,26 +220,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!fredKey) {
-    const error = 'Falta la variable de entorno FRED_API_KEY en Vercel.';
-    errors.push({ indicatorId: TRADE_BALANCE_INDICATOR_ID, error });
-    errors.push({ indicatorId: UNEMPLOYMENT_INDICATOR_ID, error });
+    errors.push({ indicatorId: TRADE_BALANCE_INDICATOR_ID, error: 'Falta la variable de entorno FRED_API_KEY en Vercel.' });
   } else {
     try {
       await syncSeries(TRADE_BALANCE_INDICATOR_ID, await fetchTradeBalance(fredKey));
     } catch (err) {
       errors.push({ indicatorId: TRADE_BALANCE_INDICATOR_ID, error: (err as Error).message });
     }
-    try {
-      await syncSeries(UNEMPLOYMENT_INDICATOR_ID, await fetchUnemploymentRate(fredKey));
-    } catch (err) {
-      errors.push({ indicatorId: UNEMPLOYMENT_INDICATOR_ID, error: (err as Error).message });
-    }
+  }
+
+  try {
+    await syncSeries(UNEMPLOYMENT_INDICATOR_ID, await fetchUnemploymentRate());
+  } catch (err) {
+    errors.push({ indicatorId: UNEMPLOYMENT_INDICATOR_ID, error: (err as Error).message });
   }
 
   try {
     await syncSeries(EMPLOYMENT_CHANGE_INDICATOR_ID, await fetchEmploymentChange());
   } catch (err) {
     errors.push({ indicatorId: EMPLOYMENT_CHANGE_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(WAGE_INCL_BONUS_INDICATOR_ID, await fetchWageGrowth(WAGE_INCL_BONUS_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: WAGE_INCL_BONUS_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(WAGE_EXCL_BONUS_INDICATOR_ID, await fetchWageGrowth(WAGE_EXCL_BONUS_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: WAGE_EXCL_BONUS_INDICATOR_ID, error: (err as Error).message });
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });
