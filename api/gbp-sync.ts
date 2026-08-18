@@ -179,10 +179,11 @@ async function fetchEmploymentChange(): Promise<Observation[]> {
 }
 
 // KAC3/KAI9 reportan el % interanual en unidades enteras — dividimos por
-// 100 para la convención 'pct' del dashboard.
+// 100 para la convención 'pct' del dashboard (redondeado a 4 decimales
+// para evitar el ruido de coma flotante de ej. 4.1 / 100).
 async function fetchWageGrowth(uri: string): Promise<Observation[]> {
   const obs = await fetchOnsSeries(uri, 0);
-  return obs.map((o) => ({ date: o.date, value: o.value / 100 }));
+  return obs.map((o) => ({ date: o.date, value: Math.round((o.value / 100) * 10000) / 10000 }));
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
