@@ -89,12 +89,19 @@ import type { IndicatorMeta } from '../types';
 //    CSV) — mismo motivo que dejó la Balanza Comercial manual (lección 4),
 //    con el agravante de que cada archivo trae una ventana móvil de solo 9
 //    trimestres (hay que combinar varios releases para el histórico
-//    completo). Queda de carga manual. Histórico 2016 T1–2026 T1 (41
-//    trimestres) reconstruido a mano desde 5 releases oficiales de Stats NZ
-//    (Tabla "Outputs, All Industries", ref. SQU900000), verificado: +0.8%
-//    t/t para el primer trimestre de 2026, coincide exacto con el
-//    comunicado oficial ("The output producers price index (PPI) rose 0.8
-//    percent in the March 2026 quarter").
+//    completo). Queda de carga manual.
+//
+//    Ronda inicial: se agregó solo nzd_ppi (Outputs, ref. SQU900000).
+//    El usuario aclaró (19-ago-2026, con captura de investing.com) que
+//    sigue AMBAS medidas — PPI Input y PPI Output, las dos trimestrales —
+//    y que ese mismo día ya había salido el dato del T2-2026. Se
+//    renombraron los indicadores existentes a nzd_ppi_output/_yoy y se
+//    agregó nzd_ppi_input/_yoy (Inputs, ref. SQN900000 — misma tabla
+//    "Business price indexes", hojas 2.02/2.03 en vez de 1.02/1.03).
+//    Histórico 2016 T1–2026 T2 (42 trimestres) reconstruido a mano desde 5
+//    releases oficiales de Stats NZ. Verificado contra el release del
+//    T2-2026: Output +1.6% t/t / +3.2% a/a, Input +2.9% t/t / +4.1% a/a —
+//    coincide exacto con investing.com.
 export const NZD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBNZ — una sola tasa (Official Cash Rate), como el resto de los
   // bancos centrales no-USD. Sin fuente automatizable (ver lección 1) —
@@ -146,9 +153,9 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
       'Variación del CPI respecto al mismo trimestre del año anterior. Stats NZ no publica esta tasa directo — se deriva del índice de nivel comparando 4 trimestres atrás. Verificado: 4.06% para el segundo trimestre de 2026, coincide con lo reportado por agregadores (~4.1%).',
   },
   {
-    id: 'nzd_ppi',
-    label: 'PPI (Índice de Precios al Productor, t/t)',
-    shortLabel: 'PPI',
+    id: 'nzd_ppi_output',
+    label: 'PPI Output (t/t)',
+    shortLabel: 'PPI Output',
     section: 'inflacion',
     format: 'pct1',
     frequency: 'quarterly',
@@ -158,12 +165,12 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/methods/producers-price-index-weights/',
     goodDirection: 'neutral',
     description:
-      'Variación trimestral del PPI de salida (Outputs) de Nueva Zelanda, todas las industrias. Stats NZ solo publica este release en XLSX (sin CSV) con ventana móvil de 9 trimestres por archivo — carga manual, ver lección 9. Verificado: +0.8% para el primer trimestre de 2026, coincide con el comunicado oficial.',
+      'Variación trimestral del PPI de salida (Outputs) de Nueva Zelanda, todas las industrias — el mismo nombre que usa investing.com ("PPI Output QoQ"). Stats NZ solo publica este release en XLSX (sin CSV) con ventana móvil de 9 trimestres por archivo — carga manual, ver lección 9. Verificado: +1.6% para el segundo trimestre de 2026, coincide exacto con el comunicado oficial.',
   },
   {
-    id: 'nzd_ppi_yoy',
-    label: 'PPI Interanual (a/a)',
-    shortLabel: 'PPI a/a',
+    id: 'nzd_ppi_output_yoy',
+    label: 'PPI Output Interanual (a/a)',
+    shortLabel: 'PPI Output a/a',
     section: 'inflacion',
     format: 'pct',
     frequency: 'quarterly',
@@ -173,7 +180,37 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.stats.govt.nz/methods/producers-price-index-weights/',
     goodDirection: 'neutral',
     description:
-      'PPI de salida respecto al mismo trimestre del año anterior. Stats NZ publica esta tasa ya calculada en el mismo release. Carga manual — ver lección 9. Verificado: +2.2% para el primer trimestre de 2026.',
+      'PPI de salida respecto al mismo trimestre del año anterior. Stats NZ publica esta tasa ya calculada en el mismo release. Carga manual — ver lección 9. Verificado: +3.2% para el segundo trimestre de 2026.',
+  },
+  {
+    id: 'nzd_ppi_input',
+    label: 'PPI Input (t/t)',
+    shortLabel: 'PPI Input',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Producers Price Index, Inputs — All Industries, ref. SQN900000)',
+    sourceUrl: 'https://www.stats.govt.nz/methods/producers-price-index-weights/',
+    goodDirection: 'neutral',
+    description:
+      'Variación trimestral del PPI de entrada (Inputs) de Nueva Zelanda, todas las industrias — el mismo nombre que usa investing.com ("PPI Input QoQ"). Mismas limitaciones de fuente que PPI Output (XLSX sin CSV) — carga manual, ver lección 9. Verificado: +2.9% para el segundo trimestre de 2026, coincide exacto con el comunicado oficial.',
+  },
+  {
+    id: 'nzd_ppi_input_yoy',
+    label: 'PPI Input Interanual (a/a)',
+    shortLabel: 'PPI Input a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Producers Price Index, Inputs — All Industries, ref. SQN900000)',
+    sourceUrl: 'https://www.stats.govt.nz/methods/producers-price-index-weights/',
+    goodDirection: 'neutral',
+    description:
+      'PPI de entrada respecto al mismo trimestre del año anterior. Stats NZ publica esta tasa ya calculada en el mismo release. Carga manual — ver lección 9. Verificado: +4.1% para el segundo trimestre de 2026.',
   },
   // Empleo — HLFS trimestral. Sin automatizar (ver lección 3) — carga
   // manual.
