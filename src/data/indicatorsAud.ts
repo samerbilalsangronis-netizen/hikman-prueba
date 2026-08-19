@@ -77,6 +77,18 @@ import type { IndicatorMeta } from '../types';
 //    que usa el tablero del profesor del usuario como "subyacente" mes a
 //    mes. Se agregó como aud_core_cpi_monthly_yoy, solo el a/a (no se
 //    pidió el m/m, aunque también existe en la API con MEASURE=2).
+//
+// 9. **Wage Price Index — a pedido del usuario (ago-2026), se verificó si
+//    la API lo tenía disponible antes de agregarlo.** Dataflow `WPI`,
+//    key MEASURE.INDEX.SECTOR.INDUSTRY.TSEST.REGION.FREQ. Trampa: el
+//    índice "titular" que reporta la prensa es THRPEB ("Total hourly
+//    rates of pay excluding bonuses"), NO OHRPEB ("Ordinary time hourly
+//    rates") — probado primero con OHRPEB porque aparece primero en el
+//    codelist (CL_WPI_PCI, orden 10), pero esa combinación NO tiene datos
+//    desestacionalizados (TSEST=20) vía la API, solo "Original" — con
+//    Original daba +0.6% t/t para el T2-2026, que NO coincide con el
+//    comunicado oficial desestacionalizado (+0.8% t/t / +3.2% a/a). Con
+//    THRPEB + TSEST=20 sí está disponible y coincide exacto.
 export const AUD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBA — una sola tasa (cash rate target), como la Fed/BoE/BoC.
   {
@@ -247,6 +259,36 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release',
     goodDirection: 'up',
     description: 'Variación mensual del empleo total, en miles de personas. Verificado: +40.3k para mayo-2026.',
+  },
+  {
+    id: 'aud_wage_price_index',
+    label: 'Wage Price Index (t/t)',
+    shortLabel: 'WPI',
+    section: 'empleo',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'AUD',
+    source: 'Australian Bureau of Statistics (Wage Price Index, total hourly rates excl. bonos, desestacionalizado)',
+    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/wage-price-index-australia/latest-release',
+    goodDirection: 'up',
+    description:
+      'El índice salarial titular de Australia — mide la variación trimestral de las tasas de pago por hora (total, excluyendo bonos), desestacionalizado. Automatizado — ver lección 7. Verificado: +0.8% t/t para el segundo trimestre de 2026, coincide exacto con el comunicado oficial del ABS.',
+  },
+  {
+    id: 'aud_wage_price_index_yoy',
+    label: 'Wage Price Index Interanual (a/a)',
+    shortLabel: 'WPI a/a',
+    section: 'empleo',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'AUD',
+    source: 'Australian Bureau of Statistics (Wage Price Index, total hourly rates excl. bonos, desestacionalizado)',
+    sourceUrl: 'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/wage-price-index-australia/latest-release',
+    goodDirection: 'up',
+    description:
+      'Wage Price Index respecto al mismo trimestre del año anterior — la cifra de "crecimiento salarial anual" que suele citar la prensa. Automatizado — ver lección 7. Verificado: +3.2% a/a para el segundo trimestre de 2026, coincide exacto con el comunicado oficial del ABS.',
   },
   // Confianza — sin API pública (encuestas privadas, NAB / Westpac-Melbourne
   // Institute), igual que el resto de las divisas.

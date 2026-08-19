@@ -185,6 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'aud_core_cpi', 'aud_core_cpi_yoy',
     'aud_weighted_median', 'aud_weighted_median_yoy',
     'aud_ppi_qoq', 'aud_ppi_yoy', 'aud_gdp_qoq', 'aud_gdp_yoy',
+    'aud_wage_price_index', 'aud_wage_price_index_yoy',
   ]);
 
   async function cleanupOffCycleRows(indicatorId: string) {
@@ -232,6 +233,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     { id: 'aud_ppi_yoy', run: () => pctSeries('PPI_FD', '3.TOT.TOT.TOTXE.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_unemployment', run: () => pctSeries('LF', 'M13.3.1599.20.AUS.M', ABS_START_PERIOD_M) },
     { id: 'aud_employment_change', run: employmentChangeSeries },
+    // Wage Price Index — headline THRPEB ("Total hourly rates of pay
+    // excluding bonuses"), no OHRPEB (ver indicatorsAud.ts lección 9: solo
+    // THRPEB tiene la versión desestacionalizada, TSEST=20, vía esta API).
+    { id: 'aud_wage_price_index', run: () => pctSeries('WPI', '2.THRPEB.7.TOT.20.AUS.Q', ABS_START_PERIOD_Q) },
+    { id: 'aud_wage_price_index_yoy', run: () => pctSeries('WPI', '3.THRPEB.7.TOT.20.AUS.Q', ABS_START_PERIOD_Q) },
     { id: 'aud_retail_sales', run: () => pctSeries('HSI_M', '8.TOT.CUR.20.AUS.M', ABS_START_PERIOD_M) },
     { id: 'aud_retail_sales_yoy', run: () => pctSeries('HSI_M', '9.TOT.CUR.20.AUS.M', ABS_START_PERIOD_M) },
     { id: 'aud_gdp_qoq', run: () => pctSeries('ANA_AGG', 'M2.GPM.20.AUS.Q', ABS_START_PERIOD_Q) },
