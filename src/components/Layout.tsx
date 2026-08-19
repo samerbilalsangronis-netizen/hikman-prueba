@@ -14,6 +14,7 @@ import type { Currency } from '../types';
 function navFor(currency: Currency) {
   const items: { to: string; label: string; end?: boolean }[] = [
     { to: '/panel-control', label: '📊 Panel de Control' },
+    { to: '/analisis-economico', label: '📈 Análisis Económico' },
     { to: '/', label: 'Resumen', end: true },
     { to: '/titulares', label: 'Titulares' },
     { to: '/fortaleza', label: '💪 Fortaleza' },

@@ -18,6 +18,7 @@ import { Actualizar } from './pages/Actualizar';
 import { PanelControl } from './pages/PanelControl';
 import { Alemania } from './pages/Alemania';
 import { Francia } from './pages/Francia';
+import { EconomicAnalysis } from './pages/EconomicAnalysis';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -33,6 +34,7 @@ function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="panel-control" element={<PanelControl />} />
+              <Route path="analisis-economico" element={<EconomicAnalysis />} />
               <Route index element={<Dashboard />} />
               <Route path="tasas" element={<Tasas />} />
               <Route path="inflacion" element={<Inflacion />} />
