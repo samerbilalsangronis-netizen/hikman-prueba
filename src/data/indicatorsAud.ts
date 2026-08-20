@@ -89,6 +89,21 @@ import type { IndicatorMeta } from '../types';
 //    Original daba +0.6% t/t para el T2-2026, que NO coincide con el
 //    comunicado oficial desestacionalizado (+0.8% t/t / +3.2% a/a). Con
 //    THRPEB + TSEST=20 sí está disponible y coincide exacto.
+//
+// 10. **Confianza del Consumidor Westpac-Melbourne Institute — a pedido
+//     del usuario (ago-2026), se verificó si la API lo tenía disponible
+//     antes de agregar el histórico.** Es una encuesta PRIVADA (Westpac +
+//     Melbourne Institute), no un dato de la ABS/RBA — no vive en ninguna
+//     API pública: ni ABS Data API (no es estadística oficial de
+//     gobierno), ni RBA (no la republica), ni FRED (solo tiene proxies de
+//     la OCDE — "Composite Consumer Confidence" — que NO son la serie
+//     real). El histórico completo (desde 1974) requiere una suscripción
+//     paga al Melbourne Institute. Queda de carga manual — se reconstruyó
+//     a mano un tramo reciente (jun-2024 aislado + mar-2025 a jun-2026
+//     continuo, 17 puntos) desde los boletines públicos gratuitos que
+//     Westpac sí publica cada mes (PDF) y coberturas de prensa
+//     especializada, verificando cada punto por consistencia de %m/m
+//     encadenado entre múltiples fuentes independientes.
 export const AUD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBA — una sola tasa (cash rate target), como la Fed/BoE/BoC.
   {
@@ -339,7 +354,8 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     source: 'Westpac-Melbourne Institute',
     sourceUrl: 'https://www.westpaciq.com.au/economics/category/consumer-sentiment',
     goodDirection: 'up',
-    description: 'Índice de sentimiento del consumidor Westpac-Melbourne Institute. Sin API pública — carga manual.',
+    description:
+      'Índice de sentimiento del consumidor Westpac-Melbourne Institute. Encuesta privada, sin API pública — carga manual, ver lección 10. Histórico reconstruido a mano desde los boletines públicos de Westpac y prensa especializada, verificado por consistencia de %m/m entre fuentes.',
   },
   // Crecimiento — PMI van acá (actividad, no confianza pura).
   {
