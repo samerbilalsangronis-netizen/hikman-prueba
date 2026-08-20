@@ -196,6 +196,19 @@ async function fetchCgpi(): Promise<{ level: Map<string, number>; yoyDirect: Map
 // muestra el Dashboard de e-Stat bajo el mismo nombre (esa es de balanza de
 // pagos — ver lección 4 en indicatorsJpy.ts). Formato: "YYYY/MM,Exp,Imp" en
 // miles de yenes; los meses todavía no publicados vienen con "0,0".
+//
+// lección (ago-2026): el usuario reportó "salió hace unos instantes, no se
+// ha actualizado" para julio-2026. Verificado contra el comunicado oficial
+// (customs.go.jp/toukei/shinbun/happyou_e.htm, "Jul.2026 Aug.20.2026(Prov.)"):
+// el dato SÍ estaba publicado (Exports 11,511,798M / Imports 12,146,298M /
+// Balance -634,500M, todo en millones de yenes) — pero este CSV resumen
+// (d41ma.csv) todavía traía "0,0" para julio varias horas después del
+// comunicado oficial. Es un desfase real de publicación entre el press
+// release de Aduanas y este archivo CSV en particular, no un bug del
+// pipeline. Se cargó el punto de julio-2026 como stopgap verificado en
+// historical-series.json (mismo patrón que UMCSENT de USD) — el sync
+// normal lo confirma/sobreescribe con el mismo valor en cuanto el CSV se
+// actualice.
 async function fetchTradeBalance(): Promise<Observation[]> {
   const res = await fetch('https://www.customs.go.jp/toukei/suii/html/data/d41ma.csv', { headers: { 'User-Agent': USER_AGENT } });
   if (!res.ok) throw new Error(`Aduanas de Japón: HTTP ${res.status}`);
