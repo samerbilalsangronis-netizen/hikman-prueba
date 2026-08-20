@@ -104,6 +104,17 @@ import type { IndicatorMeta } from '../types';
 //     Westpac sí publica cada mes (PDF) y coberturas de prensa
 //     especializada, verificando cada punto por consistencia de %m/m
 //     encadenado entre múltiples fuentes independientes.
+//
+//     El usuario reportó que "no coincide, la diferencia es absurda" tras
+//     ver su captura de investing.com (evento "Westpac Consumer Sentiment
+//     (Aug)": 6.0% actual, 4.1% previo). La causa: investing.com reporta
+//     este evento como la VARIACIÓN MENSUAL (%), no el nivel del índice —
+//     comparar 6.0% contra un nivel ~80-100 es la "diferencia absurda"
+//     que vio. aud_consumer_confidence (nivel) queda igual, y se agrega
+//     aud_consumer_confidence_mom (%m/m) como el indicador que realmente
+//     coincide con investing.com. Verificado contra el boletín de julio-
+//     2026 de Westpac y prensa especializada: jul-2026 +4.1% a 83.9,
+//     ago-2026 +6.0% a 88.9 — coincide exacto.
 export const AUD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBA — una sola tasa (cash rate target), como la Fed/BoE/BoC.
   {
@@ -355,7 +366,22 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.westpaciq.com.au/economics/category/consumer-sentiment',
     goodDirection: 'up',
     description:
-      'Índice de sentimiento del consumidor Westpac-Melbourne Institute. Encuesta privada, sin API pública — carga manual, ver lección 10. Histórico reconstruido a mano desde los boletines públicos de Westpac y prensa especializada, verificado por consistencia de %m/m entre fuentes.',
+      'Índice de sentimiento del consumidor Westpac-Melbourne Institute (nivel). Encuesta privada, sin API pública — carga manual, ver lección 10. Histórico reconstruido a mano desde los boletines públicos de Westpac y prensa especializada, verificado por consistencia de %m/m entre fuentes.',
+  },
+  {
+    id: 'aud_consumer_confidence_mom',
+    label: 'Confianza del Consumidor (m/m)',
+    shortLabel: 'Conf. Consumidor m/m',
+    section: 'confianza',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'AUD',
+    source: 'Westpac-Melbourne Institute',
+    sourceUrl: 'https://www.westpaciq.com.au/economics/category/consumer-sentiment',
+    goodDirection: 'up',
+    description:
+      'Variación mensual del índice de sentimiento del consumidor Westpac-Melbourne Institute — la cifra que efectivamente reporta investing.com para este evento (no el nivel del índice). Encuesta privada, sin API pública — carga manual, ver lección 10. Verificado: +6.0% para agosto-2026, coincide exacto con investing.com.',
   },
   // Crecimiento — PMI van acá (actividad, no confianza pura).
   {
