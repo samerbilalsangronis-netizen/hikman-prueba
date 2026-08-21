@@ -42,7 +42,7 @@ const CNY_AUTO_COVERED = new Set(CNY_AUTO_INDICATOR_IDS);
 
 function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
-  const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast, getReleaseStage } = useMacroData();
+  const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast, clearForecast, getReleaseStage } = useMacroData();
   const points = getSeries(id);
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
@@ -53,6 +53,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
   const [saving, setSaving] = useState(false);
   const [forecastInput, setForecastInput] = useState('');
   const [savingForecast, setSavingForecast] = useState(false);
+  const [clearingForecast, setClearingForecast] = useState(false);
 
   // Etapa del último punto realmente cargado (si se especificó una) — cae a
   // la etapa fija del indicador para los que todavía no cargaron nada con
@@ -96,6 +97,13 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
     setSavingForecast(true);
     await updateForecast(id, stored);
     setSavingForecast(false);
+    setForecastInput('');
+  }
+
+  async function handleClearForecast() {
+    setClearingForecast(true);
+    await clearForecast(id);
+    setClearingForecast(false);
     setForecastInput('');
   }
 
@@ -205,6 +213,17 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
           >
             {savingForecast ? '…' : 'OK'}
           </button>
+          {currentForecast !== undefined && (
+            <button
+              onClick={handleClearForecast}
+              disabled={clearingForecast}
+              title="Quitar la previsión — el próximo release no tiene forecast de consenso"
+              className="rounded-md px-1.5 py-1 text-xs font-semibold disabled:opacity-40"
+              style={{ color: 'var(--status-critical)', border: '1px solid var(--border)' }}
+            >
+              {clearingForecast ? '…' : '✕'}
+            </button>
+          )}
         </div>
       </td>
       {isFred ? (

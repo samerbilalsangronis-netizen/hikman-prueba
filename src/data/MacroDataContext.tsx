@@ -245,6 +245,7 @@ interface MacroDataContextValue {
   updateScoreValoracion: (id: string, valoracion: number) => Promise<void>;
   forecasts: ForecastMap;
   updateForecast: (id: string, value: number) => Promise<void>;
+  clearForecast: (id: string) => Promise<void>;
   fomcWatch: FomcWatchMap;
   updateFomcWatch: (meetingDate: string, probabilities: FomcProbabilities) => Promise<void>;
   bankerNotes: BankerNotesMap;
@@ -679,6 +680,22 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     }
     setForecasts((prev) => {
       const next = { ...prev, [id]: value };
+      if (!supabaseEnabled) localStorage.setItem(FORECASTS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // El dato real ya salió y no hay previsión vigente para el próximo
+  // release (ej. un PMI que se publicó sin forecast de consenso) — borra
+  // la fila en vez de dejar la previsión anterior mostrándose como si
+  // siguiera vigente en las tarjetas del dashboard.
+  const clearForecast = useCallback(async (id: string) => {
+    if (supabaseEnabled && supabase) {
+      await supabase.from('indicator_forecasts').delete().eq('indicator_id', id);
+    }
+    setForecasts((prev) => {
+      const next = { ...prev };
+      delete next[id];
       if (!supabaseEnabled) localStorage.setItem(FORECASTS_KEY, JSON.stringify(next));
       return next;
     });
@@ -1139,6 +1156,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateScoreValoracion,
       forecasts,
       updateForecast,
+      clearForecast,
       fomcWatch,
       updateFomcWatch,
       bankerNotes,
@@ -1185,6 +1203,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       updateScoreValoracion,
       forecasts,
       updateForecast,
+      clearForecast,
       fomcWatch,
       updateFomcWatch,
       bankerNotes,
