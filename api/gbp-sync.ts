@@ -45,6 +45,15 @@ import { createClient } from '@supabase/supabase-js';
 //     SÍ fechan por el mes final directamente (sin desfase) — verificado:
 //     KAC3 jun-2026 = 4.1% y KAI9 jun-2026 = 3.5%, coinciden exacto con
 //     investing.com.
+//
+// lección 15 (ago-2026): Ventas Minoristas (m/m y nueva a/a, headline y
+// subyacente) se agregan vía ONS dataset DRSI ("Retail Sales Index"), un
+// id DISTINTO al "retail-sales-index" viejo que se había verificado
+// congelado — no es la misma fuente re-chequeada. CDIDs J5EC/J5EB (all
+// retail inc fuel, VOL SA, m/m y a/a) y J45W/J45U (ex fuel). Fechan por el
+// mes real directamente, sin el desfase de ventana móvil de las series
+// LFS — verificado: -0.5% m/m para julio-2026, coincide exacto con el
+// comunicado oficial del ONS.
 const BOE_INDICATOR_ID = 'gbp_boe_rate';
 const BOE_SERIES_CODE = 'IUDBEDR';
 const BOE_IADB_URL = 'https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp';
@@ -59,6 +68,19 @@ const WAGE_INCL_BONUS_INDICATOR_ID = 'gbp_wage_incl_bonus_yoy';
 const WAGE_INCL_BONUS_ONS_URI = `${ONS_LMS_BASE}/peopleinwork/earningsandworkinghours/timeseries/kac3/lms`;
 const WAGE_EXCL_BONUS_INDICATOR_ID = 'gbp_wage_excl_bonus_yoy';
 const WAGE_EXCL_BONUS_ONS_URI = `${ONS_LMS_BASE}/peopleinwork/earningsandworkinghours/timeseries/kai9/lms`;
+// Dataset DRSI ("Retail Sales Index") — distinto del "retail-sales-index"
+// congelado que se verificó meses atrás (ver lección 15). CDIDs "All
+// Business", volumen, desestacionalizado — fechan por el mes real, sin el
+// desfase de ventana móvil de las series LFS (MGSX/FV2A).
+const ONS_RETAIL_BASE = 'https://api.beta.ons.gov.uk/v1/data?uri=/businessindustryandtrade/retailindustry/timeseries';
+const RETAIL_SALES_INDICATOR_ID = 'gbp_retail_sales';
+const RETAIL_SALES_ONS_URI = `${ONS_RETAIL_BASE}/j5ec/drsi`; // All retail inc fuel, VOL SA, m/m
+const RETAIL_SALES_YOY_INDICATOR_ID = 'gbp_retail_sales_yoy';
+const RETAIL_SALES_YOY_ONS_URI = `${ONS_RETAIL_BASE}/j5eb/drsi`; // All retail inc fuel, VOL SA, a/a
+const CORE_RETAIL_SALES_INDICATOR_ID = 'gbp_core_retail_sales';
+const CORE_RETAIL_SALES_ONS_URI = `${ONS_RETAIL_BASE}/j45w/drsi`; // All retail ex fuel, VOL SA, m/m
+const CORE_RETAIL_SALES_YOY_INDICATOR_ID = 'gbp_core_retail_sales_yoy';
+const CORE_RETAIL_SALES_YOY_ONS_URI = `${ONS_RETAIL_BASE}/j45u/drsi`; // All retail ex fuel, VOL SA, a/a
 const BACKFILL_MONTHS = 36;
 
 interface Observation {
@@ -178,10 +200,12 @@ async function fetchEmploymentChange(): Promise<Observation[]> {
   return obs.map((o) => ({ date: o.date, value: o.value * 1000 }));
 }
 
-// KAC3/KAI9 reportan el % interanual en unidades enteras — dividimos por
-// 100 para la convención 'pct' del dashboard (redondeado a 4 decimales
-// para evitar el ruido de coma flotante de ej. 4.1 / 100).
-async function fetchWageGrowth(uri: string): Promise<Observation[]> {
+// Series del ONS que ya fechan por el mes final directamente (sin el
+// desfase de ventana móvil de las LFS) y reportan el % en unidades enteras
+// — dividimos por 100 (redondeado a 4 decimales para evitar el ruido de
+// coma flotante de ej. 4.1 / 100). Usado para salarios (KAC3/KAI9) y
+// ventas minoristas (J5EC/J5EB/J45W/J45U, dataset DRSI).
+async function fetchOnsPctDirect(uri: string): Promise<Observation[]> {
   const obs = await fetchOnsSeries(uri, 0);
   return obs.map((o) => ({ date: o.date, value: Math.round((o.value / 100) * 10000) / 10000 }));
 }
@@ -243,15 +267,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await syncSeries(WAGE_INCL_BONUS_INDICATOR_ID, await fetchWageGrowth(WAGE_INCL_BONUS_ONS_URI));
+    await syncSeries(WAGE_INCL_BONUS_INDICATOR_ID, await fetchOnsPctDirect(WAGE_INCL_BONUS_ONS_URI));
   } catch (err) {
     errors.push({ indicatorId: WAGE_INCL_BONUS_INDICATOR_ID, error: (err as Error).message });
   }
 
   try {
-    await syncSeries(WAGE_EXCL_BONUS_INDICATOR_ID, await fetchWageGrowth(WAGE_EXCL_BONUS_ONS_URI));
+    await syncSeries(WAGE_EXCL_BONUS_INDICATOR_ID, await fetchOnsPctDirect(WAGE_EXCL_BONUS_ONS_URI));
   } catch (err) {
     errors.push({ indicatorId: WAGE_EXCL_BONUS_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(RETAIL_SALES_INDICATOR_ID, await fetchOnsPctDirect(RETAIL_SALES_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: RETAIL_SALES_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(RETAIL_SALES_YOY_INDICATOR_ID, await fetchOnsPctDirect(RETAIL_SALES_YOY_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: RETAIL_SALES_YOY_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(CORE_RETAIL_SALES_INDICATOR_ID, await fetchOnsPctDirect(CORE_RETAIL_SALES_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: CORE_RETAIL_SALES_INDICATOR_ID, error: (err as Error).message });
+  }
+
+  try {
+    await syncSeries(CORE_RETAIL_SALES_YOY_INDICATOR_ID, await fetchOnsPctDirect(CORE_RETAIL_SALES_YOY_ONS_URI));
+  } catch (err) {
+    errors.push({ indicatorId: CORE_RETAIL_SALES_YOY_INDICATOR_ID, error: (err as Error).message });
   }
 
   res.status(200).json({ updated, errors, syncedAt: new Date().toISOString() });

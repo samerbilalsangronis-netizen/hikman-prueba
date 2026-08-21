@@ -14,9 +14,12 @@ import type { IndicatorMeta } from '../types';
 // next_release anunciado (27-mar-2026) ya pasó. Automatizar contra eso
 // arriesgaría mostrar un dato viejo sin avisar — el bug exacto que este
 // proyecto existe para evitar. Pero no TODO el ONS beta está congelado —
-// ver lecciones 13/14 (el dataset LMS sí está vivo). Automatizables:
-// gbp_boe_rate, gbp_trade_balance, gbp_unemployment, gbp_employment_change,
-// gbp_wage_incl_bonus_yoy y gbp_wage_excl_bonus_yoy (ver api/gbp-sync.ts).
+// ver lecciones 13/14/15 (LMS y DRSI sí están vivos; "retail-sales-index",
+// el dataset viejo, es un id DISTINTO al DRSI actual — no es la misma
+// fuente re-verificada, es un dataset nuevo). Automatizables: gbp_boe_rate,
+// gbp_trade_balance, gbp_unemployment, gbp_employment_change,
+// gbp_wage_incl_bonus_yoy, gbp_wage_excl_bonus_yoy, gbp_retail_sales(_yoy)
+// y gbp_core_retail_sales(_yoy) (ver api/gbp-sync.ts).
 //
 // lección 12 (ago-2026): el usuario reportó "datos de empleo faltantes"
 // (evolución trimestral del empleo, evolución del desempleo). Investigado:
@@ -55,6 +58,21 @@ import type { IndicatorMeta } from '../types';
 // Se agregó además gbp_wage_incl_bonus_yoy / gbp_wage_excl_bonus_yoy (no
 // tenían ninguna automatización) vía ONS KAC3/KAI9 — estas SÍ fechan por
 // el mes final directamente, sin el desfase de las series LFS.
+//
+// lección 15 (ago-2026): el usuario pidió actualizar Ventas Minoristas,
+// agregar la interanual y buscar el histórico completo. gbp_retail_sales/
+// gbp_core_retail_sales estaban de carga manual — se investigó de nuevo si
+// había API disponible (el header de este archivo decía que el dataset de
+// ventas minoristas del ONS estaba congelado, verificado meses atrás bajo
+// el id "retail-sales-index"). Resultó que el dataset VIVO actual tiene
+// otro id, "DRSI" ("Retail Sales Index"), con releaseDate del mismo día
+// (20-ago-2026) — no es el mismo dataset frozen re-chequeado, es uno
+// distinto. Se automatizaron los 4 indicadores (m/m y a/a, headline y
+// subyacente) vía ONS DRSI (CDID J5EC/J5EB/J45W/J45U — todas "All
+// Business", volumen, desestacionalizado). A diferencia de las series LFS
+// (lección 14), DRSI fecha cada punto por el mes real sin desfase de
+// ventana móvil — no hace falta ningún shift. Verificado contra el
+// comunicado oficial de julio-2026: -0.5% m/m headline, coincide exacto.
 export const GBP_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoE — a diferencia de la Fed y el BCE, el BoE mueve una sola
   // tasa (Bank Rate), no un corredor. Único indicador GBP automatizado.
@@ -385,10 +403,24 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'GBP',
-    source: 'Office for National Statistics',
-    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
+    source: 'Office for National Statistics (dataset DRSI, CDID J5EC)',
+    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j5ec/drsi',
     goodDirection: 'up',
-    description: 'Variación mensual de ventas minoristas del Reino Unido. Sin API confiable — carga manual.',
+    description: 'Variación mensual del volumen de ventas minoristas del Reino Unido (todo el comercio, incl. combustible, desestacionalizado). Automatizado directo desde la API del ONS — ver lección 15. Verificado: -0.5% para julio-2026, coincide exacto con el comunicado oficial.',
+  },
+  {
+    id: 'gbp_retail_sales_yoy',
+    label: 'Ventas Minoristas Interanual (a/a)',
+    shortLabel: 'Ventas Min. a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'GBP',
+    source: 'Office for National Statistics (dataset DRSI, CDID J5EB)',
+    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j5eb/drsi',
+    goodDirection: 'up',
+    description: 'Ventas minoristas respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +1.6% para julio-2026.',
   },
   {
     id: 'gbp_core_retail_sales',
@@ -399,10 +431,24 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'bar',
     currency: 'GBP',
-    source: 'Office for National Statistics',
-    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
+    source: 'Office for National Statistics (dataset DRSI, CDID J45W)',
+    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j45w/drsi',
     goodDirection: 'up',
-    description: 'Ventas minoristas excluyendo combustible. Carga manual.',
+    description: 'Ventas minoristas excluyendo combustible. Automatizado directo desde la API del ONS — ver lección 15. Verificado: -0.9% para julio-2026.',
+  },
+  {
+    id: 'gbp_core_retail_sales_yoy',
+    label: 'Ventas Minoristas Subyacentes Interanual (a/a)',
+    shortLabel: 'Ventas Subyac. a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'GBP',
+    source: 'Office for National Statistics (dataset DRSI, CDID J45U)',
+    sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j45u/drsi',
+    goodDirection: 'up',
+    description: 'Ventas minoristas subyacentes respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +2.3% para julio-2026.',
   },
   {
     id: 'gbp_productivity',
