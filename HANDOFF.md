@@ -1,16 +1,121 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **2-ago-2026**, actualizado al cierre de la
-sesión de ese día (la continuación directa de la tanda larga del
-1-ago tarde/noche — mismo chat, sin cortar). Pega este archivo completo
-(o pedile a Claude que lo lea desde el repo) al abrir el chat nuevo —
-está pensado para ser autocontenido. El documento es largo y crece
-cronológicamente (sesión por sesión, sin borrar nada viejo) — si solo
-hace falta agarrar viaje rápido, leer esta sección y la de
-**"## Sesión 2-ago-2026: ..."** más abajo (la más nueva) alcanza; el
-resto queda como referencia histórica por divisa/feature.
+Fecha de este resumen: **21-ago-2026**, actualizado al cierre de la
+sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
+lea desde el repo) al abrir el chat nuevo — está pensado para ser
+autocontenido. El documento es largo y crece cronológicamente (sesión
+por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
+rápido, leer esta sección alcanza; el resto queda como referencia
+histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 2-ago-2026
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 21-ago-2026
+
+Todo mergeado y en producción en ambas ramas
+(`claude/ecstatic-planck-a1xlnr` y `claude/macro-usd-web-dashboard-xm5ypk`
+— este repo las mantiene en paralelo, hay que pushear a las dos). Sesión
+larga con muchas rondas puntuales pedidas por el usuario en el chat
+(no un solo tema) — resumen por ronda:
+
+- **GBP — empleo/desempleo/salarios, tres rondas seguidas**:
+  1) `gbp_unemployment` tenía carga manual con fechas desalineadas
+     respecto a su propio período (y un valor erróneo) — se automatizó
+     vía FRED, y se agregó `gbp_employment_change` (nuevo, derivado de
+     FRED como nivel trimestral).
+  2) El usuario corrigió: "Evolución del Empleo" debía ser MENSUAL
+     (investing.com la publica como "Employment Change 3M/3M (MoM)"),
+     no trimestral — se reemplazó por la serie nativa del ONS (dataset
+     LMS, CDID FV2A) que ya es esa variación 3m/3m publicada
+     mensualmente.
+  3) El usuario reportó todo "atrasado un mes" — causa real: FRED
+     republica con semanas de retraso frente al ONS directo, y las
+     series LFS de 3 meses móviles del ONS (MGSX/FV2A) fechan por el
+     MES MEDIO de su ventana, no el mes final (convención de
+     investing.com/FRED) — se migró `gbp_unemployment` a ONS MGSX
+     directo y se corrigió el desfase sumando 1 mes al parsear. Se
+     agregaron también `gbp_wage_incl_bonus_yoy`/`gbp_wage_excl_bonus_yoy`
+     (no tenían ninguna automatización) vía ONS KAC3/KAI9 — estas SÍ
+     fechan por el mes final, sin el desfase de las LFS.
+  Todo esto documentado como lecciones 12/13/14 en `indicatorsGbp.ts`
+  y `api/gbp-sync.ts`.
+- **NZD PPI**: agregado a pedido del usuario, verificando primero si
+  había API (no — es XLSX del ONS de Nueva Zelanda sin CSV, mismo
+  motivo que la Balanza Comercial). Se cargó a mano con histórico
+  reconstruido desde varios releases oficiales. Ronda siguiente: el
+  usuario aclaró que sigue AMBAS medidas (Input y Output, no solo
+  Output) y que el dato del día ya había salido — se renombraron los
+  indicadores a `nzd_ppi_output(_yoy)` y se agregó `nzd_ppi_input(_yoy)`,
+  histórico actualizado al trimestre más reciente. Ver lección 9 en
+  `indicatorsNzd.ts`.
+- **AUD Wage Price Index**: agregado y automatizado vía ABS Data API
+  (dataflow WPI). Trampa real encontrada: el índice que aparece primero
+  en el catálogo del ABS (OHRPEB) NO tiene versión desestacionalizada
+  vía la API — el índice titular que reporta la prensa es THRPEB
+  ("Total hourly rates..."), que sí la tiene. Ver lección 9 en
+  `indicatorsAud.ts`.
+- **AUD Confianza del Consumidor (Westpac-MI)**: agregada con histórico
+  reciente reconstruido a mano (encuesta privada, sin API pública — ni
+  ABS/RBA la tienen, FRED solo tiene proxies OCDE que no son la serie
+  real). Ronda siguiente: el usuario reportó "no coincide, diferencia
+  absurda" contra investing.com — causa real: investing.com reporta
+  este evento como VARIACIÓN MENSUAL (%), no el nivel del índice (que
+  ronda 80-100) — se agregó `aud_consumer_confidence_mom` sin tocar el
+  indicador de nivel existente. Ver lección 10 en `indicatorsAud.ts`.
+- **Bugs de "no se actualizó" reportados por el usuario, ambos eran
+  desfases reales de publicación, no bugs del pipeline**:
+  - JPY Balanza Comercial de julio-2026: el comunicado oficial de
+    Aduanas de Japón ya estaba publicado, pero el CSV resumen del que
+    depende el sync (`d41ma.csv`) todavía no se había regenerado horas
+    después — se cargó el dato verificado como stopgap (mismo patrón
+    que UMCSENT de USD en sesiones anteriores).
+  - JPY Inflación de julio-2026: el dato ya había salido pero el cron
+    de GitHub Actions todavía no había corrido — se disparó el sync
+    manualmente y confirmó sin errores.
+- **GBP Ventas Minoristas**: automatizadas (antes manuales) y se
+  agregó la interanual (a/a) que no existía, a pedido del usuario. El
+  header del módulo decía que el dataset de ventas minoristas del ONS
+  estaba congelado ("retail-sales-index", verificado meses atrás) —
+  resultó ser un id DISTINTO al dataset vivo actual ("DRSI"). 4
+  indicadores automatizados (m/m y a/a, headline y subyacente) con
+  histórico completo. Ver lección 15 en `indicatorsGbp.ts` /
+  `api/gbp-sync.ts`.
+- **Bug de UI real encontrado y corregido: no había forma de BORRAR una
+  previsión manual cargada** (`indicator_forecasts`) — solo se podía
+  sobreescribir con un valor nuevo, nunca vaciarla, así que una
+  previsión vieja quedaba mostrándose en la tarjeta indefinidamente
+  aunque el dato real ya hubiera salido sin forecast de consenso (caso
+  real: los PMIs de AUD). Se agregó `clearForecast` en
+  `MacroDataContext` y un botón "✕" en Actualizar.tsx junto al de
+  guardar previsión.
+- **Feature nueva: fecha de PUBLICACIÓN, separada de la fecha de
+  PERÍODO** — pedido explícito del usuario (ej. un CPI de julio
+  publicado en agosto). Actualizar.tsx ahora tiene dos selectores de
+  fecha independientes ("Período" y "Publicado"); para indicadores
+  automatizados se usa `updated_at` de Supabase como aproximación (no
+  requiere tocar los sync jobs). La tarjeta (`ChartCard`) muestra
+  "Publicado DD/MM/YYYY" cuando hay fecha disponible.
+  **⚠️ Pendiente sin confirmar: hay que correr en Supabase > SQL Editor
+  la migración `supabase/migration_2026-08-21_published_at.sql`**
+  (agrega la columna `indicator_overrides.published_at`) — no quedó
+  confirmado en el chat que el usuario ya la corrió. Sin esa columna,
+  el campo "Publicado" de la carga manual no se guarda (el fallback a
+  `updated_at` para los automatizados sí funciona igual, porque esa
+  columna ya existía).
+- **Bug de zona horaria en la fecha de publicación**: mostraba el día
+  en UTC en vez de UTC-4 (hora del usuario) — cerca de la medianoche
+  UTC ya mostraba el día siguiente. Corregido tanto el "hoy" por
+  defecto del selector como la conversión de `updated_at` para los
+  automatizados (`isoTimestampToUtcMinus4Date` en `MacroDataContext`).
+
+**Pendiente explícito para la próxima sesión**:
+- Confirmar que la migración `migration_2026-08-21_published_at.sql` se
+  corrió en Supabase (ver arriba) — si no, el campo "Publicado" manual
+  no persiste aunque la UI no tire error.
+- Nada más quedó abierto explícitamente — todas las rondas de esta
+  sesión se cerraron verificadas end-to-end (build → commit → push a
+  las 2 ramas → deploy en Vercel confirmado por hash de bundle →
+  sync disparado manualmente → dato confirmado en Supabase).
+
+## Estado al cierre de la sesión anterior (2-ago-2026)
 
 Todo mergeado y en producción (`claude/macro-usd-web-dashboard-xm5ypk`).
 Resumen de lo que se hizo esta sesión (detalle completo en las
