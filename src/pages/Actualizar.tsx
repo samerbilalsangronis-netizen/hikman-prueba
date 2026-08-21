@@ -40,6 +40,15 @@ const JPY_AUTO_COVERED = new Set(JPY_AUTO_INDICATOR_IDS);
 const CHF_AUTO_COVERED = new Set(CHF_AUTO_INDICATOR_IDS);
 const CNY_AUTO_COVERED = new Set(CNY_AUTO_INDICATOR_IDS);
 
+// "Hoy" en UTC-4 (hora del usuario), no en UTC del navegador/servidor —
+// pedido explícito: cerca de la medianoche UTC, new Date().toISOString()
+// ya mostraba el día siguiente mientras en UTC-4 seguía siendo el día
+// anterior (ej. cargando a las 21:xx UTC-4 del 20-ago, que son las 01:xx
+// UTC del 21-ago).
+function todayUtcMinus4(): string {
+  return new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
 function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }) {
   const meta = INDICATORS.find((m) => m.id === id)!;
   const { getSeries, addPoint, removeLastPoint, forecasts, updateForecast, clearForecast, getReleaseStage } = useMacroData();
@@ -47,7 +56,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
   const freshness = getFreshness(points, meta.frequency);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayUtcMinus4();
   const [date, setDate] = useState(today);
   const [publishedDateInput, setPublishedDateInput] = useState(today);
   const [value, setValue] = useState('');

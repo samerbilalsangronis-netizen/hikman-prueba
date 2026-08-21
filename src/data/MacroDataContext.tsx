@@ -215,6 +215,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// Convierte un timestamp real de Supabase (updated_at, en UTC) a la fecha
+// que corresponde en UTC-4 — pedido explícito del usuario: cerca de la
+// medianoche UTC, el timestamp en UTC ya mostraba el día siguiente aunque
+// para el usuario (UTC-4) siguiera siendo el día anterior.
+function isoTimestampToUtcMinus4Date(iso: string): string {
+  const shifted = new Date(new Date(iso).getTime() - 4 * 3600 * 1000);
+  return shifted.toISOString().slice(0, 10);
+}
+
 function mergeSeries(base: SeriesPoint[], overrides: SeriesPoint[]): SeriesPoint[] {
   const map = new Map<string, number>();
   for (const [date, value] of base) map.set(date, value);
@@ -728,7 +737,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       const explicit = pointPublishedDates[id]?.[last[0]];
       if (explicit) return explicit;
       const updatedAt = pointUpdatedAt[id]?.[last[0]];
-      return updatedAt ? updatedAt.slice(0, 10) : undefined;
+      return updatedAt ? isoTimestampToUtcMinus4Date(updatedAt) : undefined;
     },
     [base, overrides, pointPublishedDates, pointUpdatedAt],
   );
