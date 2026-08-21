@@ -47,6 +47,14 @@ export interface RecentUpdate {
 
 type SeriesMap = Record<string, SeriesPoint[]>;
 type StageMap = Record<string, Record<string, 'preliminar' | 'final'>>; // id -> date -> stage
+// id -> date -> fecha de publicación (YYYY-MM-DD). Solo se llena a mano
+// (carga manual, ver Actualizar.tsx) — los indicadores automatizados no
+// escriben acá, usan pointUpdatedAt (el updated_at real de Supabase) como
+// aproximación de "cuándo se publicó" (ver getPublishedDate más abajo).
+type PublishedMap = Record<string, Record<string, string>>;
+// id -> date -> updated_at real de Supabase (solo existe si hay override
+// para ese punto — vacío para datos que solo viven en el seed estático).
+type UpdatedAtMap = Record<string, Record<string, string>>;
 type ForecastMap = Record<string, number>;
 type FomcWatchMap = Record<string, FomcProbabilities>;
 type BankerNotesMap = Record<string, BankerNote>;
@@ -55,6 +63,7 @@ type CentralBankNoteMap = Record<Currency, CentralBankNote>;
 
 const OVERRIDES_KEY = 'macro-dashboard:overrides:v1';
 const POINT_STAGES_KEY = 'macro-dashboard:point-stages:v1';
+const PUBLISHED_DATES_KEY = 'macro-dashboard:published-dates:v1';
 const SCORE_KEY = 'macro-dashboard:score:v1';
 const FORECASTS_KEY = 'macro-dashboard:forecasts:v1';
 const FOMC_WATCH_KEY = 'macro-dashboard:fomc-watch:v1';
@@ -98,6 +107,15 @@ function loadLocalPointStages(): StageMap {
   try {
     const raw = localStorage.getItem(POINT_STAGES_KEY);
     return raw ? (JSON.parse(raw) as StageMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadLocalPublishedDates(): PublishedMap {
+  try {
+    const raw = localStorage.getItem(PUBLISHED_DATES_KEY);
+    return raw ? (JSON.parse(raw) as PublishedMap) : {};
   } catch {
     return {};
   }
@@ -233,7 +251,7 @@ interface MacroDataContextValue {
   /** Puntos con override en Supabase, con su updated_at real (a diferencia de
    * SeriesPoint, que solo tiene fecha de período). Vacío en modo local. */
   recentUpdates: RecentUpdate[];
-  addPoint: (id: string, date: string, value: number, stage?: 'preliminar' | 'final') => Promise<void>;
+  addPoint: (id: string, date: string, value: number, stage?: 'preliminar' | 'final', publishedAt?: string) => Promise<void>;
   removeLastPoint: (id: string) => Promise<void>;
   /** Etapa (preliminar/final) del último punto cargado a mano para este id,
    * si se especificó una al cargarlo. `undefined` si el último punto no
@@ -241,6 +259,11 @@ interface MacroDataContextValue {
    * existiera este campo) — en ese caso el llamador debe usar
    * `IndicatorMeta.releaseStage` como valor por defecto. */
   getReleaseStage: (id: string) => 'preliminar' | 'final' | undefined;
+  /** Fecha de publicación (YYYY-MM-DD) del último punto de este indicador —
+   * explícita si se cargó a mano, o el updated_at de Supabase como
+   * aproximación para los automatizados. undefined si el punto solo vive
+   * en el seed estático. */
+  getPublishedDate: (id: string) => string | undefined;
   scoreRows: ScoreRow[];
   updateScoreValoracion: (id: string, valoracion: number) => Promise<void>;
   forecasts: ForecastMap;
@@ -295,6 +318,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
   // Queda vacío en modo local (sin Supabase), la Pizarra lo explica.
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [pointStages, setPointStages] = useState<StageMap>({});
+  const [pointPublishedDates, setPointPublishedDates] = useState<PublishedMap>({});
+  const [pointUpdatedAt, setPointUpdatedAt] = useState<UpdatedAtMap>({});
   const [scoreRows, setScoreRows] = useState<ScoreRow[]>(SCORE_SEED);
   const [forecasts, setForecasts] = useState<ForecastMap>({});
   const [fomcWatch, setFomcWatch] = useState<FomcWatchMap>({});
@@ -313,6 +338,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     if (!supabaseEnabled || !supabase) {
       setOverrides(loadLocalOverrides());
       setPointStages(loadLocalPointStages());
+      setPointPublishedDates(loadLocalPublishedDates());
       setScoreRows(loadLocalScore());
       setForecasts(loadLocalForecasts());
       setFomcWatch(loadLocalFomcWatch());
@@ -334,8 +360,8 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     // viendo "Cargando…" para siempre en vez de degradar con lo que haya.
     try {
     const [pointsRows, scoreRes, forecastsRes, fomcRes, bankerRes, centralBankRes, headlinesRes, biasRes, biasReasonsRes, biasHistoryRes, reportsRes, mentorNotesRes] = await withTimeout(Promise.all([
-      fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null; updated_at: string }>(async (from, to) =>
-        client.from('indicator_overrides').select('indicator_id, date, value, stage, updated_at').range(from, to),
+      fetchAllRows<{ indicator_id: string; date: string; value: number; stage: 'preliminar' | 'final' | null; updated_at: string; published_at: string | null }>(async (from, to) =>
+        client.from('indicator_overrides').select('indicator_id, date, value, stage, updated_at, published_at').range(from, to),
       ),
       supabase.from('score_overrides').select('id, valoracion'),
       supabase.from('indicator_forecasts').select('indicator_id, forecast'),
@@ -376,14 +402,20 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     {
       const map: SeriesMap = {};
       const stages: StageMap = {};
+      const published: PublishedMap = {};
+      const updatedAtMap: UpdatedAtMap = {};
       const recent: RecentUpdate[] = [];
       for (const row of pointsRows) {
         (map[row.indicator_id] ??= []).push([row.date, row.value]);
         if (row.stage) (stages[row.indicator_id] ??= {})[row.date] = row.stage;
+        if (row.published_at) (published[row.indicator_id] ??= {})[row.date] = row.published_at;
+        (updatedAtMap[row.indicator_id] ??= {})[row.date] = row.updated_at;
         recent.push({ indicatorId: row.indicator_id, date: row.date, value: row.value, updatedAt: row.updated_at });
       }
       setOverrides(map);
       setPointStages(stages);
+      setPointPublishedDates(published);
+      setPointUpdatedAt(updatedAtMap);
       setRecentUpdates(recent);
     }
 
@@ -611,24 +643,35 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
     [base, overrides],
   );
 
-  const addPoint = useCallback(async (id: string, date: string, value: number, stage?: 'preliminar' | 'final') => {
-    if (supabaseEnabled && supabase) {
-      await supabase.from('indicator_overrides').upsert({ indicator_id: id, date, value, stage: stage ?? null });
-    }
-    setOverrides((prev) => {
-      const next = { ...prev, [id]: [...(prev[id] ?? []).filter(([d]) => d !== date), [date, value] as SeriesPoint] };
-      if (!supabaseEnabled) localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
-      return next;
-    });
-    setPointStages((prev) => {
-      const forId = { ...(prev[id] ?? {}) };
-      if (stage) forId[date] = stage;
-      else delete forId[date];
-      const next = { ...prev, [id]: forId };
-      if (!supabaseEnabled) localStorage.setItem(POINT_STAGES_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const addPoint = useCallback(
+    async (id: string, date: string, value: number, stage?: 'preliminar' | 'final', publishedAt?: string) => {
+      if (supabaseEnabled && supabase) {
+        await supabase.from('indicator_overrides').upsert({ indicator_id: id, date, value, stage: stage ?? null, published_at: publishedAt ?? null });
+      }
+      setOverrides((prev) => {
+        const next = { ...prev, [id]: [...(prev[id] ?? []).filter(([d]) => d !== date), [date, value] as SeriesPoint] };
+        if (!supabaseEnabled) localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
+        return next;
+      });
+      setPointStages((prev) => {
+        const forId = { ...(prev[id] ?? {}) };
+        if (stage) forId[date] = stage;
+        else delete forId[date];
+        const next = { ...prev, [id]: forId };
+        if (!supabaseEnabled) localStorage.setItem(POINT_STAGES_KEY, JSON.stringify(next));
+        return next;
+      });
+      setPointPublishedDates((prev) => {
+        const forId = { ...(prev[id] ?? {}) };
+        if (publishedAt) forId[date] = publishedAt;
+        else delete forId[date];
+        const next = { ...prev, [id]: forId };
+        if (!supabaseEnabled) localStorage.setItem(PUBLISHED_DATES_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [],
+  );
 
   const removeLastPoint = useCallback(async (id: string) => {
     setOverrides((prev) => {
@@ -649,6 +692,13 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
         if (!supabaseEnabled) localStorage.setItem(POINT_STAGES_KEY, JSON.stringify(nextStages));
         return nextStages;
       });
+      setPointPublishedDates((prevPublished) => {
+        const forId = { ...(prevPublished[id] ?? {}) };
+        delete forId[removedDate];
+        const nextPublished = { ...prevPublished, [id]: forId };
+        if (!supabaseEnabled) localStorage.setItem(PUBLISHED_DATES_KEY, JSON.stringify(nextPublished));
+        return nextPublished;
+      });
       return next;
     });
   }, []);
@@ -661,6 +711,26 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       return pointStages[id]?.[last[0]];
     },
     [base, overrides, pointStages],
+  );
+
+  // Fecha de "publicación" del último punto cargado a mano — para
+  // indicadores automatizados no hay campo explícito, se aproxima con el
+  // updated_at real de Supabase (la fecha en la que este punto se escribió
+  // por primera vez en la tabla, que en la práctica coincide con cuándo lo
+  // sincronizamos desde la fuente). undefined si el punto solo vive en el
+  // seed estático (sin fila en indicator_overrides) — no hay de dónde
+  // sacar una fecha de publicación real en ese caso.
+  const getPublishedDate = useCallback(
+    (id: string): string | undefined => {
+      const points = mergeSeries(base[id] ?? [], overrides[id] ?? []);
+      const last = points[points.length - 1];
+      if (!last) return undefined;
+      const explicit = pointPublishedDates[id]?.[last[0]];
+      if (explicit) return explicit;
+      const updatedAt = pointUpdatedAt[id]?.[last[0]];
+      return updatedAt ? updatedAt.slice(0, 10) : undefined;
+    },
+    [base, overrides, pointPublishedDates, pointUpdatedAt],
   );
 
   const updateScoreValoracion = useCallback(async (id: string, valoracion: number) => {
@@ -1152,6 +1222,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       addPoint,
       removeLastPoint,
       getReleaseStage,
+      getPublishedDate,
       scoreRows,
       updateScoreValoracion,
       forecasts,
@@ -1199,6 +1270,7 @@ export function MacroDataProvider({ children }: { children: ReactNode }) {
       addPoint,
       removeLastPoint,
       getReleaseStage,
+      getPublishedDate,
       scoreRows,
       updateScoreValoracion,
       forecasts,

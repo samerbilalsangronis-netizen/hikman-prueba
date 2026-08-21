@@ -20,7 +20,7 @@ interface CountryPageProps {
 }
 
 export function CountryPage({ country, title }: CountryPageProps) {
-  const { getSeries, forecasts, getReleaseStage } = useMacroData();
+  const { getSeries, forecasts, getReleaseStage, getPublishedDate } = useMacroData();
   const { currency } = useCurrency();
   const items = indicatorsByCountry(country, currency);
   const sections = SECTION_ORDER.filter((section) => items.some((i) => i.section === section));
@@ -57,6 +57,7 @@ export function CountryPage({ country, title }: CountryPageProps) {
                     months={24}
                     forecast={forecasts[meta.id]}
                     releaseStage={getReleaseStage(meta.id) ?? meta.releaseStage}
+                    publishedDate={getPublishedDate(meta.id)}
                   />
                 ))}
             </div>

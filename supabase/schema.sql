@@ -11,6 +11,12 @@ create table if not exists indicator_overrides (
   -- porque el mismo id alterna preliminar/final mes a mes según el más
   -- reciente cargado — ver IndicatorMeta.releaseStage en src/types.ts.
   stage text check (stage in ('preliminar', 'final')),
+  -- Fecha en la que se PUBLICÓ este dato — distinta de `date` (el período
+  -- al que corresponde, ej. un CPI de julio publicado en agosto). Solo se
+  -- llena en la carga manual (Actualizar.tsx); para indicadores
+  -- automatizados queda NULL y el frontend usa `updated_at` (la fecha en
+  -- que este punto se escribió por primera vez) como aproximación.
+  published_at date,
   updated_at timestamptz not null default now(),
   primary key (indicator_id, date)
 );

@@ -8,10 +8,11 @@ interface SubcomponentModalProps {
   getSeries: (id: string) => SeriesPoint[];
   forecasts: Record<string, number>;
   getReleaseStage: (id: string) => 'preliminar' | 'final' | undefined;
+  getPublishedDate: (id: string) => string | undefined;
   onClose: () => void;
 }
 
-export function SubcomponentModal({ parent, children, getSeries, forecasts, getReleaseStage, onClose }: SubcomponentModalProps) {
+export function SubcomponentModal({ parent, children, getSeries, forecasts, getReleaseStage, getPublishedDate, onClose }: SubcomponentModalProps) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -60,6 +61,7 @@ export function SubcomponentModal({ parent, children, getSeries, forecasts, getR
               months={36}
               forecast={forecasts[child.id]}
               releaseStage={getReleaseStage(child.id) ?? child.releaseStage}
+              publishedDate={getPublishedDate(child.id)}
               compact
             />
           ))}

@@ -49,6 +49,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
   const freshness = getFreshness(points, meta.frequency);
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
+  const [publishedDateInput, setPublishedDateInput] = useState(today);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [forecastInput, setForecastInput] = useState('');
@@ -84,7 +85,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
     if (Number.isNaN(raw)) return;
     const stored = isPercentFormat ? raw / 100 : raw;
     setSaving(true);
-    await addPoint(id, date, stored, meta.releaseStage ? stageInput : undefined);
+    await addPoint(id, date, stored, meta.releaseStage ? stageInput : undefined, publishedDateInput || undefined);
     setSaving(false);
     setValue('');
     if (meta.releaseStage) setStageInput(stageInput === 'preliminar' ? 'final' : 'preliminar');
@@ -233,14 +234,33 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
       ) : (
         <>
           <td className="py-2.5 pr-3">
-            <div className="flex items-center gap-1">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-32 rounded-md px-2 py-1 text-sm"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              />
+            <div className="flex items-end gap-1">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                  Período
+                </span>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  title="Fecha del dato — el período al que corresponde (ej. 01/07/2026 para el CPI de julio)"
+                  className="w-32 rounded-md px-2 py-1 text-sm"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                  Publicado
+                </span>
+                <input
+                  type="date"
+                  value={publishedDateInput}
+                  onChange={(e) => setPublishedDateInput(e.target.value)}
+                  title="Fecha de publicación — cuándo salió este dato (puede ser distinta a la fecha del período, ej. un CPI de julio publicado en agosto)"
+                  className="w-32 rounded-md px-2 py-1 text-sm"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
               <input
                 type="number"
                 step="any"

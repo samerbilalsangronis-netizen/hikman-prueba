@@ -8,7 +8,7 @@ import { getFreshness } from '../lib/freshness';
 import { INDICATORS } from '../data/indicators';
 
 export function Dashboard() {
-  const { getSeries, scoreRows, updateScoreValoracion, forecasts, getReleaseStage } = useMacroData();
+  const { getSeries, scoreRows, updateScoreValoracion, forecasts, getReleaseStage, getPublishedDate } = useMacroData();
   const { currency } = useCurrency();
 
   const currencyIndicators = INDICATORS.filter((m) => (m.currency ?? 'USD') === currency);
@@ -57,6 +57,7 @@ export function Dashboard() {
                     months={24}
                     forecast={forecasts[meta.id]}
                     releaseStage={getReleaseStage(meta.id) ?? meta.releaseStage}
+                    publishedDate={getPublishedDate(meta.id)}
                   />
                 ))}
             </div>

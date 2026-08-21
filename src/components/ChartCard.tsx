@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import type { IndicatorMeta, SeriesPoint } from '../types';
-import { formatValue } from '../lib/format';
+import { formatValue, formatDate } from '../lib/format';
 import { getFreshness } from '../lib/freshness';
 import { FreshnessBadge } from './FreshnessBadge';
 import { IndicatorChart } from './IndicatorChart';
@@ -37,6 +37,11 @@ interface ChartCardProps {
   // el punto más reciente no tiene etapa propia registrada. Se pasa como
   // prop (no se lee el context acá adentro) para no romper el memo de abajo.
   releaseStage?: 'preliminar' | 'final';
+  // Fecha en la que se publicó el último dato (no la fecha de referencia
+  // del período — ej. un CPI de julio publicado en agosto). Explícita para
+  // cargas manuales, aproximada con updated_at de Supabase para las
+  // automatizadas. undefined si el punto solo vive en el seed estático.
+  publishedDate?: string;
   // Si el indicador tiene subcomponentes, tocar la tarjeta abre un modal con
   // el detalle (SubcomponentModal) en vez de expandir algo inline — ver
   // Crecimiento.tsx. childCount solo se usa para el badge "N subcomponentes".
@@ -47,7 +52,7 @@ interface ChartCardProps {
   compact?: boolean;
 }
 
-function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, subcomponentsControl, compact = false }: ChartCardProps) {
+function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, publishedDate, subcomponentsControl, compact = false }: ChartCardProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const stage = releaseStage ?? meta.releaseStage;
   const freshness = getFreshness(points, meta.frequency);
@@ -160,6 +165,15 @@ function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, sub
               </span>
             )}
           </span>
+          {publishedDate && (
+            <span
+              className="text-[9px] tabular-nums"
+              style={{ color: 'var(--text-muted)' }}
+              title={`Dato de ${last ? formatDate(last[0]) : '—'}, publicado el ${formatDate(publishedDate)}`}
+            >
+              Publicado {formatDate(publishedDate)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -220,6 +234,7 @@ function areEqual(prev: ChartCardProps, next: ChartCardProps): boolean {
     prev.months === next.months &&
     prev.forecast === next.forecast &&
     prev.releaseStage === next.releaseStage &&
+    prev.publishedDate === next.publishedDate &&
     prev.points.length === next.points.length &&
     samePoint(prev.points[prev.points.length - 1], next.points[next.points.length - 1]) &&
     samePoint(prev.points[prev.points.length - 2], next.points[next.points.length - 2]) &&
