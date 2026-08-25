@@ -7,7 +7,9 @@ import { inflateRawSync } from 'node:zlib';
 // /api por separado y no rastrea imports que cruzan a /src).
 //
 // NZD se sincroniza desde CSV públicos de Stats NZ (sin key) — CPI, PIB y
-// Ventas Minoristas (Electronic Card Transactions). El RBNZ está bloqueado
+// Ventas Minoristas (tanto Electronic Card Transactions como el Retail
+// Trade Survey trimestral — son dos series distintas, ver lección 10 en
+// indicatorsNzd.ts). El RBNZ está bloqueado
 // para fetch automatizado (Cloudflare devuelve 403 en todo el dominio) —
 // OCR queda manual. Desempleo/Empleo (HLFS) y Balanza Comercial también
 // quedan manuales — ver indicatorsNzd.ts para el detalle de cada decisión.
@@ -141,6 +143,27 @@ async function fetchLatestQuarterlyText(
     const url = buildUrl(year, monthName);
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
     if (res.ok) return { text: await res.text(), year, month };
+    lastError = `HTTP ${res.status} en ${url}`;
+  }
+  throw new Error(`No se encontró release trimestral reciente de Stats NZ (${lastError})`);
+}
+
+async function fetchLatestQuarterlyZipCsv(
+  buildUrl: (year: number, monthName: string) => string,
+  maxBack = 5,
+): Promise<{ text: string; year: number; month: number }> {
+  const start = currentQuarterEnd(new Date());
+  let lastError = '';
+  for (let back = 0; back <= maxBack; back++) {
+    const { year, month } = shiftQuarterEnd(start.year, start.month, back);
+    const monthName = MONTH_NAMES[month - 1];
+    const url = buildUrl(year, monthName);
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      const csvBuf = extractSingleCsvFromZip(buf);
+      return { text: csvBuf.toString('utf-8'), year, month };
+    }
     lastError = `HTTP ${res.status} en ${url}`;
   }
   throw new Error(`No se encontró release trimestral reciente de Stats NZ (${lastError})`);
@@ -320,6 +343,45 @@ function retailSalesMomSeries(pctChange: Map<string, number>): Observation[] {
   return [...pctChange.entries()].map(([period, value]) => ({ date: periodDotToDate(period), value })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// --- Ventas Minoristas — Retail Trade Survey (trimestral) — "Retail Sales
+// (QoQ)"/"Core Retail Sales (QoQ)" de investing.com, distinto de la ECT de
+// arriba (ver lección 10 en indicatorsNzd.ts). A diferencia de la Balanza
+// Comercial/PPI, este release sí trae un ZIP con CSV (mismo patrón que ECT)
+// — headline "All industries total" (RTTQ.SF9KSPC t/t, RTTQ.SF9KAAC a/a) y
+// "core" (RTTQ.SF1KSPC t/t, RTTQ.SF1KAAC a/a), ambas en volumen (deflactado,
+// base set-2010), desestacionalizado para el t/t.
+
+async function fetchRtsSeries(): Promise<{
+  totalQoq: Map<string, number>;
+  totalYoy: Map<string, number>;
+  coreQoq: Map<string, number>;
+  coreYoy: Map<string, number>;
+}> {
+  const { text } = await fetchLatestQuarterlyZipCsv(
+    (year, monthName) =>
+      `https://www.stats.govt.nz/assets/Uploads/Retail-trade-survey/Retail-trade-survey-${monthName}-${year}-quarter/Download-data/retail-trade-survey-${monthName.toLowerCase()}-${year}-quarter.zip`,
+  );
+  const totalQoq = new Map<string, number>();
+  const totalYoy = new Map<string, number>();
+  const coreQoq = new Map<string, number>();
+  const coreYoy = new Map<string, number>();
+  for (const line of text.split('\n')) {
+    const cols = parseCsvLine(line);
+    const ref = cols[0];
+    const period = cols[1];
+    const value = Number(cols[2]);
+    if (!period || Number.isNaN(value)) continue;
+    if (ref === 'RTTQ.SF9KSPC') totalQoq.set(period, value / 100);
+    if (ref === 'RTTQ.SF9KAAC') totalYoy.set(period, value / 100);
+    if (ref === 'RTTQ.SF1KSPC') coreQoq.set(period, value / 100);
+    if (ref === 'RTTQ.SF1KAAC') coreYoy.set(period, value / 100);
+  }
+  if (totalQoq.size === 0 || totalYoy.size === 0 || coreQoq.size === 0 || coreYoy.size === 0) {
+    throw new Error('Retail Trade Survey: no se encontraron todas las series esperadas (RTTQ.SF9KSPC/SF9KAAC/SF1KSPC/SF1KAAC)');
+  }
+  return { totalQoq, totalYoy, coreQoq, coreYoy };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -350,6 +412,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let cpiLevel: Map<string, number> | undefined;
   let gdpLevel: Map<string, number> | undefined;
   let ect: Awaited<ReturnType<typeof fetchEctSeries>> | undefined;
+  let rts: Awaited<ReturnType<typeof fetchRtsSeries>> | undefined;
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     {
@@ -392,6 +455,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () => {
         ect ??= await fetchEctSeries();
         return retailSalesMomSeries(ect.totalYoy);
+      },
+    },
+    {
+      id: 'nzd_retail_sales',
+      run: async () => {
+        rts ??= await fetchRtsSeries();
+        return retailSalesMomSeries(rts.totalQoq);
+      },
+    },
+    {
+      id: 'nzd_retail_sales_yoy',
+      run: async () => {
+        rts ??= await fetchRtsSeries();
+        return retailSalesMomSeries(rts.totalYoy);
+      },
+    },
+    {
+      id: 'nzd_retail_sales_core',
+      run: async () => {
+        rts ??= await fetchRtsSeries();
+        return retailSalesMomSeries(rts.coreQoq);
+      },
+    },
+    {
+      id: 'nzd_retail_sales_core_yoy',
+      run: async () => {
+        rts ??= await fetchRtsSeries();
+        return retailSalesMomSeries(rts.coreYoy);
       },
     },
   ];

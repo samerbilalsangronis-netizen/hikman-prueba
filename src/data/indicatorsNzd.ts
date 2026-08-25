@@ -102,6 +102,22 @@ import type { IndicatorMeta } from '../types';
 //    releases oficiales de Stats NZ. Verificado contra el release del
 //    T2-2026: Output +1.6% t/t / +3.2% a/a, Input +2.9% t/t / +4.1% a/a —
 //    coincide exacto con investing.com.
+//
+// 10. "Retail Sales (QoQ)"/"Core Retail Sales (QoQ)" de investing.com NO son
+//     la ECT (leccion 8) — son el Retail Trade Survey (RTS) trimestral, que
+//     a pedido del usuario (25-ago-2026) se agrego AL LADO de "Ventas
+//     Minoristas con Tarjeta de Credito" (se mantiene esa, son dos cosas
+//     distintas que investing.com reporta por separado). A diferencia de la
+//     Balanza Comercial/PPI (lecciones 4/9), este release SI trae un ZIP
+//     con CSV en vez de solo XLSX — se pudo automatizar igual que ECT. Las
+//     series correctas son volumen (deflactado, base set-2010),
+//     desestacionalizado para el t/t y sin ajustar para el a/a (Stats NZ no
+//     publica un a/a desestacionalizado, mismo criterio que el resto de las
+//     divisas): RTTQ.SF9KSPC/SF9KAAC ("All industries total") para el
+//     headline y RTTQ.SF1KSPC/SF1KAAC ("Core industries total") para el
+//     core. Verificado contra el release del T2-2026: headline -0.5% t/t
+//     (anterior +1.0%), core +0.7% t/t (anterior +1.1%) — coincide exacto
+//     con investing.com.
 export const NZD_INDICATORS: IndicatorMeta[] = [
   // Tasas / RBNZ — una sola tasa (Official Cash Rate), como el resto de los
   // bancos centrales no-USD. Sin fuente automatizable (ver lección 1) —
@@ -528,6 +544,70 @@ export const NZD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'Gasto minorista con tarjeta electrónica respecto al mismo mes del año anterior — Stats NZ publica esta tasa ya calculada (no se deriva de un nivel). Verificado: +3.4% para julio-2026, coincide exacto con investing.com.',
+  },
+  // "Retail Sales (QoQ)" / "Core Retail Sales (QoQ)" de investing.com — el
+  // Retail Trade Survey trimestral de Stats NZ, distinto de la Electronic
+  // Card Transactions de arriba (ver lección 10). Volumen (deflactado,
+  // desestacionalizado para el t/t).
+  {
+    id: 'nzd_retail_sales',
+    label: 'Ventas Minoristas — Retail Trade Survey (t/t)',
+    shortLabel: 'Ventas Min. (RTS)',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Retail Trade Survey, "All industries total", volumen desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-and-wholesale-trade/',
+    goodDirection: 'up',
+    description:
+      'Variación trimestral del volumen de ventas minoristas totales (todas las industrias, deflactado y desestacionalizado) — "Retail Sales (QoQ)" en investing.com. Verificado: -0.5% para el segundo trimestre de 2026, coincide exacto con investing.com.',
+  },
+  {
+    id: 'nzd_retail_sales_yoy',
+    label: 'Ventas Minoristas — Retail Trade Survey Interanual (a/a)',
+    shortLabel: 'Ventas Min. (RTS) a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Retail Trade Survey, "All industries total", volumen)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-and-wholesale-trade/',
+    goodDirection: 'up',
+    description:
+      'Volumen de ventas minoristas totales respecto al mismo trimestre del año anterior — Stats NZ publica esta tasa ya calculada (no se deriva de un nivel).',
+  },
+  {
+    id: 'nzd_retail_sales_core',
+    label: 'Ventas Minoristas Core — Retail Trade Survey (t/t)',
+    shortLabel: 'Ventas Min. Core (RTS)',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'NZD',
+    source: 'Stats NZ (Retail Trade Survey, "Core industries total", volumen desestacionalizado)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-and-wholesale-trade/',
+    goodDirection: 'up',
+    description:
+      'Variación trimestral del volumen de ventas minoristas "core" (excluye vehículos/combustible, deflactado y desestacionalizado) — "Core Retail Sales (QoQ)" en investing.com. Verificado: +0.7% para el segundo trimestre de 2026, coincide exacto con investing.com.',
+  },
+  {
+    id: 'nzd_retail_sales_core_yoy',
+    label: 'Ventas Minoristas Core — Retail Trade Survey Interanual (a/a)',
+    shortLabel: 'Ventas Min. Core (RTS) a/a',
+    section: 'crecimiento',
+    format: 'pct',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'NZD',
+    source: 'Stats NZ (Retail Trade Survey, "Core industries total", volumen)',
+    sourceUrl: 'https://www.stats.govt.nz/topics/retail-and-wholesale-trade/',
+    goodDirection: 'up',
+    description:
+      'Volumen de ventas minoristas "core" (excluye vehículos/combustible) respecto al mismo trimestre del año anterior — Stats NZ publica esta tasa ya calculada (no se deriva de un nivel).',
   },
   {
     id: 'nzd_gdp_qoq',
