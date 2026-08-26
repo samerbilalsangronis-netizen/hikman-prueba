@@ -300,7 +300,8 @@ const USD_INDICATORS: IndicatorMeta[] = [
     source: 'The Conference Board',
     sourceUrl: 'https://www.conference-board.org/topics/consumer-confidence',
     goodDirection: 'up',
-    description: 'Encuesta de confianza del consumidor del Conference Board. Sin API pública — carga manual.',
+    description:
+      'Encuesta de confianza del consumidor del Conference Board. Sin API pública — carga manual (verificado de nuevo 25-ago-2026: FRED solo tiene un proxy de la OCDE, no la serie real). Verificado: 89.4 para agosto-2026, coincide con investing.com.',
   },
   {
     id: 'nfib',
