@@ -164,6 +164,23 @@ import type { IndicatorMeta } from '../types';
 //     Privado -0.0% (primera caída en 8 trimestres), Inversión (Capital
 //     Expenditure / 民間企業設備) -1.2% (coincide exacto con investing.com),
 //     Gasto Público +1.6%.
+//
+// 12. **El "Corporate Services Price Index" (CSPI) que reporta
+//     investing.com NO es el mismo dato que jpy_ppi** — a pedido del
+//     usuario (26-ago-2026), que preguntó por la diferencia al ver un
+//     dato nuevo en el calendario. El CGPI (Corporate Goods Price Index,
+//     serie PR01, ya agregado como "PPI") mide precios de BIENES
+//     transados entre empresas; el CSPI (Corporate Services Price Index,
+//     serie PR02) mide precios de SERVICIOS transados entre empresas
+//     (transporte, publicidad, leasing, financieros, etc.) — canasta y
+//     release completamente separados del BOJ, mismo sitio/formato de CSV
+//     plano (`stat-search.boj.or.jp/ssi/mtshtml/csv/pr02_m_1.csv`). La
+//     primera columna de datos es "総平均（前年比）" (promedio total,
+//     a/a, YA calculado — el "Japan CSPI y/y" de la prensa); la quinta es
+//     su nivel (2020=100), del que se deriva el m/m (igual limitación que
+//     CGPI/CPI, el BOJ no publica el m/m como serie separada). Verificado:
+//     3.6% a/a para julio-2026, coincide exacto con investing.com (venía
+//     de 3.4% en junio).
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -315,6 +332,43 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'neutral',
     description:
       'CGPI doméstico total respecto al mismo mes del año anterior — a diferencia del resto de PPI de esta app, este a/a lo publica el BOJ ya calculado (no se deriva). Verificado: 7.2% para julio-2026, coincide exacto con lo reportado (bajó desde 7.3% en junio).',
+  },
+  // Corporate Services Price Index (CSPI, 企業向けサービス価格指数) — a
+  // pedido del usuario (26-ago-2026). NO es el mismo dato que jpy_ppi de
+  // arriba: el CGPI (PR01) mide precios de BIENES transados entre empresas,
+  // el CSPI (PR02) mide precios de SERVICIOS transados entre empresas
+  // (transporte, publicidad, leasing, financieros, etc.) — canasta y
+  // release separados del BOJ, ver lección 12. Se agrega junto al PPI, sin
+  // reemplazarlo.
+  {
+    id: 'jpy_cspi',
+    label: 'CSPI (Índice de Precios de Servicios Corporativos, m/m)',
+    shortLabel: 'CSPI',
+    section: 'inflacion',
+    format: 'pct1',
+    frequency: 'monthly',
+    chart: 'bar',
+    currency: 'JPY',
+    source: 'Bank of Japan (Corporate Services Price Index, serie PR02, promedio total)',
+    sourceUrl: 'https://www.stat-search.boj.or.jp/index_en.html',
+    goodDirection: 'neutral',
+    description:
+      'Variación mensual del Corporate Services Price Index (CSPI) — precios de servicios transados entre empresas (transporte, publicidad, leasing, financieros, etc.), distinto del CGPI (jpy_ppi, que es de bienes). Se deriva del nivel — el BOJ no publica el % m/m como serie separada.',
+  },
+  {
+    id: 'jpy_cspi_yoy',
+    label: 'CSPI Interanual (a/a)',
+    shortLabel: 'CSPI a/a',
+    section: 'inflacion',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'line',
+    currency: 'JPY',
+    source: 'Bank of Japan (Corporate Services Price Index, serie PR02, promedio total)',
+    sourceUrl: 'https://www.stat-search.boj.or.jp/index_en.html',
+    goodDirection: 'neutral',
+    description:
+      'CSPI (promedio total) respecto al mismo mes del año anterior — el BOJ lo publica ya calculado (no se deriva). Verificado: 3.6% para julio-2026, coincide exacto con investing.com (venía de 3.4% en junio).',
   },
   // Empleo
   {

@@ -190,6 +190,42 @@ async function fetchCgpi(): Promise<{ level: Map<string, number>; yoyDirect: Map
   return { level, yoyDirect };
 }
 
+// --- BOJ Time-Series Data Search — Corporate Services Price Index (CSPI) --
+
+// Distinto del CGPI de arriba: el CSPI (企業向けサービス価格指数, serie
+// PR02) mide precios de SERVICIOS transados entre empresas (transporte,
+// publicidad, leasing, financieros, etc.), no de bienes — ver lección 12 en
+// indicatorsJpy.ts. Mismo sitio/formato que PR01, pero el CSV trae 8
+// columnas de datos por fila (4 tasas a/a ya calculadas + 4 niveles, base
+// 2020=100): la 1ra es "総平均（前年比）" (promedio total, a/a, YA
+// calculado — el "Japan CSPI y/y" de la prensa) y la 5ta es su nivel, del
+// que se deriva el m/m (el BOJ no publica el m/m ya calculado, misma
+// limitación que CGPI/CPI).
+async function fetchCspi(): Promise<{ level: Map<string, number>; yoyDirect: Map<string, number> }> {
+  const res = await fetch('https://www.stat-search.boj.or.jp/ssi/mtshtml/csv/pr02_m_1.csv', { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`BOJ PR02 (CSPI): HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const text = new TextDecoder('utf-8').decode(buf);
+  const level = new Map<string, number>();
+  const yoyDirect = new Map<string, number>();
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(\d{4})\/(\d{2}),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)\s*$/);
+    if (!m) continue;
+    const [, y, mo, yoyStr, , , , levelStr] = m;
+    const date = `${y}-${mo}-01`;
+    if (yoyStr !== '') {
+      const v = Number(yoyStr);
+      if (!Number.isNaN(v)) yoyDirect.set(date, v);
+    }
+    if (levelStr !== '') {
+      const v = Number(levelStr);
+      if (!Number.isNaN(v)) level.set(date, v);
+    }
+  }
+  if (level.size === 0) throw new Error('BOJ PR02 (CSPI): no se encontraron filas de datos en el CSV');
+  return { level, yoyDirect };
+}
+
 // --- Aduanas de Japón / Ministry of Finance (CSV público, sin key) ---------
 
 // Balanza comercial real (exportaciones menos importaciones), NO la que
@@ -297,6 +333,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let gdpLevel: Map<string, number> | undefined;
   let retailLevel: Map<string, number> | undefined;
   let cgpi: Awaited<ReturnType<typeof fetchCgpi>> | undefined;
+  let cspi: Awaited<ReturnType<typeof fetchCspi>> | undefined;
 
   const jobs: { id: string; run: () => Promise<Observation[]> }[] = [
     { id: 'jpy_boj_rate', run: fetchBojRate },
@@ -402,6 +439,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () => {
         cgpi ??= await fetchCgpi();
         return directPctSeries(cgpi.yoyDirect);
+      },
+    },
+    {
+      id: 'jpy_cspi',
+      run: async () => {
+        cspi ??= await fetchCspi();
+        return pctChangeSeries(cspi.level, 1);
+      },
+    },
+    {
+      id: 'jpy_cspi_yoy',
+      run: async () => {
+        cspi ??= await fetchCspi();
+        return directPctSeries(cspi.yoyDirect);
       },
     },
     {
