@@ -751,18 +751,31 @@ const USD_INDICATORS: IndicatorMeta[] = [
   // cambio del PIB real" (NIPA tabla 1.1.2), ya en FRED, automático.
   // Verificado Q2-2026: 2.12+0.53-0.14-1.01 = 1.50pp, coincide exacto con
   // gdp_qoq (1.5%) — la suma de las 4 contribuciones da el headline.
+  //
+  // EXCEPCIÓN: gdp_consumption (abajo) a pedido del usuario (26-ago-2026)
+  // se reemplazó por la tasa de crecimiento REAL del consumo (NIPA tabla
+  // 1.1.1, DPCERL1Q225SBEA) — dejó de ser una contribución en pp. El
+  // usuario preguntó por qué no coincidía con el "Real Consumer Spending"
+  // que reporta investing.com (3.4% para el T2-2026): esa cifra es la tasa
+  // de crecimiento "cruda", antes de ponderarla por el peso del consumo en
+  // el PIB (~68%) — la vieja contribución en pp (2.31pp) es esa misma
+  // historia pero en otra unidad (3.4% × 0.68 ≈ 2.31pp), no un error. Con
+  // este cambio, gdp_investment/gdp_government/gdp_net_exports siguen
+  // siendo contribuciones — solo gdp_consumption es ahora la tasa directa
+  // — así que la suma de las 4 YA NO da el headline de gdp_qoq.
   {
     id: 'gdp_consumption',
-    label: 'PIB — Consumo',
+    label: 'PIB — Consumo (Gasto Real de Consumidores)',
     shortLabel: 'Consumo',
     section: 'crecimiento',
     format: 'pct1',
     frequency: 'quarterly',
     chart: 'bar',
-    source: 'Bureau of Economic Analysis (FRED: DPCERY2Q224SBEA)',
-    sourceUrl: 'https://fred.stlouisfed.org/series/DPCERY2Q224SBEA',
+    source: 'Bureau of Economic Analysis (FRED: DPCERL1Q225SBEA)',
+    sourceUrl: 'https://fred.stlouisfed.org/series/DPCERL1Q225SBEA',
     goodDirection: 'up',
-    description: 'Contribución del consumo personal (PCE) al crecimiento del PIB, en puntos porcentuales.',
+    description:
+      'Crecimiento real del consumo personal (PCE), tasa anualizada trimestral — "Real Consumer Spending" en investing.com. Verificado: 3.4% para el segundo trimestre de 2026, coincide exacto con lo reportado.',
     parentId: 'gdp_qoq',
   },
   {
