@@ -541,7 +541,7 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'aud_retail_sales',
-    label: 'Ventas Minoristas (m/m)',
+    label: 'Ventas Minoristas / Gasto de los Hogares (m/m)',
     shortLabel: 'Ventas Min.',
     section: 'crecimiento',
     format: 'pct1',
@@ -555,7 +555,7 @@ export const AUD_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'aud_retail_sales_yoy',
-    label: 'Ventas Minoristas Interanual (a/a)',
+    label: 'Ventas Minoristas / Gasto de los Hogares Interanual (a/a)',
     shortLabel: 'Ventas Min. a/a',
     section: 'crecimiento',
     format: 'pct',
