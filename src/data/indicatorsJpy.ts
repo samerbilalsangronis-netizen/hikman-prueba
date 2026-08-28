@@ -184,18 +184,25 @@ import type { IndicatorMeta } from '../types';
 //
 // 13. **Falta agregar el "core-core CPI" de Tokio** — a pedido del usuario
 //     (28-ago-2026, con captura de investing.com: "CPI Tokyo Ex Food &
-//     Energy" m/m y a/a para agosto-2026). Es una serie DISTINTA de
-//     jpy_tokyo_core_cpi_yoy (esa excluye solo alimentos frescos, ver
-//     lección 3) — esta excluye alimentos frescos Y energía, la "core-core
-//     CPI" japonesa que la lección 3 ya mencionaba que existía pero nunca
-//     se había agregado. Sí está en el e-Stat Dashboard, mismo patrón que
-//     el resto de CPI (índice de nivel, hay que derivar m/m y a/a):
-//     código 0703010501010090040 ("消費者物価指数（生鮮食品及びエネルギー
-//     を除く総合）2020年基準"), encontrado vía el parámetro
-//     SearchIndicatorWord de getIndicatorInfo (el Dashboard también tiene
-//     el mismo código en base 2015 y uno nuevo en base 2025 — se usa 2020
-//     para mantener consistencia con CPI_LEVEL/CORE_CPI_LEVEL, que ya
-//     usan esa base). Con RegionCode=13100 da el desglose de Tokio.
+//     Energy" m/m y a/a para agosto-2026). Es una serie DISTINTA de la que
+//     excluye solo alimentos frescos (ver lección 3) — esta excluye
+//     alimentos frescos Y energía, la "core-core CPI" japonesa que la
+//     lección 3 ya mencionaba que existía pero nunca se había agregado. Sí
+//     está en el e-Stat Dashboard, mismo patrón que el resto de CPI
+//     (índice de nivel, hay que derivar m/m y a/a): código
+//     0703010501010090040 ("消費者物価指数（生鮮食品及びエネルギーを除く
+//     総合）2020年基準"), encontrado vía el parámetro SearchIndicatorWord
+//     de getIndicatorInfo (el Dashboard también tiene el mismo código en
+//     base 2015 y uno nuevo en base 2025 — se usa 2020 para mantener
+//     consistencia con CPI_LEVEL/CORE_CPI_LEVEL, que ya usan esa base). Con
+//     RegionCode=13100 da el desglose de Tokio.
+//
+// 14. **Se sacó jpy_tokyo_core_cpi_yoy (ex alimentos frescos, Tokio)** — a
+//     pedido del usuario (28-ago-2026), que solo quiere la versión "ex
+//     alimentos Y energía" de la lección 13 para Tokio, no las dos. El
+//     "Core CPI" NACIONAL (jpy_core_cpi/jpy_core_cpi_yoy, también ex
+//     alimentos frescos) queda intacto — es la medida que el BOJ target-ea
+//     de verdad, no un duplicado del de Tokio.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -300,25 +307,10 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
       'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes). Verificado: 1.71% calculado para junio-2026, coincide con lo reportado (1.70%).',
     releaseStage: 'preliminar',
   },
-  {
-    id: 'jpy_tokyo_core_cpi_yoy',
-    label: 'Core CPI de Tokio — ex Alim. Frescos (a/a, adelanto)',
-    shortLabel: 'Core CPI Tokio a/a',
-    section: 'inflacion',
-    format: 'pct',
-    frequency: 'monthly',
-    chart: 'line',
-    currency: 'JPY',
-    source: 'e-Stat Dashboard (CPI ex alimentos frescos, desglose municipal Tokio-23-barrios, RegionCode 13100)',
-    sourceUrl: 'https://dashboard.e-stat.go.jp/',
-    goodDirection: 'neutral',
-    description:
-      'Medida que más de cerca mira el mercado como adelanto del Core CPI nacional del BOJ (ex alimentos frescos, no "ex alimentos y energía"). Verificado contra junio-2026: 1.72% calculado vs 1.6% oficial — ~0.1pp de margen de imprecisión por ser derivado del índice del Dashboard en vez de la tasa oficial ya calculada (mismo tipo de margen que cny_cpi_yoy, documentado y esperado, no un bug si no coincide exacto con otra fuente).',
-    releaseStage: 'preliminar',
-  },
-  // "Core-core CPI" de Tokio — ex alimentos frescos Y energía, distinta de
-  // jpy_tokyo_core_cpi_yoy de arriba (esa solo excluye alimentos frescos).
-  // Ver lección 13.
+  // "Core-core CPI" de Tokio — ex alimentos frescos Y energía. Reemplaza a
+  // jpy_tokyo_core_cpi_yoy (ex alimentos frescos solamente), que se sacó a
+  // pedido del usuario — ver lección 14. El Core CPI NACIONAL
+  // (jpy_core_cpi/jpy_core_cpi_yoy, ex alimentos frescos) no se tocó.
   {
     id: 'jpy_tokyo_core_core_cpi_mom',
     label: 'CPI de Tokio ex Alim. Frescos y Energía (m/m, adelanto)',

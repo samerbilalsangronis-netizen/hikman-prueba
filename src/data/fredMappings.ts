@@ -213,6 +213,10 @@ export const NZD_AUTO_INDICATOR_IDS = ['nzd_cpi', 'nzd_cpi_yoy', 'nzd_gdp_qoq', 
 // a diferencia de rbnz.govt.nz) y el CSV de Aduanas de Japón
 // (customs.go.jp). PMI, Tankan y confianza del consumidor quedan
 // manuales — ver indicatorsJpy.ts para el detalle de cada decisión.
+// Esta lista solo controla la insignia "Automático" de Actualizar.tsx —
+// se había quedado desactualizada (le faltaban PPI/CSPI/household
+// spending/wage/GDP contribs agregados en sesiones recientes); corregido
+// 28-ago-2026 para que coincida exacto con los jobs de api/jpy-sync.ts.
 export const JPY_AUTO_INDICATOR_IDS = [
   'jpy_boj_rate',
   'jpy_cpi',
@@ -220,14 +224,25 @@ export const JPY_AUTO_INDICATOR_IDS = [
   'jpy_core_cpi',
   'jpy_core_cpi_yoy',
   'jpy_tokyo_cpi_yoy',
-  'jpy_tokyo_core_cpi_yoy',
+  'jpy_tokyo_core_core_cpi_mom',
+  'jpy_tokyo_core_core_cpi_yoy',
   'jpy_unemployment',
   'jpy_employment_change',
   'jpy_retail_sales',
   'jpy_retail_sales_yoy',
   'jpy_gdp_qoq',
   'jpy_gdp_yoy',
+  'jpy_gdp_annualized_qoq',
+  'jpy_gdp_net_exports',
   'jpy_trade_balance',
+  'jpy_ppi',
+  'jpy_ppi_yoy',
+  'jpy_cspi',
+  'jpy_cspi_yoy',
+  'jpy_wage_yoy',
+  'jpy_overtime_pay_yoy',
+  'jpy_household_spending',
+  'jpy_household_spending_yoy',
 ];
 
 // CHF — se sincroniza desde el SNB Data Portal (data.snb.ch, sin key) y

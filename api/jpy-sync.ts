@@ -377,13 +377,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     },
     {
-      id: 'jpy_tokyo_core_cpi_yoy',
-      run: async () => {
-        const level = await fetchDashboardSeries(CORE_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
-        return pctChangeSeries(level, 12);
-      },
-    },
-    {
       id: 'jpy_tokyo_core_core_cpi_mom',
       run: async () => {
         const level = await fetchDashboardSeries(EX_FOOD_ENERGY_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
