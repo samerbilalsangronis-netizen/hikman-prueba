@@ -14,14 +14,41 @@ function Dot({ level }: { level: BiasLevel }) {
   return <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: BIAS_COLORS[level] }} title={BIAS_LABELS[level]} />;
 }
 
-// Resumen semanal soporta **negrita** al estilo markdown (se escribe/edita
-// como texto plano en el textarea, se resalta solo al mostrarlo archivado).
-function renderFormattedSummary(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\*\*([^*]+)\*\*$/);
-    return match ? <strong key={i}>{match[1]}</strong> : <span key={i}>{part}</span>;
-  });
+// Resumen semanal: editor WYSIWYG (contentEditable) — negrita real mientras
+// se escribe, como Word, no marcado tipo **negrita**. Se guarda como HTML
+// reducido a solo <strong>/<br>/texto (sanitizeSummaryHtml recorre el DOM
+// y descarta cualquier otra etiqueta, así que pegar contenido con estilos
+// de otro lado no mete basura). toDisplayHtml además migra resúmenes
+// viejos guardados con el markdown **negrita** de la versión anterior.
+function sanitizeSummaryHtml(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  function esc(s: string) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function walk(node: ChildNode): string {
+    if (node.nodeType === Node.TEXT_NODE) return esc(node.textContent ?? '');
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const el = node as HTMLElement;
+    const inner = Array.from(el.childNodes).map(walk).join('');
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'br') return '<br>';
+    if (tag === 'b' || tag === 'strong') return `<strong>${inner}</strong>`;
+    if (tag === 'div' || tag === 'p') return `${inner}<br>`;
+    return inner;
+  }
+  return Array.from(container.childNodes).map(walk).join('');
+}
+
+function markdownToHtml(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+}
+
+// Un resumen ya migrado al editor nuevo trae <strong>/<br> propios; uno
+// viejo (guardado antes de este cambio) es texto plano con **negrita**.
+function toDisplayHtml(raw: string): string {
+  return /<\/?(strong|br)\b/i.test(raw) ? sanitizeSummaryHtml(raw) : markdownToHtml(raw);
 }
 
 interface CurrencyBiasCardProps {
@@ -43,7 +70,8 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
 
   const [levelPickerOpen, setLevelPickerOpen] = useState(false);
   const levelPickerRef = useRef<HTMLDivElement>(null);
-  const summaryRef = useRef<HTMLTextAreaElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const lastSyncedSummaryRef = useRef<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editingBase, setEditingBase] = useState(false);
   const [centralBank, setCentralBank] = useState(bias.centralBank);
@@ -63,6 +91,19 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [levelPickerOpen]);
+
+  // Sincroniza el contentEditable con bias.current.summary solo cuando el
+  // cambio viene de "afuera" (carga inicial, rollover, otro dispositivo) —
+  // nunca mientras el usuario está escribiendo ahí mismo, porque pisarle el
+  // innerHTML le resetearía el cursor a cada tecla.
+  useEffect(() => {
+    const el = summaryRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return;
+    if (lastSyncedSummaryRef.current === bias.current.summary) return;
+    el.innerHTML = toDisplayHtml(bias.current.summary);
+    lastSyncedSummaryRef.current = bias.current.summary;
+  }, [bias.current.summary, bias.currency]);
 
   function handleViewCurrency() {
     setCurrency(bias.currency);
@@ -89,17 +130,38 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
     rolloverBias(bias.currency);
   }
 
-  function handleBoldSummary() {
+  function commitSummaryFromDom() {
     const el = summaryRef.current;
     if (!el) return;
-    const { selectionStart, selectionEnd, value } = el;
-    const selected = value.slice(selectionStart, selectionEnd) || 'texto';
-    const next = `${value.slice(0, selectionStart)}**${selected}**${value.slice(selectionEnd)}`;
-    updateBiasSummary(bias.currency, next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(selectionStart + 2, selectionStart + 2 + selected.length);
-    });
+    const html = sanitizeSummaryHtml(el.innerHTML);
+    lastSyncedSummaryRef.current = html;
+    updateBiasSummary(bias.currency, html);
+  }
+
+  function handleSummaryInput() {
+    commitSummaryFromDom();
+  }
+
+  function handleSummaryKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      commitSummaryFromDom();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      handleBoldSummary();
+    }
+  }
+
+  // onMouseDown con preventDefault evita que el botón le robe el foco/la
+  // selección al contentEditable antes de aplicar execCommand('bold') —
+  // sin esto, document.getSelection() ya estaría vacía al hacer click.
+  function handleBoldSummary() {
+    summaryRef.current?.focus();
+    document.execCommand('bold');
+    commitSummaryFromDom();
   }
 
   function handleSaveBase() {
@@ -119,7 +181,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
           Resumen Semanal: {formatDate(snapshot.startedAt.slice(0, 10))} hasta {formatDate(endedAt.slice(0, 10))}
         </span>
         {snapshot.summary && (
-          <p style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{renderFormattedSummary(snapshot.summary)}</p>
+          <p style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: toDisplayHtml(snapshot.summary) }} />
         )}
         {snapshot.reasons.length > 0 && (
           <div className="flex flex-col gap-1">
@@ -200,34 +262,28 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleBoldSummary}
-            title="Negrita (envuelve la selección en **negrita**)"
+            title="Negrita (Ctrl/Cmd+B)"
             className="rounded-md px-2 py-1 text-xs font-bold"
             style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             N
           </button>
           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            Seleccioná texto y tocá "N" para resaltarlo — el ** se ve tal cual mientras escribís, la vista previa de abajo muestra cómo queda
+            Seleccioná texto y tocá "N" (o Ctrl/Cmd+B) para ponerlo en negrita
           </span>
         </div>
-        <textarea
+        <div
           ref={summaryRef}
-          value={bias.current.summary}
-          onChange={(e) => updateBiasSummary(bias.currency, e.target.value)}
-          placeholder="Resumen / motivo del sesgo…"
-          rows={4}
-          className="w-full resize-none rounded-md px-3 py-2 text-sm"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleSummaryInput}
+          onKeyDown={handleSummaryKeyDown}
+          data-placeholder="Resumen / motivo del sesgo…"
+          className="bias-summary-editable w-full rounded-md px-3 py-2 text-sm"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', minHeight: '5.5rem', whiteSpace: 'pre-wrap' }}
         />
-        {bias.current.summary && (
-          <div className="rounded-md px-3 py-2 text-sm" style={{ background: 'var(--surface-1)', border: '1px dashed var(--border)', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-              Vista previa
-            </p>
-            {renderFormattedSummary(bias.current.summary)}
-          </div>
-        )}
       </div>
 
       <div>

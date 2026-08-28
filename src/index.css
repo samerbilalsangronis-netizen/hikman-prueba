@@ -134,3 +134,10 @@ body {
 .pulse-glow {
   animation: pulse-glow 1.8s ease-in-out infinite;
 }
+
+/* Placeholder del editor de resumen semanal (Panel de Control) — un
+   contentEditable no soporta el atributo placeholder nativo. */
+.bias-summary-editable:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
