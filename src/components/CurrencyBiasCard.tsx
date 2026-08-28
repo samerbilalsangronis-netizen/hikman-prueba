@@ -14,6 +14,16 @@ function Dot({ level }: { level: BiasLevel }) {
   return <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: BIAS_COLORS[level] }} title={BIAS_LABELS[level]} />;
 }
 
+// Resumen semanal soporta **negrita** al estilo markdown (se escribe/edita
+// como texto plano en el textarea, se resalta solo al mostrarlo archivado).
+function renderFormattedSummary(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\*\*([^*]+)\*\*$/);
+    return match ? <strong key={i}>{match[1]}</strong> : <span key={i}>{part}</span>;
+  });
+}
+
 interface CurrencyBiasCardProps {
   bias: CurrencyBias;
 }
@@ -33,6 +43,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
 
   const [levelPickerOpen, setLevelPickerOpen] = useState(false);
   const levelPickerRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLTextAreaElement>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editingBase, setEditingBase] = useState(false);
   const [centralBank, setCentralBank] = useState(bias.centralBank);
@@ -78,22 +89,37 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
     rolloverBias(bias.currency);
   }
 
+  function handleBoldSummary() {
+    const el = summaryRef.current;
+    if (!el) return;
+    const { selectionStart, selectionEnd, value } = el;
+    const selected = value.slice(selectionStart, selectionEnd) || 'texto';
+    const next = `${value.slice(0, selectionStart)}**${selected}**${value.slice(selectionEnd)}`;
+    updateBiasSummary(bias.currency, next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selectionStart + 2, selectionStart + 2 + selected.length);
+    });
+  }
+
   function handleSaveBase() {
     updateBiasBase(bias.currency, { centralBank, policyRate, nextMeeting: nextMeeting || undefined });
     setEditingBase(false);
   }
 
-  function renderSnapshot(snapshot: BiasSnapshot, key: string) {
+  function renderSnapshot(snapshot: BiasSnapshot, key: string, endedAt: string) {
     return (
       <div key={key} className="flex flex-col gap-1 border-b pb-2 last:border-b-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between">
           <span className="font-semibold" style={{ color: snapshot.level ? BIAS_COLORS[snapshot.level] : 'var(--text-muted)' }}>
             {snapshot.level ? BIAS_LABELS[snapshot.level] : 'Sin definir'}
           </span>
-          <span style={{ color: 'var(--text-muted)' }}>{formatDate(snapshot.startedAt.slice(0, 10))}</span>
         </div>
+        <span style={{ color: 'var(--text-muted)' }}>
+          Resumen Semanal: {formatDate(snapshot.startedAt.slice(0, 10))} hasta {formatDate(endedAt.slice(0, 10))}
+        </span>
         {snapshot.summary && (
-          <p style={{ color: 'var(--text-secondary)' }}>{snapshot.summary}</p>
+          <p style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{renderFormattedSummary(snapshot.summary)}</p>
         )}
         {snapshot.reasons.length > 0 && (
           <div className="flex flex-col gap-1">
@@ -170,14 +196,31 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
         )}
       </div>
 
-      <textarea
-        value={bias.current.summary}
-        onChange={(e) => updateBiasSummary(bias.currency, e.target.value)}
-        placeholder="Resumen / motivo del sesgo…"
-        rows={2}
-        className="w-full resize-none rounded-md px-3 py-2 text-sm"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-      />
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleBoldSummary}
+            title="Negrita (envuelve la selección en **negrita**)"
+            className="rounded-md px-2 py-1 text-xs font-bold"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            N
+          </button>
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            Seleccioná texto y tocá "N" para resaltarlo en negrita
+          </span>
+        </div>
+        <textarea
+          ref={summaryRef}
+          value={bias.current.summary}
+          onChange={(e) => updateBiasSummary(bias.currency, e.target.value)}
+          placeholder="Resumen / motivo del sesgo…"
+          rows={4}
+          className="w-full resize-none rounded-md px-3 py-2 text-sm"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}
+        />
+      </div>
 
       <div>
         <p className="mb-1.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
@@ -292,7 +335,9 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
           {bias.history.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }}>Todavía no hay semanas archivadas.</p>
           ) : (
-            bias.history.map((snapshot, i) => renderSnapshot(snapshot, snapshot.id ?? String(i)))
+            bias.history.map((snapshot, i) =>
+              renderSnapshot(snapshot, snapshot.id ?? String(i), i === 0 ? bias.current.startedAt : bias.history[i - 1].startedAt),
+            )
           )}
         </div>
       )}

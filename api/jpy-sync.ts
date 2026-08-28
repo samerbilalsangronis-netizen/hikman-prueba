@@ -267,6 +267,10 @@ async function fetchTradeBalance(): Promise<Observation[]> {
 
 const CPI_LEVEL = '0703010501010090000'; // CPI general, índice de nivel
 const CORE_CPI_LEVEL = '0703010501010090010'; // CPI ex alimentos frescos, índice de nivel
+// CPI ex alimentos frescos Y energía ("core-core CPI" japonesa) — índice de
+// nivel, base 2020. A pedido del usuario (28-ago-2026) para Tokio, ver
+// lección 13 en indicatorsJpy.ts.
+const EX_FOOD_ENERGY_CPI_LEVEL = '0703010501010090040';
 // Mismos códigos de indicador que el CPI nacional, pero con el desglose
 // municipal (RegionCode 13100 = 東京都区部, los 23 barrios especiales de
 // Tokio) — el Dashboard de e-Stat solo tiene valores crudos para esta
@@ -376,6 +380,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: 'jpy_tokyo_core_cpi_yoy',
       run: async () => {
         const level = await fetchDashboardSeries(CORE_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
+        return pctChangeSeries(level, 12);
+      },
+    },
+    {
+      id: 'jpy_tokyo_core_core_cpi_mom',
+      run: async () => {
+        const level = await fetchDashboardSeries(EX_FOOD_ENERGY_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
+        return pctChangeSeries(level, 1);
+      },
+    },
+    {
+      id: 'jpy_tokyo_core_core_cpi_yoy',
+      run: async () => {
+        const level = await fetchDashboardSeries(EX_FOOD_ENERGY_CPI_LEVEL, MONTHLY_FROM, '1', TOKYO_REGION);
         return pctChangeSeries(level, 12);
       },
     },
