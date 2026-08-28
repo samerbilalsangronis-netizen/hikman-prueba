@@ -208,7 +208,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
             N
           </button>
           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            Seleccioná texto y tocá "N" para resaltarlo en negrita
+            Seleccioná texto y tocá "N" para resaltarlo — el ** se ve tal cual mientras escribís, la vista previa de abajo muestra cómo queda
           </span>
         </div>
         <textarea
@@ -220,6 +220,14 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
           className="w-full resize-none rounded-md px-3 py-2 text-sm"
           style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}
         />
+        {bias.current.summary && (
+          <div className="rounded-md px-3 py-2 text-sm" style={{ background: 'var(--surface-1)', border: '1px dashed var(--border)', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              Vista previa
+            </p>
+            {renderFormattedSummary(bias.current.summary)}
+          </div>
+        )}
       </div>
 
       <div>
