@@ -33,6 +33,40 @@ import type { IndicatorMeta } from '../types';
 //    "core CPI" genérico de arriba. Faltaban en la primera pasada; el BoC
 //    las publica directo como tasa a/a (Valet: CPI_TRIM/CPI_MEDIAN), sin
 //    necesidad de derivarlas de un índice.
+//
+// 4. **Faltaba el PIB TRIMESTRAL (by income and expenditure) — distinto de
+//    cad_gdp_mom/cad_gdp_yoy de arriba**, que salen de la tabla MENSUAL por
+//    industria (36-10-0434). investing.com muestra ambos por separado en
+//    el mismo calendario (GDP MoM Y GDP QoQ/Annualized/YoY el mismo día,
+//    con valores que NO coinciden entre sí — no es un error, son dos
+//    metodologías distintas que StatCan reconcilia con el tiempo pero
+//    difieren en el corto plazo, ej. verificado T2-2026: 2.0% a/a mensual
+//    vs 1.13% a/a trimestral). A pedido del usuario (28-ago-2026), que
+//    notó que la versión trimestral "a menudo no la veo porque sale cada
+//    3 meses" — se agrega cad_gdp_qoq/cad_gdp_annualized_qoq/
+//    cad_gdp_expenditure_yoy, todos de la tabla 36-10-0104-01 ("Gross
+//    domestic product, expenditure-based, Canada, quarterly"), que a
+//    diferencia de la mayoría de las tablas de StatCan trae una dimensión
+//    "Prices" con el % de cambio YA CALCULADO (member 7, "Chained (2017)
+//    dollars percentage change") — no hace falta derivar del nivel para
+//    el t/t. El anualizado sí se deriva del nivel (member 1) con
+//    (1+t/t)^4−1, misma fórmula que JPY. La interanual también se deriva
+//    del nivel (4 trimestres atrás). Verificado contra el comunicado
+//    oficial de hoy (dq260828a): PIB +0.8% t/t (coincide con el % directo
+//    de la tabla), +3.3% anualizado (coincide con la tabla 3 del
+//    comunicado, "annualized change"), +1.13% a/a — los 3 coinciden exacto
+//    con investing.com. De paso se automatiza cad_gdp_deflator (estaba de
+//    carga manual, mal parentado a cad_gdp_mom) con la tabla de índices de
+//    precios del PIB (36-10-0106-01, "Gross domestic product price
+//    indexes"), miembro 25 ("Gross domestic product at market prices") —
+//    esta tabla NO trae el % de cambio directo, se deriva del índice de
+//    nivel (136.2 vs 132.9 en T1-2026 → +2.48%, redondea a 2.5%, coincide
+//    exacto con investing.com Y con el "2.5%" que el propio comunicado
+//    destaca como "el mayor aumento desde el T2-2022"). Los componentes
+//    del gasto (Consumo/Inversión/Gasto Público/Exportaciones Netas) NO se
+//    tocaron — siguen de carga manual, quedan parentados a cad_gdp_qoq en
+//    vez de cad_gdp_mom (el error de parentado sí se corrigió, automatizar
+//    esos 4 queda para otra sesión si hace falta).
 export const CAD_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoC — una sola tasa (overnight rate target), como la Fed y el BoE.
   {
@@ -401,20 +435,70 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description: 'Canadá, como el Reino Unido, publica una estimación de PIB mensual (no solo trimestral).',
   },
+  // PIB trimestral (by income and expenditure) — distinto del PIB mensual
+  // de arriba (por industria). Ver lección 4.
+  {
+    id: 'cad_gdp_qoq',
+    label: 'PIB Trimestral (t/t)',
+    shortLabel: 'PIB t/t',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'CAD',
+    source: 'Statistics Canada (tabla 36-10-0104-01, "Chained (2017) dollars percentage change")',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
+    goodDirection: 'up',
+    description:
+      'Crecimiento del PIB real, variación trimestral SIN anualizar — StatCan la publica ya calculada, no hace falta derivarla de un nivel. Verificado: +0.8% para el segundo trimestre de 2026, coincide exacto con el comunicado oficial e investing.com.',
+  },
+  {
+    id: 'cad_gdp_annualized_qoq',
+    label: 'PIB Trimestral Anualizado',
+    shortLabel: 'PIB Anualizado',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'bar',
+    currency: 'CAD',
+    source: 'Statistics Canada (tabla 36-10-0104-01) — derivado',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
+    goodDirection: 'up',
+    description:
+      'La cifra "PIB Anualizado (t/t)" que muestra investing.com — qué pasaría si el ritmo de este trimestre se repitiera 4 trimestres seguidos ((1+t/t)^4−1, con el t/t sin redondear). Se deriva del mismo nivel real que cad_gdp_qoq. Verificado: +3.3% para el segundo trimestre de 2026, coincide exacto con la tabla 3 del comunicado oficial ("annualized change") e investing.com.',
+    parentId: 'cad_gdp_qoq',
+  },
+  {
+    id: 'cad_gdp_expenditure_yoy',
+    label: 'PIB Trimestral Interanual (a/a)',
+    shortLabel: 'PIB Trim. a/a',
+    section: 'crecimiento',
+    format: 'pct1',
+    frequency: 'quarterly',
+    chart: 'line',
+    currency: 'CAD',
+    source: 'Statistics Canada (tabla 36-10-0104-01) — derivado',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
+    goodDirection: 'up',
+    description:
+      'PIB real (by income and expenditure) respecto al mismo trimestre del año anterior — el "GDP (YoY)" que muestra investing.com junto al resto del paquete trimestral. Distinto de cad_gdp_yoy (que sale de la tabla MENSUAL por industria, 36-10-0434, y usa otra metodología — no es un error que no coincidan, ver lección 4). Se deriva del nivel (StatCan no la publica como serie directa). Verificado: +1.13% para el segundo trimestre de 2026, coincide exacto con investing.com.',
+    parentId: 'cad_gdp_qoq',
+  },
   {
     id: 'cad_gdp_deflator',
-    label: 'Deflactor del PIB',
+    label: 'Deflactor del PIB (t/t)',
     shortLabel: 'Deflactor PIB',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'CAD',
-    source: 'Statistics Canada',
-    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
+    source: 'Statistics Canada (tabla 36-10-0106-01, "Implicit price indexes")',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
     goodDirection: 'neutral',
-    description: 'Medida de inflación implícita en el PIB de Canadá. Subcomponente de PIB Mensual. Carga manual.',
-    parentId: 'cad_gdp_mom',
+    description:
+      'Medida de inflación implícita en el PIB de Canadá, variación trimestral — "GDP Implicit Price (QoQ)" en investing.com. Se deriva del índice de nivel (StatCan no publica el % de cambio como serie directa para esta tabla, a diferencia de cad_gdp_qoq). Verificado: +2.5% para el segundo trimestre de 2026, coincide exacto con investing.com y con el comunicado oficial ("el mayor aumento desde el segundo trimestre de 2022").',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_consumption',
@@ -422,14 +506,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Consumo',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'CAD',
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
     description: 'Contribución del consumo privado al crecimiento del PIB de Canadá. Carga manual.',
-    parentId: 'cad_gdp_mom',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_investment',
@@ -437,14 +521,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Inversión',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'CAD',
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
     description: 'Contribución de la inversión (formación bruta de capital) al crecimiento del PIB de Canadá. Carga manual.',
-    parentId: 'cad_gdp_mom',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_government',
@@ -452,14 +536,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Gasto Público',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'CAD',
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
     description: 'Contribución del gasto público al crecimiento del PIB de Canadá. Carga manual.',
-    parentId: 'cad_gdp_mom',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_net_exports',
@@ -467,14 +551,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Export. Netas',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'bar',
     currency: 'CAD',
     source: 'Statistics Canada',
     sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
     goodDirection: 'up',
     description: 'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de Canadá. Carga manual.',
-    parentId: 'cad_gdp_mom',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_yoy',

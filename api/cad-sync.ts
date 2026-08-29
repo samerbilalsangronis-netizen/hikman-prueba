@@ -72,6 +72,19 @@ function levelByMonth(points: StatCanPoint[]): Observation[] {
   return points.map((p) => ({ date: `${p.refPer}-01`, value: p.value }));
 }
 
+// Anualiza el t/t trimestral: qué pasaría si el ritmo de este trimestre se
+// repitiera 4 trimestres seguidos — (1+t/t)^4−1, sobre el nivel real (no el
+// t/t ya redondeado) — misma fórmula que usa JPY para su "PIB Anualizado".
+function annualizedQoqByMonth(points: StatCanPoint[]): Observation[] {
+  const byMonth = new Map(points.map((p) => [p.refPer, p.value]));
+  const out: Observation[] = [];
+  for (const p of points) {
+    const prev = byMonth.get(shiftMonths(p.refPer, 3));
+    if (prev !== undefined && prev !== 0) out.push({ date: `${p.refPer}-01`, value: (p.value / prev) ** 4 - 1 });
+  }
+  return out;
+}
+
 // Coordenadas StatCan verificadas contra el dato real antes de automatizar
 // (ver indicatorsCad.ts):
 // - CPI headline: el m/m "titular" que reportan medios/Trading Economics es
@@ -98,6 +111,17 @@ const STATCAN_SOURCES = {
   gdp: { productId: 36100434, coordinate: '1.1.1.1.0.0.0.0.0.0' }, // All industries, chained 2017$, SAAR
   retail: { productId: 20100056, coordinate: '1.1.1.2.0.0.0.0.0.0' }, // Total retail sales, SA
   tradeBalance: { productId: 12100011, coordinate: '1.3.2.2.1.0.0.0.0.0' }, // Balance of payments basis, SA
+  // PIB TRIMESTRAL (by income and expenditure) — distinto del PIB mensual
+  // por industria de arriba (tabla 36100434). Ver lección 4 en
+  // indicatorsCad.ts. Tabla 36-10-0104-01 trae una dimensión "Prices" con
+  // el % de cambio t/t YA CALCULADO (member 7) además del nivel (member 1)
+  // — no todas las tablas de StatCan tienen esto, la mayoría solo trae
+  // niveles. Estimate 30 = "Gross domestic product at market prices".
+  gdpQuarterlyPctChange: { productId: 36100104, coordinate: '1.7.1.30.0.0.0.0.0.0' },
+  gdpQuarterlyLevel: { productId: 36100104, coordinate: '1.1.1.30.0.0.0.0.0.0' },
+  // Deflactor del PIB trimestral — tabla separada (36-10-0106-01, "GDP
+  // price indexes"), sin el % de cambio directo, se deriva del nivel.
+  gdpQuarterlyPriceIndex: { productId: 36100106, coordinate: '1.1.25.0.0.0.0.0.0.0' },
 };
 
 // --- Bank of Canada Valet ---------------------------------------------------
@@ -207,6 +231,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     {
       id: 'cad_gdp_yoy',
       run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.gdp.productId, STATCAN_SOURCES.gdp.coordinate, BACKFILL_MONTHS + 13), 12),
+    },
+    {
+      id: 'cad_gdp_qoq',
+      run: async () =>
+        levelByMonth(
+          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyPctChange.productId, STATCAN_SOURCES.gdpQuarterlyPctChange.coordinate, BACKFILL_MONTHS + 13),
+        ).map((o) => ({ date: o.date, value: o.value / 100 })),
+    },
+    {
+      id: 'cad_gdp_annualized_qoq',
+      run: async () =>
+        annualizedQoqByMonth(
+          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyLevel.productId, STATCAN_SOURCES.gdpQuarterlyLevel.coordinate, BACKFILL_MONTHS + 13),
+        ),
+    },
+    {
+      id: 'cad_gdp_expenditure_yoy',
+      run: async () =>
+        pctChangeByMonth(
+          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyLevel.productId, STATCAN_SOURCES.gdpQuarterlyLevel.coordinate, BACKFILL_MONTHS + 13),
+          12,
+        ),
+    },
+    {
+      id: 'cad_gdp_deflator',
+      run: async () =>
+        pctChangeByMonth(
+          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyPriceIndex.productId, STATCAN_SOURCES.gdpQuarterlyPriceIndex.coordinate, BACKFILL_MONTHS + 13),
+          3,
+        ),
     },
     {
       id: 'cad_retail_sales',

@@ -67,7 +67,9 @@ export const FRED_MAPPINGS: FredMapping[] = [
   // cargaron esos dos puntos a mano en historical-series.json como parche
   // temporal (se auto-corrigen solos: en cuanto fred-sync traiga esas
   // mismas fechas desde FRED, el override de Supabase pisa el seed sin que
-  // haga falta tocar nada).
+  // haga falta tocar nada). Confirmado de nuevo 28-ago-2026 (FRED seguía en
+  // julio cuando ya había salido el dato final de agosto): se actualizó el
+  // parche de agosto de 51.0 (preliminar, ya viejo) a 51.7 (final).
   { indicatorId: 'uom', seriesId: 'UMCSENT', transform: 'level' },
   // Crecimiento
   // A diferencia de CPI/PPI (BLS usa NSA para el a/a), Census y la Fed
@@ -174,6 +176,10 @@ export const CAD_AUTO_INDICATOR_IDS = [
   'cad_retail_sales_yoy',
   'cad_gdp_mom',
   'cad_gdp_yoy',
+  'cad_gdp_qoq',
+  'cad_gdp_annualized_qoq',
+  'cad_gdp_expenditure_yoy',
+  'cad_gdp_deflator',
   'cad_trade_balance',
 ];
 
