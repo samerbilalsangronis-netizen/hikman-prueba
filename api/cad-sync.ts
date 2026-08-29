@@ -229,8 +229,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.gdp.productId, STATCAN_SOURCES.gdp.coordinate, BACKFILL_MONTHS + 13), 1),
     },
     {
+      // Cambiado 28-ago-2026 a pedido del usuario: antes salía de la tabla
+      // mensual por industria (STATCAN_SOURCES.gdp), ahora usa la misma
+      // tabla trimestral que cad_gdp_qoq para coincidir con investing.com
+      // — ver lección 4 en indicatorsCad.ts.
       id: 'cad_gdp_yoy',
-      run: async () => pctChangeByMonth(await fetchStatCanVector(STATCAN_SOURCES.gdp.productId, STATCAN_SOURCES.gdp.coordinate, BACKFILL_MONTHS + 13), 12),
+      run: async () =>
+        pctChangeByMonth(
+          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyLevel.productId, STATCAN_SOURCES.gdpQuarterlyLevel.coordinate, BACKFILL_MONTHS + 13),
+          12,
+        ),
     },
     {
       id: 'cad_gdp_qoq',
@@ -244,14 +252,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       run: async () =>
         annualizedQoqByMonth(
           await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyLevel.productId, STATCAN_SOURCES.gdpQuarterlyLevel.coordinate, BACKFILL_MONTHS + 13),
-        ),
-    },
-    {
-      id: 'cad_gdp_expenditure_yoy',
-      run: async () =>
-        pctChangeByMonth(
-          await fetchStatCanVector(STATCAN_SOURCES.gdpQuarterlyLevel.productId, STATCAN_SOURCES.gdpQuarterlyLevel.coordinate, BACKFILL_MONTHS + 13),
-          12,
         ),
     },
     {

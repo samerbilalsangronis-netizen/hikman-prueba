@@ -178,7 +178,6 @@ export const CAD_AUTO_INDICATOR_IDS = [
   'cad_gdp_yoy',
   'cad_gdp_qoq',
   'cad_gdp_annualized_qoq',
-  'cad_gdp_expenditure_yoy',
   'cad_gdp_deflator',
   'cad_trade_balance',
 ];

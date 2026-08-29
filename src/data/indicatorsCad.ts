@@ -35,27 +35,25 @@ import type { IndicatorMeta } from '../types';
 //    necesidad de derivarlas de un índice.
 //
 // 4. **Faltaba el PIB TRIMESTRAL (by income and expenditure) — distinto de
-//    cad_gdp_mom/cad_gdp_yoy de arriba**, que salen de la tabla MENSUAL por
-//    industria (36-10-0434). investing.com muestra ambos por separado en
-//    el mismo calendario (GDP MoM Y GDP QoQ/Annualized/YoY el mismo día,
-//    con valores que NO coinciden entre sí — no es un error, son dos
+//    cad_gdp_mom de arriba**, que sale de la tabla MENSUAL por industria
+//    (36-10-0434). investing.com muestra ambos por separado en el mismo
+//    calendario (GDP MoM Y GDP QoQ/Annualized/YoY el mismo día, con
+//    valores que NO coinciden entre sí — no es un error, son dos
 //    metodologías distintas que StatCan reconcilia con el tiempo pero
 //    difieren en el corto plazo, ej. verificado T2-2026: 2.0% a/a mensual
 //    vs 1.13% a/a trimestral). A pedido del usuario (28-ago-2026), que
 //    notó que la versión trimestral "a menudo no la veo porque sale cada
-//    3 meses" — se agrega cad_gdp_qoq/cad_gdp_annualized_qoq/
-//    cad_gdp_expenditure_yoy, todos de la tabla 36-10-0104-01 ("Gross
-//    domestic product, expenditure-based, Canada, quarterly"), que a
-//    diferencia de la mayoría de las tablas de StatCan trae una dimensión
-//    "Prices" con el % de cambio YA CALCULADO (member 7, "Chained (2017)
-//    dollars percentage change") — no hace falta derivar del nivel para
-//    el t/t. El anualizado sí se deriva del nivel (member 1) con
-//    (1+t/t)^4−1, misma fórmula que JPY. La interanual también se deriva
-//    del nivel (4 trimestres atrás). Verificado contra el comunicado
-//    oficial de hoy (dq260828a): PIB +0.8% t/t (coincide con el % directo
-//    de la tabla), +3.3% anualizado (coincide con la tabla 3 del
-//    comunicado, "annualized change"), +1.13% a/a — los 3 coinciden exacto
-//    con investing.com. De paso se automatiza cad_gdp_deflator (estaba de
+//    3 meses" — se agrega cad_gdp_qoq/cad_gdp_annualized_qoq, de la tabla
+//    36-10-0104-01 ("Gross domestic product, expenditure-based, Canada,
+//    quarterly"), que a diferencia de la mayoría de las tablas de StatCan
+//    trae una dimensión "Prices" con el % de cambio YA CALCULADO (member
+//    7, "Chained (2017) dollars percentage change") — no hace falta
+//    derivar del nivel para el t/t. El anualizado sí se deriva del nivel
+//    (member 1) con (1+t/t)^4−1, misma fórmula que JPY. Verificado contra
+//    el comunicado oficial de hoy (dq260828a): PIB +0.8% t/t (coincide con
+//    el % directo de la tabla), +3.3% anualizado (coincide con la tabla 3
+//    del comunicado, "annualized change") — ambos coinciden exacto con
+//    investing.com. De paso se automatiza cad_gdp_deflator (estaba de
 //    carga manual, mal parentado a cad_gdp_mom) con la tabla de índices de
 //    precios del PIB (36-10-0106-01, "Gross domestic product price
 //    indexes"), miembro 25 ("Gross domestic product at market prices") —
@@ -67,6 +65,14 @@ import type { IndicatorMeta } from '../types';
 //    tocaron — siguen de carga manual, quedan parentados a cad_gdp_qoq en
 //    vez de cad_gdp_mom (el error de parentado sí se corrigió, automatizar
 //    esos 4 queda para otra sesión si hace falta).
+//
+//    Ronda siguiente (mismo día): el usuario pidió que la "PIB Interanual"
+//    del score (cad_gdp_yoy) usara la métrica que coincide con
+//    investing.com en vez de la mensual — se cambió su fuente a la misma
+//    tabla trimestral (36-10-0104-01, nivel, 4 trimestres atrás) y se sacó
+//    el cad_gdp_expenditure_yoy que se había agregado en la ronda anterior
+//    (quedaba duplicado con este cambio). cad_gdp_mom sigue intacto,
+//    sigue siendo la única serie que usa la tabla mensual por industria.
 export const CAD_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoC — una sola tasa (overnight rate target), como la Fed y el BoE.
   {
@@ -469,22 +475,6 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     parentId: 'cad_gdp_qoq',
   },
   {
-    id: 'cad_gdp_expenditure_yoy',
-    label: 'PIB Trimestral Interanual (a/a)',
-    shortLabel: 'PIB Trim. a/a',
-    section: 'crecimiento',
-    format: 'pct1',
-    frequency: 'quarterly',
-    chart: 'line',
-    currency: 'CAD',
-    source: 'Statistics Canada (tabla 36-10-0104-01) — derivado',
-    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
-    goodDirection: 'up',
-    description:
-      'PIB real (by income and expenditure) respecto al mismo trimestre del año anterior — el "GDP (YoY)" que muestra investing.com junto al resto del paquete trimestral. Distinto de cad_gdp_yoy (que sale de la tabla MENSUAL por industria, 36-10-0434, y usa otra metodología — no es un error que no coincidan, ver lección 4). Se deriva del nivel (StatCan no la publica como serie directa). Verificado: +1.13% para el segundo trimestre de 2026, coincide exacto con investing.com.',
-    parentId: 'cad_gdp_qoq',
-  },
-  {
     id: 'cad_gdp_deflator',
     label: 'Deflactor del PIB (t/t)',
     shortLabel: 'Deflactor PIB',
@@ -566,13 +556,15 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'PIB a/a',
     section: 'crecimiento',
     format: 'pct1',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Statistics Canada (tabla 36-10-0434-01)',
-    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260630/dq260630a-eng.htm',
+    source: 'Statistics Canada (tabla 36-10-0104-01) — derivado',
+    sourceUrl: 'https://www150.statcan.gc.ca/n1/daily-quotidien/260828/dq260828a-eng.htm',
     goodDirection: 'up',
-    description: 'PIB real respecto al mismo mes del año anterior — la cifra de "PIB" usada en el score.',
+    description:
+      'PIB real (by income and expenditure) respecto al mismo trimestre del año anterior — la cifra de "PIB" usada en el score. A pedido del usuario (28-ago-2026) pasó a usar la métrica trimestral que coincide con investing.com (antes salía de la tabla MENSUAL por industria, 36-10-0434, que da otro número — ver lección 4). Se deriva del nivel (StatCan no la publica como serie directa). Verificado: +1.13% para el segundo trimestre de 2026, coincide exacto con investing.com.',
+    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_trade_balance',
