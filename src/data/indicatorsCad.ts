@@ -73,6 +73,16 @@ import type { IndicatorMeta } from '../types';
 //    el cad_gdp_expenditure_yoy que se había agregado en la ronda anterior
 //    (quedaba duplicado con este cambio). cad_gdp_mom sigue intacto,
 //    sigue siendo la única serie que usa la tabla mensual por industria.
+//
+//    Bug real encontrado por el usuario ("no aparecen"): al agregar todo
+//    esto se le puso parentId: 'cad_gdp_qoq' también a cad_gdp_yoy y
+//    cad_gdp_annualized_qoq — quedaban escondidos como "subcomponentes"
+//    detrás de un desplegable en vez de tarjetas propias visibles (mal
+//    copiado del patrón de JPY, donde jpy_gdp_yoy/jpy_gdp_annualized_qoq
+//    SÍ son standalone y solo los componentes de gasto llevan parentId).
+//    Corregido: solo cad_gdp_deflator + los 4 componentes de gasto quedan
+//    parentados a cad_gdp_qoq (5, no 7) — yoy y annualized_qoq son
+//    tarjetas propias de nuevo, igual que en JPY/USD.
 export const CAD_INDICATORS: IndicatorMeta[] = [
   // Tasas / BoC — una sola tasa (overnight rate target), como la Fed y el BoE.
   {
@@ -472,7 +482,6 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'La cifra "PIB Anualizado (t/t)" que muestra investing.com — qué pasaría si el ritmo de este trimestre se repitiera 4 trimestres seguidos ((1+t/t)^4−1, con el t/t sin redondear). Se deriva del mismo nivel real que cad_gdp_qoq. Verificado: +3.3% para el segundo trimestre de 2026, coincide exacto con la tabla 3 del comunicado oficial ("annualized change") e investing.com.',
-    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_gdp_deflator',
@@ -564,7 +573,6 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     goodDirection: 'up',
     description:
       'PIB real (by income and expenditure) respecto al mismo trimestre del año anterior — la cifra de "PIB" usada en el score. A pedido del usuario (28-ago-2026) pasó a usar la métrica trimestral que coincide con investing.com (antes salía de la tabla MENSUAL por industria, 36-10-0434, que da otro número — ver lección 4). Se deriva del nivel (StatCan no la publica como serie directa). Verificado: +1.13% para el segundo trimestre de 2026, coincide exacto con investing.com.',
-    parentId: 'cad_gdp_qoq',
   },
   {
     id: 'cad_trade_balance',
