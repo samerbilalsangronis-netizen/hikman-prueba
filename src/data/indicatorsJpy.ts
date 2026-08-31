@@ -203,6 +203,31 @@ import type { IndicatorMeta } from '../types';
 //     "Core CPI" NACIONAL (jpy_core_cpi/jpy_core_cpi_yoy, también ex
 //     alimentos frescos) queda intacto — es la medida que el BOJ target-ea
 //     de verdad, no un duplicado del de Tokio.
+//
+// 15. **Japón cambió la base del IPC de Tokio de 2020=100 a 2025=100 justo
+//     en el comunicado del 28-ago-2026** (el propio calendario oficial de
+//     stat.go.jp dice "２０２５年基準指数へ切替え" a partir del dato de
+//     julio) — descubierto porque el usuario notó que el profesor de
+//     economía citaba ~2.0% para "ex alimentos y energía" de agosto,
+//     investing.com mostraba 1.4%/1.2%, y la app (todavía en julio) daba
+//     2.0%. Verificado contra el PDF oficial
+//     (stat.go.jp/data/cpi/sokuhou/tsuki/pdf/kubu.pdf, URL fija, se
+//     reemplaza cada mes): el profesor tenía razón (ago: 2.0% a/a para
+//     ex alim.+energía, jul: 1.8%) — investing.com mostraba, por lo visto,
+//     un dato viejo (1.4%/1.2% coincide con abril/mayo de la serie "ex
+//     alimentos frescos", no con agosto/julio de ninguna serie real). nuestro
+//     e-Stat Dashboard seguía en los códigos de base 2020
+//     (0703010501010090000/...010/...040), que ya no reconcilian exacto con
+//     las tasas oficiales recalculadas en base 2025 (julio quedó ~0.2pp
+//     distinto del oficial). Los códigos nuevos de base 2025
+//     (070301060101009...) existen en el Dashboard pero por ahora solo
+//     traen UN punto (julio) — no alcanza para derivar un a/a. Se cargaron
+//     julio (corregido) y agosto a mano vía SQL como stopgap (mismo patrón
+//     que UMCSENT de USD) — se auto-corrige solo en cuanto el Dashboard
+//     acumule histórico en los códigos de base 2025. jpy_cpi/jpy_core_cpi
+//     nacionales (CPI_LEVEL/CORE_CPI_LEVEL, también base 2020) probablemente
+//     tengan el mismo problema — no se tocaron todavía, pendiente revisar
+//     si el usuario lo nota.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -304,7 +329,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'neutral',
     description:
-      'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes). Verificado: 1.71% calculado para junio-2026, coincide con lo reportado (1.70%).',
+      'CPI general de los 23 barrios especiales de Tokio, adelanto del CPI nacional (se publica ~3-4 semanas antes que el dato nacional del mismo mes). Julio/agosto-2026 cargados a mano como stopgap (1.8%/1.9%) tras el cambio de base del IPC a 2025=100 — ver lección 15, el e-Stat Dashboard todavía no reconcilia exacto con el dato oficial.',
     releaseStage: 'preliminar',
   },
   // "Core-core CPI" de Tokio — ex alimentos frescos Y energía. Reemplaza a
@@ -324,7 +349,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'neutral',
     description:
-      'Variación mensual del "core-core CPI" de Tokio (excluye alimentos frescos Y energía, no solo alimentos frescos) — "CPI Tokyo Ex Food & Energy (MoM)" en investing.com. Se deriva del índice de nivel.',
+      'Variación mensual del "core-core CPI" de Tokio (excluye alimentos frescos Y energía, no solo alimentos frescos) — "CPI Tokyo Ex Food & Energy (MoM)" en investing.com. Se deriva del índice de nivel. Julio/agosto-2026 cargados a mano como stopgap (0.3%/0.3%) tras el cambio de base del IPC a 2025=100 — ver lección 15.',
     releaseStage: 'preliminar',
   },
   {
@@ -340,7 +365,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://dashboard.e-stat.go.jp/',
     goodDirection: 'neutral',
     description:
-      '"Core-core CPI" de Tokio (excluye alimentos frescos Y energía) respecto al mismo mes del año anterior — "CPI Tokyo Ex Food & Energy (YoY)" en investing.com, adelanto del dato nacional equivalente (que esta app todavía no tiene agregado). Se deriva del índice de nivel.',
+      '"Core-core CPI" de Tokio (excluye alimentos frescos Y energía) respecto al mismo mes del año anterior — "CPI Tokyo Ex Food & Energy (YoY)" en investing.com, adelanto del dato nacional equivalente (que esta app todavía no tiene agregado). Se deriva del índice de nivel. Verificado contra el comunicado oficial (2025=100): 2.0% para agosto-2026, 1.8% para julio — el 1.4%/1.2% que llegó a mostrar investing.com no correspondía a estos meses (ver lección 15).',
     releaseStage: 'preliminar',
   },
   // PPI — equivalente japonés: Corporate Goods Price Index (CGPI) del BOJ,
