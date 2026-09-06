@@ -204,6 +204,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return pctChangeSeries(gdpLevel, 12);
       },
     },
+    // Contribución de cada componente al crecimiento del PIB, en puntos
+    // porcentuales — el feed de SECO ya la trae calculada (type="gc_q",
+    // "growth contribution quarterly"), no hace falta derivarla del nivel.
+    // Ver lección 6 en indicatorsChf.ts (verificado: los 4 suman exacto el
+    // t/t total del PIB).
+    {
+      id: 'chf_gdp_consumption',
+      run: async () => directPctSeries(await fetchSwissdatasSeries(GDP_CSV, 'cons_priv', 'gc_q', 'cssa')),
+    },
+    {
+      id: 'chf_gdp_government',
+      run: async () => directPctSeries(await fetchSwissdatasSeries(GDP_CSV, 'cons_gov', 'gc_q', 'cssa')),
+    },
+    {
+      id: 'chf_gdp_investment',
+      run: async () => directPctSeries(await fetchSwissdatasSeries(GDP_CSV, 'inv', 'gc_q', 'cssa')),
+    },
+    {
+      // "trade_balance" acá es la contribución de exportaciones netas
+      // (exp+imp ya combinados con el signo correcto por SECO) — no
+      // confundir con la estructura del mismo nombre en type="real" de la
+      // lección 2, que es un concepto de cuentas nacionales distinto de la
+      // Balanza Comercial mensual de Aduanas (esa sigue manual).
+      id: 'chf_gdp_net_exports',
+      run: async () => directPctSeries(await fetchSwissdatasSeries(GDP_CSV, 'trade_balance', 'gc_q', 'cssa')),
+    },
+    {
+      // El feed no trae un índice de precios del PIB directo — se deriva
+      // del cociente nominal/real (misma base de ajuste "cssa" en ambos).
+      id: 'chf_gdp_deflator',
+      run: async () => {
+        const nomLevel = await fetchSwissdatasSeries(GDP_CSV, 'gdp', 'nom', 'cssa');
+        const realLevel = await fetchSwissdatasSeries(GDP_CSV, 'gdp', 'real', 'cssa');
+        const deflatorLevel = new Map<string, number>();
+        for (const [date, nom] of nomLevel) {
+          const real = realLevel.get(date);
+          if (real !== undefined && real !== 0) deflatorLevel.set(date, nom / real);
+        }
+        return pctChangeSeries(deflatorLevel, 3);
+      },
+    },
   ];
 
   for (const job of jobs) {

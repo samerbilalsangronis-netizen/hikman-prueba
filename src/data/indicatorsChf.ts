@@ -71,6 +71,31 @@ import type { IndicatorMeta } from '../types';
 //    OK pero desactualizado" que motivó descartar FRED para GBP/CAD. Los
 //    PMI (procure.ch) son de una asociación privada sin API pública, igual
 //    que en el resto de las divisas. Los 6 quedan manuales.
+//
+// 6. **Los 5 subcomponentes del PIB (Deflactor/Consumo/Inversión/Gasto
+//    Público/Exportaciones Netas) nunca tuvieron datos cargados** — a
+//    pedido del usuario (29-ago-2026, "actualiza el PIB y la inflación"),
+//    al revisar por qué encontré que estaban vacíos desde que se agregaron.
+//    El mismo feed CSV de SECO de la lección 2 (scheduler.swissdatas.ch/
+//    scheduled/ch-seco-gdp.csv) SÍ trae la contribución de cada componente
+//    ya calculada — columna "type"="gc_q" (growth contribution, quarterly),
+//    algo que no se había notado en la primera pasada. Verificado sumando
+//    los 4 componentes de Q2-2026: cons_priv (0.146) + cons_gov (0.050) +
+//    inv (1.732) + trade_balance (-0.387) = 1.541pp, coincide EXACTO con el
+//    +1.54% del PIB total del mismo trimestre (chf_gdp_qoq) — confirma que
+//    "gc_q" es certeramente la contribución en puntos porcentuales, no hace
+//    falta derivarla a mano. Structures usadas: `cons_priv` (consumo
+//    privado), `cons_gov` (gasto de gobierno), `inv` (inversión fija +
+//    variación de existencias, ya combinado), `trade_balance` (exportaciones
+//    netas, YA combina exp+imp con el signo correcto — ojo, esta es la
+//    MISMA estructura mencionada en la lección 2 para la trampa de la
+//    Balanza Comercial mensual, acá se usa con type="gc_q" en vez de
+//    "real", un uso totalmente distinto y sí correcto para este caso). El
+//    Deflactor no tiene una columna de % directo en este feed — se deriva
+//    del cociente PIB nominal/PIB real (ambos "cssa", misma base de
+//    ajuste) — a diferencia de los otros 4, esto no se pudo verificar
+//    contra un número oficial publicado (SECO no destaca esta cifra en su
+//    comunicado), queda con menos confianza que el resto.
 export const CHF_INDICATORS: IndicatorMeta[] = [
   // Tasas / SNB — una sola tasa oficial, como el resto de los bancos
   // centrales no-USD.
@@ -409,10 +434,11 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'SECO',
+    source: 'SECO (PIB nominal / PIB real, ambos "cssa") — derivado',
     sourceUrl: 'https://www.seco.admin.ch/en/gross-domestic-product',
     goodDirection: 'neutral',
-    description: 'Medida de inflación implícita en el PIB de Suiza. Subcomponente de PIB Trimestral. Carga manual.',
+    description:
+      'Medida de inflación implícita en el PIB de Suiza, variación trimestral — se deriva del cociente PIB nominal/PIB real (el feed de SECO no trae un índice de precios directo para esto). Automatizado 29-ago-2026 (antes de carga manual, sin datos cargados nunca — ver lección 3).',
     parentId: 'chf_gdp_qoq',
   },
   {
@@ -424,10 +450,11 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'SECO',
+    source: 'SECO (contribución al PIB, serie "gc_q" cssa — ya calculada por SECO)',
     sourceUrl: 'https://www.seco.admin.ch/en/gross-domestic-product',
     goodDirection: 'up',
-    description: 'Contribución del consumo privado al crecimiento del PIB de Suiza. Carga manual.',
+    description:
+      'Contribución del consumo privado al crecimiento del PIB de Suiza, en puntos porcentuales. Automatizado 29-ago-2026 (antes de carga manual, sin datos cargados nunca — ver lección 3). Verificado: junto con Gasto Público + Inversión + Exportaciones Netas suman exacto el +1.54% del PIB del segundo trimestre de 2026.',
     parentId: 'chf_gdp_qoq',
   },
   {
@@ -439,10 +466,11 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'SECO',
+    source: 'SECO (contribución al PIB, serie "gc_q" cssa — ya calculada por SECO)',
     sourceUrl: 'https://www.seco.admin.ch/en/gross-domestic-product',
     goodDirection: 'up',
-    description: 'Contribución de la inversión (formación bruta de capital) al crecimiento del PIB de Suiza. Carga manual.',
+    description:
+      'Contribución de la inversión (formación bruta de capital fija + variación de existencias) al crecimiento del PIB de Suiza, en puntos porcentuales. Automatizado 29-ago-2026 (antes de carga manual, sin datos cargados nunca — ver lección 3).',
     parentId: 'chf_gdp_qoq',
   },
   {
@@ -454,10 +482,11 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'SECO',
+    source: 'SECO (contribución al PIB, serie "gc_q" cssa — ya calculada por SECO)',
     sourceUrl: 'https://www.seco.admin.ch/en/gross-domestic-product',
     goodDirection: 'up',
-    description: 'Contribución del gasto público al crecimiento del PIB de Suiza. Carga manual.',
+    description:
+      'Contribución del gasto público (consumo de gobierno) al crecimiento del PIB de Suiza, en puntos porcentuales. Automatizado 29-ago-2026 (antes de carga manual, sin datos cargados nunca — ver lección 3).',
     parentId: 'chf_gdp_qoq',
   },
   {
@@ -469,10 +498,11 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'SECO',
+    source: 'SECO (contribución al PIB, serie "trade_balance" gc_q cssa — ya calculada por SECO)',
     sourceUrl: 'https://www.seco.admin.ch/en/gross-domestic-product',
     goodDirection: 'up',
-    description: 'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de Suiza. Carga manual.',
+    description:
+      'Contribución de las exportaciones netas (exportaciones menos importaciones) al crecimiento del PIB de Suiza, en puntos porcentuales — el feed de SECO ya trae esta combinación calculada bajo la estructura "trade_balance". Automatizado 29-ago-2026 (antes de carga manual, sin datos cargados nunca — ver lección 3).',
     parentId: 'chf_gdp_qoq',
   },
   {

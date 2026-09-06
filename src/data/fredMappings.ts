@@ -289,4 +289,9 @@ export const CHF_AUTO_INDICATOR_IDS = [
   'chf_consumer_confidence',
   'chf_gdp_qoq',
   'chf_gdp_yoy',
+  'chf_gdp_deflator',
+  'chf_gdp_consumption',
+  'chf_gdp_investment',
+  'chf_gdp_government',
+  'chf_gdp_net_exports',
 ];
