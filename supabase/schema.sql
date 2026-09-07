@@ -346,3 +346,82 @@ drop policy if exists "public delete documents" on storage.objects;
 create policy "public delete documents"
   on storage.objects for delete
   using (bucket_id = 'documents');
+
+-- Bitácora de Trading (migrado del sistema anterior en Excel/Apps Script,
+-- sesión 7-sep-2026): cuentas con sus reglas de consistencia/límites,
+-- trades y las capturas de pantalla adjuntas. El motor de alertas (qué tan
+-- cerca está una cuenta de romper una regla) se calcula en el cliente a
+-- partir de estas tres tablas, no se guarda — ver src/lib/tradingRules.ts.
+create table if not exists trading_accounts (
+  id text primary key,
+  name text not null,
+  type text not null check (type in ('fondeo', 'real')),
+  status text not null default 'activa' check (status in ('activa', 'inactiva')),
+  initial_balance double precision not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- Una fila por regla (no una columna por tipo) para poder agregar tipos de
+-- regla nuevos sin migrar el esquema. 'custom' es texto libre sin `value`
+-- monitoreable automáticamente.
+create table if not exists trading_account_rules (
+  id text primary key,
+  account_id text not null references trading_accounts(id) on delete cascade,
+  type text not null check (type in ('max_daily_loss_pct', 'max_drawdown_pct', 'profit_target_pct', 'min_trading_days', 'custom')),
+  value double precision,
+  description text,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- Se inserta al ABRIR la posición (status='abierto', exit_price/exit_time
+-- null) y se actualiza el MISMO registro al cerrarla (status='cerrado') —
+-- a diferencia del sistema anterior, que solo cargaba el trade completo al
+-- final. entry_time/exit_time son timestamptz completos (fecha + hora) para
+-- soportar trades que cruzan más de un día y hora militar 24h en la UI.
+create table if not exists trades (
+  id text primary key,
+  account_id text not null references trading_accounts(id) on delete cascade,
+  instrument text not null,
+  direction text not null check (direction in ('compra', 'venta')),
+  size double precision not null,
+  entry_price double precision not null,
+  exit_price double precision,
+  stop_loss double precision,
+  take_profit double precision,
+  commission double precision not null default 0,
+  entry_time timestamptz not null,
+  exit_time timestamptz,
+  status text not null default 'abierto' check (status in ('abierto', 'cerrado')),
+  pnl double precision,
+  notes text,
+  screenshot_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table trading_accounts enable row level security;
+alter table trading_account_rules enable row level security;
+alter table trades enable row level security;
+
+drop policy if exists "public read/write trading_accounts" on trading_accounts;
+create policy "public read/write trading_accounts"
+  on trading_accounts for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write trading_account_rules" on trading_account_rules;
+create policy "public read/write trading_account_rules"
+  on trading_account_rules for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write trades" on trades;
+create policy "public read/write trades"
+  on trades for all
+  using (true)
+  with check (true);
+
+-- Las capturas de pantalla de los trades reusan el bucket "documents" ya
+-- creado arriba (mismo criterio de seguridad, path prefijado "trades/" para
+-- no mezclarse con los informes/resúmenes del mentor).

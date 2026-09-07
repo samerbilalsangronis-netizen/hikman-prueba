@@ -183,3 +183,75 @@ export interface DocumentEntry {
   fileName?: string;
   createdAt: string;
 }
+
+// --- Bitácora de Trading (migrado del sistema anterior, sesión 7-sep-2026) --
+
+export type TradingAccountType = 'fondeo' | 'real';
+export type TradingAccountStatus = 'activa' | 'inactiva';
+
+/** 'custom' es una regla de texto libre sin valor numérico monitoreable
+ * automáticamente (ej. "no operar viernes después de las 12pm") — las demás
+ * sí tienen un `value` que el motor de alertas compara contra los trades. */
+export type TradingRuleType = 'max_daily_loss_pct' | 'max_drawdown_pct' | 'profit_target_pct' | 'min_trading_days' | 'custom';
+
+export interface TradingAccountRule {
+  id: string;
+  type: TradingRuleType;
+  /** Porcentaje (ej. 5 = 5%) o cantidad de días según `type`. Ausente en 'custom'. */
+  value?: number;
+  /** Obligatoria en 'custom' (es la regla completa); aclaración opcional en el resto. */
+  description?: string;
+  enabled: boolean;
+}
+
+export interface TradingAccount {
+  id: string;
+  name: string;
+  type: TradingAccountType;
+  status: TradingAccountStatus;
+  initialBalance: number;
+  rules: TradingAccountRule[];
+  createdAt: string;
+}
+
+export type TradeDirection = 'compra' | 'venta';
+export type TradeStatus = 'abierto' | 'cerrado';
+
+/** Se crea al ABRIR la posición (no al cerrarla, a diferencia del sistema
+ * Excel anterior) y se completa con exitPrice/exitTime al cerrarla — mismo
+ * registro, no uno nuevo. entryTime/exitTime se autocompletan con el momento
+ * de carga pero quedan editables por si el trade se carga después de que
+ * ocurrió realmente. */
+export interface Trade {
+  id: string;
+  accountId: string;
+  instrument: string;
+  direction: TradeDirection;
+  size: number;
+  entryPrice: number;
+  exitPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  commission: number;
+  entryTime: string;
+  exitTime?: string;
+  status: TradeStatus;
+  /** Solo presente cuando status === 'cerrado'. Incluye comisión ya restada. */
+  pnl?: number;
+  notes?: string;
+  screenshotUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TradingAlertSeverity = 'ok' | 'warning' | 'breached';
+
+/** Resultado calculado en el cliente (no se guarda) al comparar los trades
+ * de una cuenta contra sus reglas — ver src/lib/tradingRules.ts. */
+export interface TradingRuleAlert {
+  rule: TradingAccountRule;
+  severity: TradingAlertSeverity;
+  /** 0-100+, cuánto de la regla se ha "consumido" (ej. 80 = 80% de la pérdida diaria máxima). Ausente en reglas 'custom'. */
+  usedPct?: number;
+  message: string;
+}
