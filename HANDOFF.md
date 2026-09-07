@@ -1,6 +1,6 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **21-ago-2026**, actualizado al cierre de la
+Fecha de este resumen: **6-sep-2026**, actualizado al cierre de la
 sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
 lea desde el repo) al abrir el chat nuevo — está pensado para ser
 autocontenido. El documento es largo y crece cronológicamente (sesión
@@ -8,7 +8,166 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 21-ago-2026
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 6-sep-2026
+
+Todo mergeado y en producción en ambas ramas (`claude/handoff-continuacion-xvvz4b`
+y `claude/macro-usd-web-dashboard-xm5ypk` — este repo las sigue
+manteniendo en paralelo, hay que pushear a las dos; la rama vieja
+`claude/ecstatic-planck-a1xlnr` de la sesión anterior ya no se usa, esta
+sesión arrancó una rama nueva). Sesión muy larga, muchas rondas puntuales
+del usuario — resumen por ronda, en orden:
+
+- **NZD — Ventas Minoristas (Retail Trade Survey trimestral)**: el
+  usuario notó en investing.com "Core Retail Sales (QoQ)" y "Retail
+  Sales (QoQ)" — series DISTINTAS de la que ya teníamos como "Ventas
+  Minoristas con Tarjeta de Crédito" (Electronic Card Transactions,
+  mensual). Se investigó si había API — a diferencia de la Balanza
+  Comercial/PPI de NZD (solo XLSX), esta SÍ trae un ZIP con CSV
+  (`stats.govt.nz/assets/Uploads/Retail-trade-survey/...`, tabla
+  "Percentage changes, total and core sales") — se automatizó
+  `nzd_retail_sales(_yoy)`/`nzd_retail_sales_core(_yoy)` sin tocar la
+  serie de tarjeta de crédito existente. Verificado T2-2026: headline
+  -0.5% t/t, core +0.7% t/t, coincide exacto con investing.com.
+- **USD — Confianza del Consumidor (Conference Board)**: estaba
+  desactualizada (un solo punto, julio). Se verificó de nuevo que sigue
+  sin API/FRED pública (solo un proxy OCDE) — se reconstruyó el
+  histórico de 9 meses previos desde investing.com y se cargó el dato de
+  agosto recién publicado (89.4). **Queda un script SQL sin confirmar
+  que el usuario lo haya corrido**: `supabase/import_cb_consumer_confidence_2026-08-25.sql`.
+- **JPY — CSPI (Corporate Services Price Index) del BOJ**: el usuario
+  preguntó la diferencia entre un dato nuevo del calendario ("Corporate
+  Services Price Index") y el PPI que ya teníamos (Corporate GOODS
+  Price Index, CGPI — bienes, no servicios). Se agregó `jpy_cspi(_yoy)`
+  automatizado vía el mismo CSV del BOJ que ya usábamos para CGPI/tasa
+  de política (stat-search.boj.or.jp, serie PR02 en vez de PR01).
+- **USD — PIB Consumo reemplazado por el crecimiento real**: `gdp_consumption`
+  medía la CONTRIBUCIÓN del consumo al PIB en pp (FRED
+  DPCERY2Q224SBEA), pero el usuario esperaba ver la misma cifra que
+  "Real Consumer Spending" de investing.com (la tasa de crecimiento
+  real en sí, no ponderada por peso en el PIB). Se cambió el mapeo a
+  FRED `DPCERL1Q225SBEA` (NIPA tabla 1.1.1). Verificado T2-2026: 3.4%,
+  coincide exacto. Se limpió el seed viejo de `historical-series.json`
+  (traía ~80 años de la métrica anterior, otra unidad).
+- **Panel de Control — dos pedidos de UX sobre el historial de sesgos**:
+  1) El historial ahora muestra "Resumen Semanal: DD mes YYYY hasta DD
+     mes YYYY" (calculado de los `startedAt` reales de cada semana
+     archivada) en vez de una sola fecha suelta.
+  2) El resumen semanal pasó de un `<textarea>` con marcado
+     `**negrita**` (que el usuario reportó confuso — se veían los
+     asteriscos literales) a un editor `contentEditable` WYSIWYG real:
+     tocar el botón "N" (o Ctrl/Cmd+B) con texto seleccionado lo pone en
+     negrita al instante, como Word — sin marcado visible. Se guarda
+     como HTML reducido a `<strong>`/`<br>`/texto
+     (`sanitizeSummaryHtml` en `CurrencyBiasCard.tsx` descarta cualquier
+     otra etiqueta) y migra al vuelo los resúmenes viejos que hayan
+     quedado con el markdown de la versión anterior. Probado con
+     Playwright end-to-end.
+- **AUD — Household Spending ya existía, solo hacía falta el nombre**:
+  el usuario pidió agregar el "Gasto de los Hogares" de Australia sin
+  saber que ya lo teníamos automatizado bajo el nombre "Ventas
+  Minoristas" (la ABS discontinuó "Retail Trade" en 2025, el reemplazo
+  oficial es el Household Spending Indicator — así estaba documentado
+  desde antes, pero el usuario no lo relacionó). Se renombró la etiqueta
+  a "Ventas Minoristas / Gasto de los Hogares" para que sea reconocible.
+- **JPY — CPI de Tokio, dos rondas y un descubrimiento importante**:
+  1) Se agregó `jpy_tokyo_core_core_cpi_mom/_yoy` (ex alimentos frescos
+     Y energía, "core-core CPI") — el usuario notó que solo teníamos la
+     versión ex-alimentos-frescos-solamente. Código e-Stat Dashboard
+     `0703010501010090040` (base 2020), encontrado vía el parámetro
+     `SearchIndicatorWord` de `getIndicatorInfo`.
+  2) A pedido del usuario se sacó `jpy_tokyo_core_cpi_yoy` (ex alimentos
+     frescos solamente, Tokio) — se queda solo con la versión
+     ex-alimentos-y-energía para Tokio. El Core CPI NACIONAL
+     (`jpy_core_cpi`/`jpy_core_cpi_yoy`, también ex alimentos frescos)
+     NO se tocó, sigue siendo la medida real del BOJ.
+  3) **Descubrimiento importante**: Japón cambió la base del IPC de
+     Tokio de 2020=100 a 2025=100 justo en el comunicado del
+     28-ago-2026 (confirmado en el calendario oficial de stat.go.jp).
+     El usuario notó una discrepancia entre lo que decía su profesor de
+     economía (~2.0% para "ex alimentos y energía" en agosto), lo que
+     mostraba investing.com (1.4%/1.2%) y lo que mostraba la app (2.0%,
+     pero de julio). Se verificó contra el PDF oficial
+     (`stat.go.jp/data/cpi/sokuhou/tsuki/pdf/kubu.pdf`, URL fija, se
+     reemplaza cada mes): el profesor tenía razón (ago 2.0%, jul 1.8%)
+     — investing.com mostraba un dato viejo/mal cacheado (1.4%/1.2%
+     coincide con abril/mayo de otra serie, no con agosto/julio de
+     ninguna real). El e-Stat Dashboard sigue en los códigos de base
+     2020, que ya no reconcilian exacto con las tasas oficiales
+     recalculadas en base 2025 — los códigos nuevos de base 2025 existen
+     pero por ahora solo traen UN punto (no alcanza para derivar a/a).
+     **Queda un script SQL sin confirmar**:
+     `supabase/fix_jpy_tokyo_cpi_rebase_2026-08-28.sql` (corrige julio y
+     carga agosto para `jpy_tokyo_cpi_yoy`/`jpy_tokyo_core_core_cpi_mom`/`_yoy`
+     — se auto-corrige solo en cuanto e-Stat acumule histórico en base
+     2025). **Posible problema sin resolver**: `jpy_cpi`/`jpy_core_cpi`
+     nacionales usan los mismos códigos de base 2020 — probablemente
+     tengan el mismo problema, no se revisó todavía.
+- **CAD — PIB trimestral, la ronda más grande de la sesión**:
+  1) Faltaba el PIB TRIMESTRAL (by income and expenditure) — distinto
+     del PIB MENSUAL por industria que ya teníamos (tabla StatCan
+     36-10-0434). investing.com muestra ambos por separado el mismo día
+     (GDP MoM Y GDP QoQ/Annualized/YoY), con valores que NO coinciden
+     entre sí (no es error, dos metodologías reales: 2.0% a/a mensual
+     vs 1.13% a/a trimestral para T2-2026). Se agregó
+     `cad_gdp_qoq`/`cad_gdp_annualized_qoq` desde la tabla StatCan
+     36-10-0104-01, que a diferencia de la mayoría trae el % de cambio
+     t/t YA CALCULADO (dimensión "Prices", member 7). Se automatizó de
+     paso `cad_gdp_deflator` (estaba manual, mal parentado al PIB
+     mensual) con la tabla de precios 36-10-0106-01. Verificado contra
+     el comunicado oficial de StatCan del mismo día (dq260828a): 0.8%
+     t/t, 3.3% anualizado, 2.5% deflactor — los 3 coinciden exacto.
+  2) El usuario pidió que la "PIB Interanual" del SCORE (`cad_gdp_yoy`)
+     usara la métrica que coincide con investing.com en vez de la
+     mensual — se cambió su fuente a la misma tabla trimestral (nivel,
+     4 trimestres atrás) y se sacó `cad_gdp_expenditure_yoy` (quedaba
+     duplicado). Verificado: 1.13%, coincide exacto.
+  3) **Bug real propio, encontrado por el usuario ("no aparecen")**: al
+     agregar todo esto se le puso `parentId: 'cad_gdp_qoq'` también a
+     `cad_gdp_yoy` y `cad_gdp_annualized_qoq` — quedaban escondidos como
+     "subcomponentes" detrás de un desplegable en vez de tarjetas
+     propias (mal copiado del patrón de JPY). Corregido: solo el
+     deflactor + los 4 componentes de gasto quedan parentados (5, no
+     7) — Interanual y Anualizado son tarjetas visibles de nuevo.
+  4) **Bug real de datos, encontrado por el usuario ("sigue mostrando
+     2.0 y no 1.13%")**: `cad_gdp_yoy` tenía AÑOS de filas MENSUALES
+     viejas en Supabase (de cuando salía de la tabla mensual) — como
+     mayo/junio-2026 (mensuales, 2.0%) son fechas más recientes que
+     abril-2026 (el punto trimestral correcto, 1.13%), la tarjeta
+     mostraba el valor viejo. **Queda un script SQL sin confirmar**:
+     `supabase/cleanup_cad_gdp_yoy_2026-08-28.sql` (borra toda fila que
+     no caiga en un inicio de trimestre).
+- **CHF — PIB e inflación, a pedido genérico de "actualizar"**: al
+  revisar se encontró que CPI y PIB headline YA estaban al día
+  (coinciden con SNB/SECO, nada que hacer). El hallazgo real: los 5
+  subcomponentes del PIB (Deflactor/Consumo/Inversión/Gasto
+  Público/Exportaciones Netas) estaban VACÍOS desde que se agregaron —
+  nunca tuvieron un solo dato cargado. El mismo feed CSV de SECO que ya
+  usábamos (`scheduler.swissdatas.ch/scheduled/ch-seco-gdp.csv`) trae
+  la contribución de cada componente ya calculada (columna
+  `type="gc_q"`) — no se había notado antes. Verificado sumando los 4
+  componentes de gasto del T2-2026: dan EXACTO el +1.54% del PIB total.
+  El deflactor se deriva del cociente nominal/real (sin columna directa,
+  algo menos de confianza que el resto). Los 5 quedaron automatizados.
+
+**Pendiente explícito para la próxima sesión — 4 scripts SQL sin
+confirmar que el usuario los haya corrido en Supabase > SQL Editor**
+(todos son stopgaps que se auto-corrigen solos apenas la fuente
+automatizada correspondiente se ponga al día, pero mientras tanto la
+UI puede seguir mostrando el valor viejo si no se corren):
+1. `supabase/import_cb_consumer_confidence_2026-08-25.sql`
+2. `supabase/fix_jpy_tokyo_cpi_rebase_2026-08-28.sql`
+3. `supabase/cleanup_cad_gdp_yoy_2026-08-28.sql`
+4. `supabase/cleanup_jpy_tokyo_core_cpi_2026-08-28.sql` (borra las filas
+   huérfanas del indicador `jpy_tokyo_core_cpi_yoy`, que ya no existe en
+   el código — este no es urgente, es solo limpieza de filas muertas
+   sin impacto visible en la UI).
+
+Además, sin confirmar/revisar todavía: si `jpy_cpi`/`jpy_core_cpi`
+(nacionales, JPY) tienen el mismo problema del cambio de base 2020→2025
+que se encontró y corrigió para el CPI de Tokio (ver arriba) — no se
+llegó a revisar en esta sesión.
+
+## Estado al cierre de la sesión del 21-ago-2026
 
 Todo mergeado y en producción en ambas ramas
 (`claude/ecstatic-planck-a1xlnr` y `claude/macro-usd-web-dashboard-xm5ypk`
