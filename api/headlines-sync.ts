@@ -165,6 +165,39 @@ async function fetchFinnhubHeadlines(apiKey: string): Promise<HeadlineRow[]> {
   return out;
 }
 
+// Backfill de traducción (antes era api/translate-headlines.ts, fusionado
+// acá el 8-sep-2026 para no pasarse del límite de 12 Serverless Functions
+// del plan Hobby de Vercel al agregar api/trading-alert-email.ts) — busca
+// titulares que quedaron sin traducir (típicamente cargados antes de que
+// existiera esta funcionalidad, o porque MyMemory falló puntualmente en su
+// momento) y los traduce ahora. No toca cargas manuales (is_manual=true, ya
+// están en español). Se dispara con GET/POST a
+// /api/headlines-sync?backfill=1 en vez del sync normal de Finnhub.
+async function runTranslationBackfill(supabase: ReturnType<typeof createClient>) {
+  const { data: pending, error: fetchError } = await supabase
+    .from('headlines')
+    .select('id, title')
+    .eq('is_manual', false)
+    .is('title_es', null)
+    .limit(200); // tope por corrida para no pasarse del tiempo máximo de la función serverless
+
+  if (fetchError) return { found: 0, translated: 0, errors: [fetchError.message] };
+
+  let translated = 0;
+  const errors: string[] = [];
+  for (const row of (pending ?? []) as { id: string; title: string }[]) {
+    const titleEs = await translateToSpanish(row.title);
+    if (!titleEs) {
+      errors.push(`${row.id}: no se pudo traducir`);
+      continue;
+    }
+    const { error: updateError } = await supabase.from('headlines').update({ title_es: titleEs }).eq('id', row.id);
+    if (updateError) errors.push(`${row.id}: ${updateError.message}`);
+    else translated += 1;
+  }
+  return { found: pending?.length ?? 0, translated, errors };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -181,6 +214,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  if (req.query.backfill) {
+    const result = await runTranslationBackfill(supabase);
+    res.status(200).json(result);
+    return;
+  }
+
   const errors: { fuente: string; error: string }[] = [];
   let rows: HeadlineRow[] = [];
 

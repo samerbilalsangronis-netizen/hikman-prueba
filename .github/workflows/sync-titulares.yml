@@ -26,4 +26,7 @@ jobs:
         run: curl -sS --max-time 60 -X POST https://hikman-prueba.vercel.app/api/headlines-sync
       - name: Traducir titulares pendientes
         continue-on-error: true
-        run: curl -sS --max-time 60 -X POST https://hikman-prueba.vercel.app/api/translate-headlines
+        # Fusionado dentro de headlines-sync.ts (8-sep-2026) para no pasarse
+        # del límite de 12 Serverless Functions del plan Hobby de Vercel al
+        # agregar api/trading-alert-email.ts — mismo endpoint, modo backfill.
+        run: curl -sS --max-time 60 -X POST "https://hikman-prueba.vercel.app/api/headlines-sync?backfill=1"
