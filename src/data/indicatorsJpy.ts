@@ -228,6 +228,26 @@ import type { IndicatorMeta } from '../types';
 //     nacionales (CPI_LEVEL/CORE_CPI_LEVEL, también base 2020) probablemente
 //     tengan el mismo problema — no se tocaron todavía, pendiente revisar
 //     si el usuario lo nota.
+//
+// 16. **jpy_gdp_consumption/investment/government/deflator, automatizados**
+//     (8-sep-2026, a pedido del usuario) — la lección 11 decía que no había
+//     fuente automatizable vigente para el desglose del PIB por componente,
+//     porque el Dashboard de e-Stat efectivamente no lo tiene. Pero el
+//     Cabinet Office SÍ publica el desglose completo (consumo/inversión/
+//     gobierno/deflactor) en CSVs por release trimestral —
+//     esri.cao.go.jp/jp/sna/data_list/sokuhou/files/{año}/qe{código}/tables/
+//     {ritu-jk|def-qk}{código}.csv. El problema real era que esa URL cambia
+//     de nombre cada trimestre (el código de release, ej. "qe262_2" = 2026
+//     Q2 2da estimación) — se resuelve descubriéndolo en runtime desde
+//     esri.cao.go.jp/jp/sna/sokuhou/sokuhou_top.html, que SÍ es estable (el
+//     Cabinet Office actualiza su contenido cada release manteniendo la
+//     URL). Las cabeceras del CSV vienen en japonés (Shift-JIS) pero las
+//     filas de datos son ASCII puro, mismo truco que fetchBojRate/fetchCgpi
+//     (decodificar como UTF-8 alcanza, las cabeceras simplemente no
+//     matchean el regex de fecha y se ignoran). Columnas verificadas contra
+//     la revisión oficial del 7-sep-2026 (Q2-2026): consumo 0.0%, capex
+//     -0.9%, gasto público +1.7%, deflactor +0.97% t/t — API disparada en
+//     vivo contra el CSV real antes de shippear, no solo contra el PDF.
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
@@ -796,10 +816,11 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'JPY',
-    source: 'e-Stat Dashboard',
-    sourceUrl: 'https://dashboard.e-stat.go.jp/',
+    source: 'Cabinet Office (esri.cao.go.jp) — CSV "def-qk" (deflactor trimestral, nivel 2020=100)',
+    sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'neutral',
-    description: 'Medida de inflación implícita en el PIB de Japón. Subcomponente de PIB Trimestral. Carga manual.',
+    description:
+      'Medida de inflación implícita en el PIB de Japón (t/t) — derivada del nivel del deflactor trimestral (base 2020=100) publicado por el Cabinet Office. Automatizado 8-sep-2026, ver lección 16.',
     parentId: 'jpy_gdp_qoq',
   },
   {
@@ -815,7 +836,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
     description:
-      'Crecimiento trimestral (t/t) del consumo privado (民間最終消費支出) — su propia variación, no su contribución al PIB total (ver lección 11: el Dashboard de e-Stat no tiene contribución por componente vigente, solo el desglose Demanda Externa/Interna). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: -0.0% para el segundo trimestre de 2026 (primera caída en 8 trimestres), coincide con lo reportado.',
+      'Crecimiento trimestral (t/t) del consumo privado (民間最終消費支出) — su propia variación, no su contribución al PIB total (ver lección 11: el Dashboard de e-Stat no tiene contribución por componente vigente, solo el desglose Demanda Externa/Interna). Automatizado 8-sep-2026 desde el CSV oficial del Cabinet Office (ver lección 16). Verificado: 0.0% para el segundo trimestre de 2026 (revisión del 7-sep-2026, primera caída/estancamiento en 8 trimestres), coincide con lo reportado.',
     parentId: 'jpy_gdp_qoq',
   },
   {
@@ -831,7 +852,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
     description:
-      'Crecimiento trimestral (t/t) de la inversión privada no residencial (民間企業設備 — "Capital Expenditure", así lo titula investing.com) — su propia variación, no su contribución al PIB (ver lección 11). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: -1.2% para el segundo trimestre de 2026, coincide exacto con investing.com.',
+      'Crecimiento trimestral (t/t) de la inversión privada no residencial (民間企業設備 — "Capital Expenditure", así lo titula investing.com) — su propia variación, no su contribución al PIB (ver lección 11). Automatizado 8-sep-2026 desde el CSV oficial del Cabinet Office (ver lección 16). Verificado: -0.9% para el segundo trimestre de 2026 (revisión del 7-sep-2026, mejoró desde el preliminar de -1.2%), coincide exacto con lo reportado.',
     parentId: 'jpy_gdp_qoq',
   },
   {
@@ -847,7 +868,7 @@ export const JPY_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://www.esri.cao.go.jp/en/sna/menu.html',
     goodDirection: 'up',
     description:
-      'Crecimiento trimestral (t/t) del consumo del gobierno (政府最終消費支出) — su propia variación, no su contribución al PIB (ver lección 11). Carga manual desde el comunicado oficial del Cabinet Office, sin fuente automatizable vigente. Verificado: +1.6% para el segundo trimestre de 2026.',
+      'Crecimiento trimestral (t/t) del consumo del gobierno (政府最終消費支出) — su propia variación, no su contribución al PIB (ver lección 11). Automatizado 8-sep-2026 desde el CSV oficial del Cabinet Office (ver lección 16). Verificado: +1.7% para el segundo trimestre de 2026 (revisión del 7-sep-2026, desde +1.6% preliminar).',
     parentId: 'jpy_gdp_qoq',
   },
   {

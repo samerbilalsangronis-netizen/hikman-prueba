@@ -123,6 +123,86 @@ function annualizedQoqSeries(level: Map<string, number>): Observation[] {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// --- Cabinet Office (esri.cao.go.jp) — componentes del PIB por gasto ------
+
+// El Dashboard de e-Stat no tiene contribución/crecimiento por componente
+// vigente para consumo/inversión/gasto público (ver lección 11 en
+// indicatorsJpy.ts, quedaron manuales) — pero el Cabinet Office SÍ publica
+// el desglose completo por gasto en un CSV cada release trimestral. El
+// problema es que la URL cambia de nombre cada vez (año + código de release,
+// ej. "qe262_2" = 2026 Q2, 2da estimación/revisión) — se descubre en runtime
+// leyendo la página "top" de resultados (esa sí es estable), que siempre
+// lista el link al último release vigente (preliminar o revisado, lo que
+// esté más reciente).
+async function fetchGdpReleaseCode(): Promise<{ year: string; folder: string; csvCode: string }> {
+  const res = await fetch('https://www.esri.cao.go.jp/jp/sna/sokuhou/sokuhou_top.html', { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`ESRI sokuhou_top: HTTP ${res.status}`);
+  const html = await res.text();
+  const m = html.match(/qe(\d{2})(\d)_(\d)/);
+  if (!m) throw new Error('ESRI: no se encontró el código del último release (qeXXX_X) en sokuhou_top.html — ¿cambió el formato de la página?');
+  const [, yy, q, r] = m;
+  return { year: `20${yy}`, folder: `qe${yy}${q}_${r}`, csvCode: `${yy}${q}${r}` };
+}
+
+// Las cabeceras del CSV vienen en japonés (Shift-JIS/cp932) pero las filas de
+// datos (fecha + números) son ASCII puro — decodificar como UTF-8 alcanza,
+// mismo criterio que fetchBojRate/fetchCgpi más abajo. Filas: "1994/ 1- 3.,…"
+// (arranca un año nuevo) o "4- 6.,…" (mismo año que la fila anterior, el CSV
+// no repite el año) — hay que arrastrar el año entre filas.
+async function fetchGdpComponentRows(prefix: 'ritu-jk' | 'def-qk'): Promise<Map<string, string[]>> {
+  const { year, folder, csvCode } = await fetchGdpReleaseCode();
+  const url = `https://www.esri.cao.go.jp/jp/sna/data/data_list/sokuhou/files/${year}/${folder}/tables/${prefix}${csvCode}.csv`;
+  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`ESRI ${prefix}: HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const text = new TextDecoder('utf-8').decode(buf);
+  const out = new Map<string, string[]>();
+  let currentYear = 0;
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.replace(/\r$/, '');
+    const m = line.match(/^(?:(\d{4})\/\s*)?(\d{1,2})-\s*\d{1,2}\.,/);
+    if (!m) continue;
+    const [, y, startMonth] = m;
+    if (y) currentYear = Number(y);
+    if (!currentYear) continue;
+    out.set(`${currentYear}-${String(Number(startMonth)).padStart(2, '0')}-01`, line.split(','));
+  }
+  if (out.size === 0) throw new Error(`ESRI ${prefix}: sin filas de datos parseadas (¿cambió el formato del CSV?)`);
+  return out;
+}
+
+// Columnas del CSV "ritu-jk" (実質季節調整系列, t/t, ya en % sin dividir):
+// col 1 = PIB total (ya cubierto por GDP_QOQ_DIRECT), col 2 = Consumo
+// Privado (民間最終消費支出), col 6 = Inversión Empresarial/Capex (民間企業
+// 設備 — "Capital Expenditure" en investing.com), col 8 = Gasto del
+// Gobierno (政府最終消費支出). Verificado Q2-2026 (revisión del 7-sep-2026):
+// 0.0% / -0.9% / 1.7%, coincide exacto con lo reportado.
+function gdpComponentPctSeries(rows: Map<string, string[]>, colIndex: number): Observation[] {
+  const out: Observation[] = [];
+  for (const [date, cols] of rows) {
+    const raw = (cols[colIndex] ?? '').trim();
+    if (!raw || raw === '***') continue;
+    const num = Number(raw);
+    if (Number.isNaN(num)) continue;
+    out.push({ date, value: num / 100 });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Columna del CSV "def-qk" (deflactor trimestral, nivel — 2020=100): col 1 =
+// deflactor del PIB total. Se deriva el t/t igual que el resto de niveles
+// (pctChangeSeries, 3 meses atrás).
+function gdpDeflatorLevelMap(rows: Map<string, string[]>, colIndex: number): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [date, cols] of rows) {
+    const raw = (cols[colIndex] ?? '').trim();
+    if (!raw || raw === '***') continue;
+    const num = Number(raw);
+    if (!Number.isNaN(num)) out.set(date, num);
+  }
+  return out;
+}
+
 // --- BOJ Time-Series Data Search (CSV público, sin key, serie FM01) --------
 
 // La tasa a un día sin garantía (uncollateralized overnight call rate) — la
@@ -335,6 +415,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let coreCpiLevel: Map<string, number> | undefined;
   let employedLevel: Map<string, number> | undefined;
   let gdpLevel: Map<string, number> | undefined;
+  let gdpComponentRows: Map<string, string[]> | undefined;
+  let gdpDeflatorRows: Map<string, string[]> | undefined;
   let retailLevel: Map<string, number> | undefined;
   let cgpi: Awaited<ReturnType<typeof fetchCgpi>> | undefined;
   let cspi: Awaited<ReturnType<typeof fetchCspi>> | undefined;
@@ -436,6 +518,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     {
       id: 'jpy_gdp_net_exports',
       run: async () => directPctSeries(await fetchDashboardSeries(GDP_NET_EXPORTS_CONTRIB, QUARTERLY_FROM, '2')),
+    },
+    {
+      id: 'jpy_gdp_consumption',
+      run: async () => {
+        gdpComponentRows ??= await fetchGdpComponentRows('ritu-jk');
+        return gdpComponentPctSeries(gdpComponentRows, 2);
+      },
+    },
+    {
+      id: 'jpy_gdp_investment',
+      run: async () => {
+        gdpComponentRows ??= await fetchGdpComponentRows('ritu-jk');
+        return gdpComponentPctSeries(gdpComponentRows, 6);
+      },
+    },
+    {
+      id: 'jpy_gdp_government',
+      run: async () => {
+        gdpComponentRows ??= await fetchGdpComponentRows('ritu-jk');
+        return gdpComponentPctSeries(gdpComponentRows, 8);
+      },
+    },
+    {
+      id: 'jpy_gdp_deflator',
+      run: async () => {
+        gdpDeflatorRows ??= await fetchGdpComponentRows('def-qk');
+        return pctChangeSeries(gdpDeflatorLevelMap(gdpDeflatorRows, 1), 3);
+      },
     },
     { id: 'jpy_trade_balance', run: fetchTradeBalance },
     {
