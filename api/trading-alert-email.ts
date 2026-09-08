@@ -10,7 +10,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Usa Resend (resend.com) — plan gratis, sin necesidad de verificar dominio
 // propio si se manda desde "onboarding@resend.dev". Requiere en Vercel:
 //   RESEND_API_KEY        — API key de resend.com
-//   TRADING_ALERT_EMAIL   — a qué correo avisar
+//   TRADING_ALERT_EMAIL   — a qué correo(s) avisar (uno o varios separados
+//                           por coma, ej. "a@x.com, b@y.com")
 // Si cualquiera de las dos falta, el endpoint devuelve 200 sin enviar nada
 // (no rompe la carga de trades por no tener el correo configurado todavía).
 
@@ -28,8 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.TRADING_ALERT_EMAIL;
-  if (!apiKey || !toEmail) {
+  const toEmails = (process.env.TRADING_ALERT_EMAIL ?? '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+  if (!apiKey || toEmails.length === 0) {
     res.status(200).json({ sent: false, reason: 'RESEND_API_KEY o TRADING_ALERT_EMAIL no configurados en Vercel.' });
     return;
   }
@@ -49,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: fromEmail,
-        to: [toEmail],
+        to: toEmails,
         subject: `${severityLabel} — ${body.accountName} (${body.ruleLabel})`,
         html: `<p><strong>${body.accountName}</strong> — ${body.ruleLabel}</p><p>${body.message}</p>`,
       }),
