@@ -241,6 +241,8 @@ export interface Trade {
   pnl?: number;
   notes?: string;
   screenshotUrl?: string;
+  /** Link externo al gráfico (ej. TradingView) — separado de screenshotUrl, que es una captura subida. */
+  chartUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

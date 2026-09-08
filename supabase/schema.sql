@@ -399,9 +399,17 @@ create table if not exists trades (
   pnl double precision,
   notes text,
   screenshot_url text,
+  -- Link externo al gráfico (ej. TradingView) — separado de screenshot_url,
+  -- que es una captura subida al bucket "documents". Pedido explícito del
+  -- usuario: quiere poder pegar el link directo sin necesidad de subir
+  -- una imagen, para revisar entradas/salidas con más contexto.
+  chart_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migración para trades ya creada antes de este campo.
+alter table trades add column if not exists chart_url text;
 
 -- Migración: si trades ya se había creado con entry_price not null en una
 -- corrida anterior de este archivo, se relaja acá (ver comentario arriba).

@@ -11,6 +11,7 @@ function EditTradeForm({ trade, onDone }: { trade: Trade; onDone: () => void }) 
   const [exitTime, setExitTime] = useState(trade.exitTime ? isoToLocalInputValue(trade.exitTime) : '');
   const [pnl, setPnl] = useState(trade.pnl !== undefined ? String(trade.pnl) : '');
   const [notes, setNotes] = useState(trade.notes ?? '');
+  const [chartUrl, setChartUrl] = useState(trade.chartUrl ?? '');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,6 +22,7 @@ function EditTradeForm({ trade, onDone }: { trade: Trade; onDone: () => void }) 
       exitTime: exitTime ? localInputValueToIso(exitTime) : undefined,
       pnl: pnl ? Number(pnl) : undefined,
       notes: notes.trim() || undefined,
+      chartUrl: chartUrl.trim() || undefined,
     });
     onDone();
   }
@@ -36,6 +38,13 @@ function EditTradeForm({ trade, onDone }: { trade: Trade; onDone: () => void }) 
         <input lang="es" value={exitTime} onChange={(e) => setExitTime(e.target.value)} type="datetime-local" className="rounded-md px-2 py-1 text-xs" style={inputStyle} />
       </div>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-md px-2 py-1 text-xs" style={inputStyle} />
+      <input
+        value={chartUrl}
+        onChange={(e) => setChartUrl(e.target.value)}
+        placeholder="Link del gráfico (ej. TradingView)"
+        className="rounded-md px-2 py-1 text-xs"
+        style={inputStyle}
+      />
       <div className="flex items-center gap-2">
         <button type="submit" className="rounded-full px-3 py-1 text-xs font-medium text-white" style={{ background: 'var(--series-1)' }}>
           Guardar
@@ -103,6 +112,11 @@ export function HistoryTab() {
               {trade.screenshotUrl && (
                 <a href={trade.screenshotUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--series-1)' }}>
                   Ver captura
+                </a>
+              )}
+              {trade.chartUrl && (
+                <a href={trade.chartUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--series-1)' }}>
+                  Ver gráfico
                 </a>
               )}
               <button onClick={() => setEditingId(editingId === trade.id ? null : trade.id)} className="ml-auto" style={{ color: 'var(--text-secondary)' }}>

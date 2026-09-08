@@ -16,6 +16,7 @@ function OpenTradeForm() {
   const [commission, setCommission] = useState('0');
   const [entryTime, setEntryTime] = useState(nowLocalInputValue());
   const [notes, setNotes] = useState('');
+  const [chartUrl, setChartUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -39,6 +40,7 @@ function OpenTradeForm() {
         entryTime: localInputValueToIso(entryTime),
         notes: notes.trim() || undefined,
         screenshotUrl,
+        chartUrl: chartUrl.trim() || undefined,
       });
       setInstrument('');
       setSize('');
@@ -48,6 +50,7 @@ function OpenTradeForm() {
       setCommission('0');
       setEntryTime(nowLocalInputValue());
       setNotes('');
+      setChartUrl('');
       setFile(null);
     } finally {
       setSaving(false);
@@ -122,6 +125,13 @@ function OpenTradeForm() {
         className="rounded-md px-3 py-2 text-sm"
         style={inputStyle}
       />
+      <input
+        value={chartUrl}
+        onChange={(e) => setChartUrl(e.target.value)}
+        placeholder="Link del gráfico (ej. TradingView)"
+        className="rounded-md px-3 py-2 text-sm"
+        style={inputStyle}
+      />
       <div className="flex flex-wrap items-center gap-3">
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs" style={{ color: 'var(--text-muted)' }} />
         <button type="submit" disabled={saving} className="rounded-full px-4 py-1.5 text-sm font-medium text-white" style={{ background: 'var(--series-1)' }}>
@@ -139,6 +149,7 @@ function CloseTradeForm({ trade }: { trade: Trade }) {
   const [exitTime, setExitTime] = useState(nowLocalInputValue());
   const [pnl, setPnl] = useState('');
   const [notes, setNotes] = useState(trade.notes ?? '');
+  const [chartUrl, setChartUrl] = useState(trade.chartUrl ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -155,6 +166,7 @@ function CloseTradeForm({ trade }: { trade: Trade }) {
         pnl: Number(pnl),
         notes: notes.trim() || undefined,
         screenshotUrl,
+        chartUrl: chartUrl.trim() || undefined,
       });
       setOpen(false);
     } finally {
@@ -183,6 +195,13 @@ function CloseTradeForm({ trade }: { trade: Trade }) {
         </div>
       </div>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas de cierre" rows={2} className="rounded-md px-2 py-1 text-xs" style={inputStyle} />
+      <input
+        value={chartUrl}
+        onChange={(e) => setChartUrl(e.target.value)}
+        placeholder="Link del gráfico (ej. TradingView)"
+        className="rounded-md px-2 py-1 text-xs"
+        style={inputStyle}
+      />
       <div className="flex items-center gap-2">
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs" style={{ color: 'var(--text-muted)' }} />
         <button type="submit" disabled={saving} className="rounded-full px-3 py-1 text-xs font-medium text-white" style={{ background: 'var(--series-1)' }}>
@@ -219,9 +238,16 @@ export function RegisterTradeTab() {
                 {accountName(trade.accountId)} · abierto {formatDateTime(trade.entryTime)}
               </span>
             </div>
-            {(trade.stopLoss || trade.takeProfit) && (
+            {(trade.stopLoss || trade.takeProfit || trade.chartUrl) && (
               <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                {trade.stopLoss ? `SL ${trade.stopLoss}` : ''} {trade.takeProfit ? `TP ${trade.takeProfit}` : ''} {trade.commission ? `· Comisión ${formatMoney(trade.commission)}` : ''}
+                {trade.stopLoss ? `SL ${trade.stopLoss} ` : ''}
+                {trade.takeProfit ? `TP ${trade.takeProfit} ` : ''}
+                {trade.commission ? `· Comisión ${formatMoney(trade.commission)} ` : ''}
+                {trade.chartUrl && (
+                  <a href={trade.chartUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--series-1)' }}>
+                    · Ver gráfico
+                  </a>
+                )}
               </p>
             )}
             <CloseTradeForm trade={trade} />

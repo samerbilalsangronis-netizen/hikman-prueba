@@ -50,7 +50,7 @@ interface TradingJournalValue {
   openTrade: (
     input: Omit<Trade, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'exitPrice' | 'exitTime' | 'pnl'>,
   ) => Promise<Trade>;
-  closeTrade: (tradeId: string, patch: { exitPrice: number; exitTime: string; pnl: number; notes?: string; screenshotUrl?: string }) => Promise<void>;
+  closeTrade: (tradeId: string, patch: { exitPrice: number; exitTime: string; pnl: number; notes?: string; screenshotUrl?: string; chartUrl?: string }) => Promise<void>;
   updateTrade: (tradeId: string, patch: Partial<Omit<Trade, 'id' | 'accountId' | 'createdAt'>>) => Promise<void>;
   deleteTrade: (tradeId: string) => Promise<void>;
   uploadTradeScreenshot: (file: File) => Promise<string>;
@@ -117,6 +117,7 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
           pnl: t.pnl ?? undefined,
           notes: t.notes ?? undefined,
           screenshotUrl: t.screenshot_url ?? undefined,
+          chartUrl: t.chart_url ?? undefined,
           createdAt: t.created_at,
           updatedAt: t.updated_at,
         }));
@@ -264,6 +265,7 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
             status: 'abierto',
             notes: next.notes ?? null,
             screenshot_url: next.screenshotUrl ?? null,
+            chart_url: next.chartUrl ?? null,
           });
         } catch (err) {
           console.error('No se pudo registrar el trade en Supabase', err);
@@ -275,12 +277,22 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
   );
 
   const closeTrade = useCallback(
-    async (tradeId: string, patch: { exitPrice: number; exitTime: string; pnl: number; notes?: string; screenshotUrl?: string }) => {
+    async (tradeId: string, patch: { exitPrice: number; exitTime: string; pnl: number; notes?: string; screenshotUrl?: string; chartUrl?: string }) => {
       const now = new Date().toISOString();
       setTrades((prev) => {
         const updated = prev.map((t) =>
           t.id === tradeId
-            ? { ...t, status: 'cerrado' as const, exitPrice: patch.exitPrice, exitTime: patch.exitTime, pnl: patch.pnl, notes: patch.notes ?? t.notes, screenshotUrl: patch.screenshotUrl ?? t.screenshotUrl, updatedAt: now }
+            ? {
+                ...t,
+                status: 'cerrado' as const,
+                exitPrice: patch.exitPrice,
+                exitTime: patch.exitTime,
+                pnl: patch.pnl,
+                notes: patch.notes ?? t.notes,
+                screenshotUrl: patch.screenshotUrl ?? t.screenshotUrl,
+                chartUrl: patch.chartUrl ?? t.chartUrl,
+                updatedAt: now,
+              }
             : t,
         );
         if (!supabaseEnabled) localStorage.setItem(TRADES_KEY, JSON.stringify(updated));
@@ -291,6 +303,7 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
         const row: Record<string, unknown> = { status: 'cerrado', exit_price: patch.exitPrice, exit_time: patch.exitTime, pnl: patch.pnl, updated_at: now };
         if (patch.notes !== undefined) row.notes = patch.notes;
         if (patch.screenshotUrl !== undefined) row.screenshot_url = patch.screenshotUrl;
+        if (patch.chartUrl !== undefined) row.chart_url = patch.chartUrl;
         await supabase.from('trades').update(row).eq('id', tradeId);
       } catch (err) {
         console.error('No se pudo cerrar el trade en Supabase', err);
@@ -323,6 +336,7 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
       if (patch.pnl !== undefined) row.pnl = patch.pnl;
       if (patch.notes !== undefined) row.notes = patch.notes;
       if (patch.screenshotUrl !== undefined) row.screenshot_url = patch.screenshotUrl;
+      if (patch.chartUrl !== undefined) row.chart_url = patch.chartUrl;
       await supabase.from('trades').update(row).eq('id', tradeId);
     } catch (err) {
       console.error('No se pudo actualizar el trade en Supabase', err);
