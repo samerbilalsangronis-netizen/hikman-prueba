@@ -22,7 +22,7 @@ function OpenTradeForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const account = accountId || activeAccounts[0]?.id;
-    if (!account || !instrument.trim() || !size || !entryPrice) return;
+    if (!account || !instrument.trim() || !size) return;
     setSaving(true);
     try {
       let screenshotUrl: string | undefined;
@@ -32,7 +32,7 @@ function OpenTradeForm() {
         instrument: instrument.trim().toUpperCase(),
         direction,
         size: Number(size),
-        entryPrice: Number(entryPrice),
+        entryPrice: entryPrice ? Number(entryPrice) : undefined,
         stopLoss: stopLoss ? Number(stopLoss) : undefined,
         takeProfit: takeProfit ? Number(takeProfit) : undefined,
         commission: Number(commission || 0),
@@ -92,7 +92,7 @@ function OpenTradeForm() {
           onChange={(e) => setEntryPrice(e.target.value)}
           type="number"
           step="0.00001"
-          placeholder="Precio de entrada"
+          placeholder="Precio de entrada (opcional)"
           className="rounded-md px-3 py-2 text-sm"
           style={inputStyle}
         />
@@ -213,7 +213,7 @@ export function RegisterTradeTab() {
           <div key={trade.id} className="rounded-md p-3" style={{ background: 'var(--surface-2)' }}>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span style={{ color: 'var(--text-primary)' }}>
-                <strong>{trade.instrument}</strong> · {trade.direction} · {trade.size} lotes @ {trade.entryPrice}
+                <strong>{trade.instrument}</strong> · {trade.direction} · {trade.size} lotes{trade.entryPrice !== undefined ? ` @ ${trade.entryPrice}` : ''}
               </span>
               <span style={{ color: 'var(--text-muted)' }}>
                 {accountName(trade.accountId)} · abierto {formatDateTime(trade.entryTime)}

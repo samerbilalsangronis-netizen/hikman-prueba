@@ -228,7 +228,8 @@ export interface Trade {
   instrument: string;
   direction: TradeDirection;
   size: number;
-  entryPrice: number;
+  /** Opcional — no todos los traders registran el precio exacto, el P&L manual no depende de esto. */
+  entryPrice?: number;
   exitPrice?: number;
   stopLoss?: number;
   takeProfit?: number;

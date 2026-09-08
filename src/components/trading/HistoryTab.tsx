@@ -5,7 +5,7 @@ import { cardStyle, formatDateTime, formatMoney, inputStyle, isoToLocalInputValu
 
 function EditTradeForm({ trade, onDone }: { trade: Trade; onDone: () => void }) {
   const { updateTrade } = useTradingJournal();
-  const [entryPrice, setEntryPrice] = useState(String(trade.entryPrice));
+  const [entryPrice, setEntryPrice] = useState(trade.entryPrice !== undefined ? String(trade.entryPrice) : '');
   const [exitPrice, setExitPrice] = useState(trade.exitPrice !== undefined ? String(trade.exitPrice) : '');
   const [entryTime, setEntryTime] = useState(isoToLocalInputValue(trade.entryTime));
   const [exitTime, setExitTime] = useState(trade.exitTime ? isoToLocalInputValue(trade.exitTime) : '');
@@ -15,7 +15,7 @@ function EditTradeForm({ trade, onDone }: { trade: Trade; onDone: () => void }) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await updateTrade(trade.id, {
-      entryPrice: Number(entryPrice),
+      entryPrice: entryPrice ? Number(entryPrice) : undefined,
       exitPrice: exitPrice ? Number(exitPrice) : undefined,
       entryTime: localInputValueToIso(entryTime),
       exitTime: exitTime ? localInputValueToIso(exitTime) : undefined,
@@ -91,8 +91,9 @@ export function HistoryTab() {
               </span>
             </div>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Entrada {formatDateTime(trade.entryTime)} @ {trade.entryPrice}
-              {trade.exitTime ? ` · Salida ${formatDateTime(trade.exitTime)} @ ${trade.exitPrice}` : ''}
+              Entrada {formatDateTime(trade.entryTime)}
+              {trade.entryPrice !== undefined ? ` @ ${trade.entryPrice}` : ''}
+              {trade.exitTime ? ` · Salida ${formatDateTime(trade.exitTime)}${trade.exitPrice !== undefined ? ` @ ${trade.exitPrice}` : ''}` : ''}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
               {trade.pnl !== undefined && (

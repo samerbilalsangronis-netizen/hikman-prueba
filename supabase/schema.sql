@@ -385,7 +385,10 @@ create table if not exists trades (
   instrument text not null,
   direction text not null check (direction in ('compra', 'venta')),
   size double precision not null,
-  entry_price double precision not null,
+  -- Nullable: no todos los traders registran el precio exacto (el sistema
+  -- anterior en Excel/Apps Script nunca lo pedía, solo resultado en USD y
+  -- R:R) — se guarda si se tiene, pero el P&L manual no depende de esto.
+  entry_price double precision,
   exit_price double precision,
   stop_loss double precision,
   take_profit double precision,
@@ -399,6 +402,10 @@ create table if not exists trades (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migración: si trades ya se había creado con entry_price not null en una
+-- corrida anterior de este archivo, se relaja acá (ver comentario arriba).
+alter table trades alter column entry_price drop not null;
 
 alter table trading_accounts enable row level security;
 alter table trading_account_rules enable row level security;
