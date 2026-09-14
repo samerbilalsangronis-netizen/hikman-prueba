@@ -189,17 +189,18 @@ export const CHF_INDICATORS: IndicatorMeta[] = [
   },
   {
     id: 'chf_employment_change',
-    label: 'Cambios en el Empleo',
+    label: 'Cambios en el Empleo (t/t)',
     shortLabel: 'Empleo',
     section: 'empleo',
-    format: 'thousands',
+    format: 'pct1',
     frequency: 'quarterly',
     chart: 'bar',
     currency: 'CHF',
-    source: 'BFS (Statistik der Beschäftigten, STATEM)',
+    source: 'BFS (Statistik der Beschäftigten, BESTA)',
     sourceUrl: 'https://www.bfs.admin.ch/bfs/en/home/statistics/work-income/labour-market/labour-market-indicators/employment-indicators-total-economy.html',
     goodDirection: 'up',
-    description: 'Variación trimestral del empleo total en Suiza. Sin fuente automatizable encontrada en esta primera pasada — carga manual.',
+    description:
+      'Variación trimestral (t/t) del empleo total en Suiza — corregido 14-sep-2026: el formato original ("thousands") no encajaba con lo que BFS realmente publica (variación %, no un conteo absoluto). Sin fuente automatizable — carga manual. Verificado: +0.5% para Q2-2026 (+0.4% en Q1-2026).',
   },
   // Confianza
   {

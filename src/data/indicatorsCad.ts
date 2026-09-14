@@ -236,13 +236,14 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     shortLabel: 'Conf. Empresarial',
     section: 'confianza',
     format: 'index',
-    frequency: 'monthly',
+    frequency: 'quarterly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Conference Board of Canada',
-    sourceUrl: 'https://www.conferenceboard.ca/',
+    source: 'Bank of Canada — Business Outlook Survey (indicador de actividad)',
+    sourceUrl: 'https://www.bankofcanada.ca/publications/bos/',
     goodDirection: 'up',
-    description: 'Encuesta de confianza empresarial de Canadá. Sin API pública — carga manual.',
+    description:
+      'Encuesta trimestral de perspectivas empresariales del Banco de Canadá (indicador de actividad, balance normalizado). Corregido 14-sep-2026: la fuente anterior (Conference Board of Canada) nunca tuvo un dato cargado — no publica una serie mensual equivalente. Sin API pública — carga manual. Verificado: -0.39 para Q2-2026 (-0.35 en Q1-2026).',
   },
   {
     id: 'cad_consumer_confidence',
@@ -253,10 +254,11 @@ export const CAD_INDICATORS: IndicatorMeta[] = [
     frequency: 'monthly',
     chart: 'line',
     currency: 'CAD',
-    source: 'Conference Board of Canada',
-    sourceUrl: 'https://www.conferenceboard.ca/',
+    source: 'LSEG/Ipsos Primary Consumer Sentiment Index (PCSI)',
+    sourceUrl: 'https://www.ipsos.com/en-ca',
     goodDirection: 'up',
-    description: 'Encuesta de confianza del consumidor de Canadá. Sin API pública — carga manual.',
+    description:
+      'Índice mensual de sentimiento del consumidor de Canadá. Corregido 14-sep-2026: la fuente anterior (Conference Board of Canada) descontinuó/privatizó su encuesta a inicios de 2026 — se reemplaza por LSEG/Ipsos PCSI, el índice mensual de acceso libre más comparable. Sin API pública — carga manual. Verificado: 47.35 para septiembre-2026 (48.19 en agosto).',
   },
   // Crecimiento — PMI van acá (actividad, no confianza pura).
   {
