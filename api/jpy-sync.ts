@@ -345,12 +345,15 @@ async function fetchTradeBalance(): Promise<Observation[]> {
 
 // --- Códigos de indicador del e-Stat Dashboard ------------------------------
 
-const CPI_LEVEL = '0703010501010090000'; // CPI general, índice de nivel
-const CORE_CPI_LEVEL = '0703010501010090010'; // CPI ex alimentos frescos, índice de nivel
+// Base 2025=100 (antes 2020=100, códigos 070301050101009...) — cambiado
+// 19-sep-2026 tras confirmar que el Dashboard ya acumuló histórico completo
+// (desde 2015) en los códigos nuevos, ver lección 17 en indicatorsJpy.ts.
+const CPI_LEVEL = '0703010601010090000'; // CPI general, índice de nivel
+const CORE_CPI_LEVEL = '0703010601010090010'; // CPI ex alimentos frescos, índice de nivel
 // CPI ex alimentos frescos Y energía ("core-core CPI" japonesa) — índice de
-// nivel, base 2020. A pedido del usuario (28-ago-2026) para Tokio, ver
-// lección 13 en indicatorsJpy.ts.
-const EX_FOOD_ENERGY_CPI_LEVEL = '0703010501010090040';
+// nivel. A pedido del usuario (28-ago-2026) para Tokio, ver lección 13 en
+// indicatorsJpy.ts.
+const EX_FOOD_ENERGY_CPI_LEVEL = '0703010601010090040';
 // Mismos códigos de indicador que el CPI nacional, pero con el desglose
 // municipal (RegionCode 13100 = 東京都区部, los 23 barrios especiales de
 // Tokio) — el Dashboard de e-Stat solo tiene valores crudos para esta

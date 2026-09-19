@@ -225,9 +225,9 @@ import type { IndicatorMeta } from '../types';
 //     julio (corregido) y agosto a mano vía SQL como stopgap (mismo patrón
 //     que UMCSENT de USD) — se auto-corrige solo en cuanto el Dashboard
 //     acumule histórico en los códigos de base 2025. jpy_cpi/jpy_core_cpi
-//     nacionales (CPI_LEVEL/CORE_CPI_LEVEL, también base 2020) probablemente
-//     tengan el mismo problema — no se tocaron todavía, pendiente revisar
-//     si el usuario lo nota.
+//     nacionales (CPI_LEVEL/CORE_CPI_LEVEL, también base 2020) tenían el
+//     mismo problema, confirmado y corregido de raíz el 19-sep-2026 — ver
+//     lección 17.
 //
 // 16. **jpy_gdp_consumption/investment/government/deflator, automatizados**
 //     (8-sep-2026, a pedido del usuario) — la lección 11 decía que no había
@@ -248,6 +248,29 @@ import type { IndicatorMeta } from '../types';
 //     la revisión oficial del 7-sep-2026 (Q2-2026): consumo 0.0%, capex
 //     -0.9%, gasto público +1.7%, deflactor +0.97% t/t — API disparada en
 //     vivo contra el CSV real antes de shippear, no solo contra el PDF.
+//
+// 17. jpy_cpi/jpy_cpi_yoy/jpy_core_cpi/jpy_core_cpi_yoy (CPI NACIONAL)
+//     tenían el mismo problema de la leccion 15, confirmado -- el usuario lo
+//     noto (19-sep-2026) el mismo dia del comunicado nacional de agosto
+//     (stat.go.jp/data/cpi/sokuhou/tsuki/pdf/zenkoku.pdf, 18-sep-2026):
+//     general a/a oficial 1.9%, la app mostraba ~2.1% (calculado desde los
+//     codigos de base 2020, que ya no reconcilian tras el cambio de base a
+//     2025=100 aplicado desde julio-2026). FIX DEFINITIVO (no otro
+//     stopgap): los codigos nuevos de base 2025 (0703010601010090000/
+//     ...010/...040, mismo patron que la leccion 15 pero con "0601" en vez
+//     de "0501") ya tienen historico completo desde 2015 -- verificado en
+//     vivo contra el Dashboard antes de shippear. Se migro CPI_LEVEL/
+//     CORE_CPI_LEVEL/EX_FOOD_ENERGY_CPI_LEVEL a los codigos nuevos
+//     (19-sep-2026), lo que corrige de raiz jpy_cpi/jpy_cpi_yoy/
+//     jpy_core_cpi/jpy_core_cpi_yoy y de paso jpy_tokyo_cpi_yoy/
+//     jpy_tokyo_core_core_cpi_mom/jpy_tokyo_core_core_cpi_yoy (comparten los
+//     mismos codigos base, con RegionCode 13100) -- ya no hace falta el
+//     stopgap manual de Tokio de la leccion 15, el sync automatico los va a
+//     recalcular bien desde ahora. Verificado con los codigos nuevos contra
+//     el PDF oficial: agosto-2026 general 1.9% a/a (exacto), core 1.69%
+//     calculado (redondea a 1.7%, exacto) -- julio-2026 general dio 2.0%
+//     calculado contra 1.9% oficial (~0.1pp, probablemente ruido de
+//     redondeo de un mes, ya que agosto coincidio exacto).
 export const JPY_INDICATORS: IndicatorMeta[] = [
   // Tasas / BOJ — una sola tasa operativa (uncollateralized overnight call
   // rate), como el resto de los bancos centrales no-USD.
