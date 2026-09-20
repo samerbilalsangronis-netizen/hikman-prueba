@@ -406,7 +406,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     source: 'Office for National Statistics (dataset DRSI, CDID J5EC)',
     sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j5ec/drsi',
     goodDirection: 'up',
-    description: 'Variación mensual del volumen de ventas minoristas del Reino Unido (todo el comercio, incl. combustible, desestacionalizado). Automatizado directo desde la API del ONS — ver lección 15. Verificado: -0.5% para julio-2026, coincide exacto con el comunicado oficial.',
+    description: 'Variación mensual del volumen de ventas minoristas del Reino Unido (todo el comercio, incl. combustible, desestacionalizado). Automatizado directo desde la API del ONS — ver lección 15. Verificado: +0.5% para agosto-2026, coincide exacto con el comunicado oficial.',
   },
   {
     id: 'gbp_retail_sales_yoy',
@@ -420,7 +420,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     source: 'Office for National Statistics (dataset DRSI, CDID J5EB)',
     sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j5eb/drsi',
     goodDirection: 'up',
-    description: 'Ventas minoristas respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +1.6% para julio-2026.',
+    description: 'Ventas minoristas respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +2.4% para agosto-2026 (julio quedó revisado a +1.2%, la ONS revisa este dato mes a mes).',
   },
   {
     id: 'gbp_core_retail_sales',
@@ -434,7 +434,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     source: 'Office for National Statistics (dataset DRSI, CDID J45W)',
     sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j45w/drsi',
     goodDirection: 'up',
-    description: 'Ventas minoristas excluyendo combustible. Automatizado directo desde la API del ONS — ver lección 15. Verificado: -0.9% para julio-2026.',
+    description: 'Ventas minoristas excluyendo combustible. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +0.6% para agosto-2026.',
   },
   {
     id: 'gbp_core_retail_sales_yoy',
@@ -448,7 +448,7 @@ export const GBP_INDICATORS: IndicatorMeta[] = [
     source: 'Office for National Statistics (dataset DRSI, CDID J45U)',
     sourceUrl: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/timeseries/j45u/drsi',
     goodDirection: 'up',
-    description: 'Ventas minoristas subyacentes respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +2.3% para julio-2026.',
+    description: 'Ventas minoristas subyacentes respecto al mismo mes del año anterior. Automatizado directo desde la API del ONS — ver lección 15. Verificado: +2.7% para agosto-2026 (julio quedó revisado a +1.8%).',
   },
   {
     id: 'gbp_productivity',
