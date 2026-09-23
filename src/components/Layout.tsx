@@ -138,6 +138,16 @@ export function Layout() {
               {loading ? 'Cargando…' : syncError ? 'Sin conexión (reintentar)' : syncMode === 'cloud' ? 'Sincronizado (Supabase)' : 'Guardado local'}
             </button>
             <ReleaseScheduleTab />
+            <a
+              href="https://bitacora-personal-hc.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              title="Abre TraderMind (bitácora personal) en una pestaña nueva"
+            >
+              🧠 Bitácora Personal
+            </a>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
