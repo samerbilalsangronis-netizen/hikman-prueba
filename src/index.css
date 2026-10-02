@@ -135,6 +135,26 @@ body {
   animation: pulse-glow 1.8s ease-in-out infinite;
 }
 
+/* Splash de inicio (2-oct-2026) — reemplaza al video de 9s del logo viejo:
+   fade+scale-in del logo nuevo (toro/oso), reusa pulse-glow (ver abajo) para
+   un brillo suave mientras se mantiene en pantalla. Sin video porque no hay
+   forma de generar una animación fiel al logo real sin un editor de video
+   dedicado — esto es más corto, más liviano y no tiene artefactos de IA
+   sobre el logo/texto. */
+@keyframes splash-logo-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.splash-logo {
+  animation: splash-logo-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Badge de "sesgo actualizado hoy" en las tarjetas compactas del Panel de
    Control (2-oct-2026) — mismo mecanismo que pulse-glow pero con box-shadow
    (este sí es un <span> HTML puro, no SVG). */
