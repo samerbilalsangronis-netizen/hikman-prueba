@@ -1,0 +1,27 @@
+name: Síntesis Semanal de Mentoría
+
+# Compila automáticamente los informes diarios de mentoría (Nufal Bakali) de
+# la semana en un Informe Ejecutivo Semanal vía IA — pedido explícito del
+# usuario (2-oct-2026): "Compila automáticamente los 5 días de análisis...
+# para revisar el fin de semana". Corre un viernes a la noche (22:00 UTC)
+# para dar margen a que el informe del viernes ya esté cargado. Workflow
+# aparte (no sumado a sync-currencies.yml) porque esto no es una sync de
+# datos de mercado, es un trigger semanal puntual con una ventana de tiempo
+# distinta.
+#
+# El endpoint (api/trading-alert-email.ts?action=mentor-synthesize) hace
+# todo el trabajo: lee los journal_entries de kind='mentoria' de la semana
+# en curso, llama a la IA y guarda el resultado en Supabase — este workflow
+# solo lo dispara, no necesita credenciales de Supabase ni de Anthropic acá.
+on:
+  schedule:
+    - cron: '0 22 * * 5'
+  workflow_dispatch: {}
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Generar síntesis semanal de mentoría
+        run: curl -sS --max-time 120 -X POST https://hikman-prueba.vercel.app/api/trading-alert-email?action=mentor-synthesize

@@ -1,12 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
 
-// Notificación por correo de la Bitácora de Trading, cuando una cuenta se
-// acerca o rompe una regla de consistencia/límite (ver src/lib/tradingRules.ts
-// para el cálculo — este endpoint solo envía el correo, no evalúa nada).
-// El frontend llama a esto una sola vez por transición de severidad (ver
-// deduplicación en TradingJournalContext.tsx) para no saturar el correo en
-// cada render.
+// Notificación por correo de la Bitácora de Trading (acción por defecto,
+// sin ?action=) + Agente IA del Informe Diario de Mentoría (?action=
+// mentor-analyze / mentor-synthesize, agregado 2-oct-2026). Viven en el
+// mismo archivo porque Vercel Hobby tiene un tope de 12 Serverless
+// Functions por deployment y ya estábamos en el límite exacto (ver
+// headlines-sync.ts para el mismo patrón) — no están relacionados entre sí
+// más que por compartir ese límite.
 //
+// --- Alerta de trading (sin cambios) ---------------------------------------
 // Usa Resend (resend.com) — plan gratis, sin necesidad de verificar dominio
 // propio si se manda desde "onboarding@resend.dev". Requiere en Vercel:
 //   RESEND_API_KEY        — API key de resend.com
@@ -14,6 +17,16 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 //                           por coma, ej. "a@x.com, b@y.com")
 // Si cualquiera de las dos falta, el endpoint devuelve 200 sin enviar nada
 // (no rompe la carga de trades por no tener el correo configurado todavía).
+//
+// --- Agente IA de mentoría ---------------------------------------------
+// Usa la API de Anthropic (console.anthropic.com). Requiere en Vercel:
+//   ANTHROPIC_API_KEY     — API key de Anthropic
+//   ANTHROPIC_MODEL       — opcional, default 'claude-sonnet-5'
+// mentor-analyze es sin estado (recibe texto, devuelve el análisis — lo
+// persiste el cliente via JournalContext.setAiAnalysis). mentor-synthesize
+// SÍ persiste directo en Supabase (mentor_weekly_syntheses) porque también
+// lo dispara un cron de GitHub Actions los viernes sin navegador de por
+// medio (ver .github/workflows/sync-mentor-weekly.yml).
 
 interface AlertPayload {
   accountName: string;
@@ -22,12 +35,7 @@ interface AlertPayload {
   message: string;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
+async function handleAlert(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.RESEND_API_KEY;
   const toEmails = (process.env.TRADING_ALERT_EMAIL ?? '')
     .split(',')
@@ -67,4 +75,167 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     res.status(200).json({ sent: false, reason: (err as Error).message });
   }
+}
+
+// --- Helpers de IA / fecha (copia autocontenida, ver lib/journalWeek.ts) ---
+
+async function callClaude(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!res.ok) throw new Error(`Anthropic: HTTP ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as { content?: { type: string; text?: string }[] };
+  const text = json.content?.find((c) => c.type === 'text')?.text;
+  if (!text) throw new Error('Anthropic: respuesta sin texto');
+  return text;
+}
+
+// La API a veces envuelve el JSON en ```json ... ``` pese a pedir "solo
+// JSON" — se extrae el primer bloque {...} en vez de confiar en que
+// response.trim() ya sea JSON puro.
+function extractJson(text: string): unknown {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No se encontró JSON en la respuesta de la IA.');
+  return JSON.parse(match[0]);
+}
+
+function mondayFirstIndex(jsDay: number): number {
+  return (jsDay + 6) % 7;
+}
+
+function weekStartOf(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - mondayFirstIndex(date.getDay()));
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function datesOfWeek(weekStart: string): string[] {
+  const [y, m, d] = weekStart.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(start);
+    date.setDate(date.getDate() + i);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+}
+
+function todayLocalDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function handleMentorAnalyze(req: VercelRequest, res: VercelResponse) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    res.status(500).json({ error: 'Falta la variable de entorno ANTHROPIC_API_KEY en Vercel.' });
+    return;
+  }
+  const { text } = (req.body ?? {}) as { text?: string };
+  if (!text?.trim()) {
+    res.status(400).json({ error: 'Falta "text" (la nota del día a analizar).' });
+    return;
+  }
+
+  const prompt = `Sos un analista de mercados financieros. Te paso la nota diaria de un mentor de trading (Nufal Bakali). Extraé, en base ÚNICAMENTE a lo que dice la nota (no inventes datos que no estén):
+1. "catalysts": lista de los puntos/catalizadores clave que menciona (array de strings cortos).
+2. "keyLevels": lista de zonas o niveles de precio clave que menciona, si los hay (array de strings; array vacío si no menciona ninguno).
+3. "scenario": un párrafo corto (2-4 oraciones) resumiendo el escenario que el mentor está esperando.
+
+Nota del mentor:
+"""
+${text}
+"""
+
+Respondé ÚNICAMENTE con un objeto JSON válido con esas 3 claves (catalysts, keyLevels, scenario), sin texto antes ni después.`;
+
+  try {
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
+    const raw = await callClaude(apiKey, model, prompt, 1024);
+    const parsed = extractJson(raw) as { catalysts?: unknown; keyLevels?: unknown; scenario?: unknown };
+    const catalysts = Array.isArray(parsed.catalysts) ? parsed.catalysts.map(String) : [];
+    const keyLevels = Array.isArray(parsed.keyLevels) ? parsed.keyLevels.map(String) : [];
+    const scenario = typeof parsed.scenario === 'string' ? parsed.scenario : '';
+    res.status(200).json({ catalysts, keyLevels, scenario, analyzedAt: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+}
+
+async function handleMentorSynthesize(req: VercelRequest, res: VercelResponse) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!apiKey) {
+    res.status(500).json({ error: 'Falta la variable de entorno ANTHROPIC_API_KEY en Vercel.' });
+    return;
+  }
+  if (!supabaseUrl || !supabaseAnonKey) {
+    res.status(500).json({ error: 'Falta configurar VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en Vercel.' });
+    return;
+  }
+
+  const body = (req.body ?? {}) as { weekStart?: string };
+  const weekStart = body.weekStart || weekStartOf(todayLocalDate());
+  const dates = datesOfWeek(weekStart);
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('entry_date, text')
+    .eq('kind', 'mentoria')
+    .in('entry_date', dates)
+    .order('entry_date', { ascending: true });
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  const daily = (data ?? []).filter((d) => (d.text ?? '').trim().length > 0);
+  if (daily.length === 0) {
+    res.status(200).json({ generated: false, reason: 'No hay informes diarios de mentoría cargados esta semana.' });
+    return;
+  }
+
+  const notesBlock = daily.map((d) => `${d.entry_date}:\n${d.text}`).join('\n\n');
+  const prompt = `Sos un analista de mercados financieros. Te paso los informes diarios de un mentor de trading (Nufal Bakali) de una semana completa. Compilá un Informe Ejecutivo Semanal en español, en prosa (no JSON), que repase:
+- Los catalizadores/eventos más relevantes de la semana.
+- Cómo evolucionó la narrativa día a día.
+- El escenario que el mentor espera de cara a la semana siguiente.
+
+Informes diarios (fecha: contenido):
+"""
+${notesBlock}
+"""
+
+Respondé solo con el informe en texto plano (podés usar saltos de línea y viñetas con "-"), sin JSON ni encabezados tipo "Informe Ejecutivo Semanal:".`;
+
+  try {
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
+    const content = await callClaude(apiKey, model, prompt, 2048);
+    const id = crypto.randomUUID();
+    const { error: upsertError } = await supabase.from('mentor_weekly_syntheses').upsert({ id, week_start: weekStart, content: content.trim() }, { onConflict: 'week_start' });
+    if (upsertError) throw new Error(upsertError.message);
+    res.status(200).json({ generated: true, weekStart, content: content.trim() });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const action = req.query.action;
+  if (action === 'mentor-analyze') return handleMentorAnalyze(req, res);
+  if (action === 'mentor-synthesize') return handleMentorSynthesize(req, res);
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  return handleAlert(req, res);
 }

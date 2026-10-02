@@ -440,3 +440,57 @@ create policy "public read/write trades"
 -- Las capturas de pantalla de los trades reusan el bucket "documents" ya
 -- creado arriba (mismo criterio de seguridad, path prefijado "trades/" para
 -- no mezclarse con los informes/resúmenes del mentor).
+
+-- --- Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) --------
+-- Misma tabla para ambos (distinguidos por `kind`): una fila por día, con
+-- color y fotos opcionales. No hay una tabla/acción de "archivado" — una
+-- entrada pasa a ser "historial" solo porque su `entry_date` quedó fuera de
+-- la semana en curso (ver src/lib/journalWeek.ts), así que no hace falta
+-- mover nada con un cron a medianoche del domingo.
+create table if not exists journal_entries (
+  id text primary key,
+  kind text not null check (kind in ('economia', 'mentoria')),
+  entry_date date not null,
+  color text not null default 'gris' check (color in ('rojo', 'verde', 'amarillo', 'azul', 'morado', 'naranja', 'gris')),
+  text text not null default '',
+  image_urls text[] not null default '{}',
+  -- Solo se usa en kind='mentoria' — resultado de la última corrida del
+  -- agente IA (api/trading-alert-email.ts?action=mentor-analyze) sobre
+  -- `text`. jsonb en vez de columnas separadas porque la forma exacta
+  -- (catalysts/keyLevels/scenario) puede evolucionar sin migrar el esquema.
+  ai_analysis jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  -- Una sola entrada por día y tipo (el formulario es "editar el día de
+  -- hoy", no "agregar entradas sueltas").
+  unique (kind, entry_date)
+);
+create index if not exists journal_entries_kind_date_idx on journal_entries (kind, entry_date desc);
+
+-- Síntesis semanal (viernes) de los informes diarios de mentoría — generada
+-- por el agente IA (api/trading-alert-email.ts?action=mentor-synthesize) a
+-- partir de los journal_entries de kind='mentoria' de esa semana.
+create table if not exists mentor_weekly_syntheses (
+  id text primary key,
+  week_start date not null unique,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table journal_entries enable row level security;
+alter table mentor_weekly_syntheses enable row level security;
+
+drop policy if exists "public read/write journal_entries" on journal_entries;
+create policy "public read/write journal_entries"
+  on journal_entries for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write mentor_weekly_syntheses" on mentor_weekly_syntheses;
+create policy "public read/write mentor_weekly_syntheses"
+  on mentor_weekly_syntheses for all
+  using (true)
+  with check (true);
+
+-- Las imágenes del cuaderno reusan el bucket "documents" ya creado arriba,
+-- path prefijado "journal/".

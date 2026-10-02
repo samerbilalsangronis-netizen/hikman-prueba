@@ -118,30 +118,44 @@ export function Layout() {
           style={{ background: 'color-mix(in srgb, var(--page) 85%, transparent)', borderBottom: '1px solid var(--border)' }}
         >
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {currency}
-              </span>
-              <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
-                Seguimiento Macro
-              </span>
+            <div className="flex min-w-0 shrink items-center gap-2">
+              {inMacro ? (
+                <>
+                  <span className="shrink-0 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {currency}
+                  </span>
+                  <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
+                    Seguimiento Macro
+                  </span>
+                </>
+              ) : (
+                <span className="min-w-0 truncate text-sm font-semibold sm:text-base" style={{ color: 'var(--text-primary)' }}>
+                  {pathname === '/panel-control' ? 'Panel de Control' : pathname === '/bitacora-trading' ? 'Bitácora de Trading' : 'Análisis Técnico/Avanzado'}
+                </span>
+              )}
             </div>
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex max-w-full overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
-                {CURRENCIES.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCurrency(c)}
-                    className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors"
-                    style={{
-                      background: currency === c ? 'var(--series-1)' : 'transparent',
-                      color: currency === c ? '#fff' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
+              {/* Las pestañas de divisa solo tienen sentido dentro de Análisis
+                  Macro Fundamental — pedido explícito del usuario para no
+                  mostrar un filtro que no aplica en Panel de Control/Bitácora
+                  de Trading/Análisis Técnico. */}
+              {inMacro && (
+                <div className="flex max-w-full overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
+                  {CURRENCIES.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCurrency(c)}
+                      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+                      style={{
+                        background: currency === c ? 'var(--series-1)' : 'transparent',
+                        color: currency === c ? '#fff' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => refresh()}
@@ -172,7 +186,7 @@ export function Layout() {
                 href="https://bitacora-personal-hc.vercel.app"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
+                className="hidden shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium sm:inline-block"
                 style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                 title="Abre TraderMind (bitácora personal) en una pestaña nueva"
               >

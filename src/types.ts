@@ -258,3 +258,47 @@ export interface TradingRuleAlert {
   usedPct?: number;
   message: string;
 }
+
+// --- Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) --------
+// Mismo modelo de datos para ambos ("journal_entries", distinguidos por
+// `kind`) porque comparten exactamente la semántica: una entrada por día,
+// con color y foto opcional, que se "archiva" solo por el paso del
+// calendario (no hay una acción de archivado real — ver journalWeek.ts,
+// cualquier entrada fuera de la semana en curso ya cuenta como historial).
+// `aiAnalysis`/`aiSynthesis` solo aplican a kind 'mentoria'.
+export type JournalEntryKind = 'economia' | 'mentoria';
+
+/** Paleta completa pedida por el usuario — no solo rojo/verde/gris, ver
+ * lib/journalColors.ts para las etiquetas y el color real de cada uno. */
+export type JournalColor = 'rojo' | 'verde' | 'amarillo' | 'azul' | 'morado' | 'naranja' | 'gris';
+
+export interface MentorAiAnalysis {
+  catalysts: string[];
+  keyLevels: string[];
+  scenario: string;
+  /** Cuándo se generó — para poder mostrar "análisis desactualizado" si se edita el texto después. */
+  analyzedAt: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  kind: JournalEntryKind;
+  /** Fecha del día que describe esta entrada (YYYY-MM-DD, hora local del usuario). */
+  date: string;
+  color: JournalColor;
+  text: string;
+  imageUrls: string[];
+  /** Solo kind 'mentoria' — resultado de la última corrida del agente IA sobre `text`. */
+  aiAnalysis?: MentorAiAnalysis;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Síntesis semanal (viernes) de los informes diarios de mentoría de esa semana. */
+export interface MentorWeeklySynthesis {
+  id: string;
+  /** Domingo (YYYY-MM-DD) que arranca la semana que resume. */
+  weekStart: string;
+  content: string;
+  createdAt: string;
+}

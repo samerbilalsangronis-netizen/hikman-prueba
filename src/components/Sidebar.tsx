@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 // Barra lateral fija con los 4 módulos principales de navegación — pedido
@@ -5,9 +6,12 @@ import { NavLink, useLocation } from 'react-router-dom';
 // dejarlo solo con divisa/sincronización/tema. Cada módulo "grande" (Macro
 // Fundamental, Técnico/Avanzado) agrupa varias rutas existentes; cuál ruta
 // pertenece a cuál grupo se define en MACRO_PATHS/TECNICO_PATHS más abajo
-// (usado también por Layout.tsx para decidir qué sub-nav mostrar).
+// (usado también por Layout.tsx para decidir qué sub-nav y qué barra de
+// divisas mostrar).
 export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/alemania', '/francia', '/banqueros', '/titulares', '/actualizar'];
 export const TECNICO_PATHS = ['/fortaleza', '/renta-variable'];
+
+const COLLAPSED_KEY = 'hikman:sidebar-collapsed';
 
 interface SidebarItem {
   to: string;
@@ -25,17 +29,37 @@ const ITEMS: SidebarItem[] = [
 
 export function Sidebar() {
   const { pathname } = useLocation();
+  // Colapsado a voluntad (botón ☰) además del colapso automático por
+  // pantalla angosta — pedido explícito del usuario para liberar ancho en
+  // pantallas grandes también, no solo en mobile.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
 
   return (
     <aside
-      className="sticky top-0 flex h-screen w-16 shrink-0 flex-col items-center gap-1 overflow-y-auto py-4 sm:w-64 sm:items-stretch sm:px-3"
+      className={`sticky top-0 flex h-screen shrink-0 flex-col items-center gap-1 overflow-y-auto py-4 ${collapsed ? 'w-16' : 'w-16 sm:w-64 sm:items-stretch sm:px-3'}`}
       style={{ background: 'var(--surface-1)', borderRight: '1px solid var(--border)' }}
     >
-      <div className="mb-4 flex shrink-0 items-center gap-2 px-1 sm:px-2">
-        <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto shrink-0" />
-        <span className="hidden text-sm font-bold sm:inline" style={{ color: 'var(--text-primary)' }}>
-          Hikman Capital
-        </span>
+      <div className={`mb-4 flex w-full shrink-0 items-center gap-2 px-1 ${collapsed ? 'justify-center' : 'justify-between sm:px-2'}`}>
+        <div className="flex items-center gap-2 overflow-hidden">
+          <img src="/logo-icon.png" alt="Hikman Capital" className="h-7 w-auto shrink-0" />
+          {!collapsed && (
+            <span className="hidden text-sm font-bold sm:inline" style={{ color: 'var(--text-primary)' }}>
+              Hikman Capital
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          className="hidden shrink-0 rounded-md p-1.5 text-base leading-none sm:block"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {collapsed ? '»' : '☰'}
+        </button>
       </div>
       <nav className="flex w-full flex-col gap-1">
         {ITEMS.map((item) => {
@@ -45,14 +69,14 @@ export function Sidebar() {
               key={item.label}
               to={item.to}
               title={item.label}
-              className="flex items-center justify-center gap-2.5 rounded-lg px-0 py-2.5 text-sm font-medium transition-colors sm:justify-start sm:px-3"
+              className={`flex items-center gap-2.5 rounded-lg px-0 py-2.5 text-sm font-medium transition-colors ${collapsed ? 'justify-center' : 'justify-center sm:justify-start sm:px-3'}`}
               style={{
                 background: isActive ? 'var(--series-1)' : 'transparent',
                 color: isActive ? '#fff' : 'var(--text-secondary)',
               }}
             >
               <span className="shrink-0 text-lg leading-none">{item.icon}</span>
-              <span className="hidden leading-tight sm:inline">{item.label}</span>
+              {!collapsed && <span className="hidden leading-tight sm:inline">{item.label}</span>}
             </NavLink>
           );
         })}
