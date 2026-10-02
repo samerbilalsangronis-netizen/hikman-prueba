@@ -6,19 +6,20 @@ import { JournalDashboardTab } from '../components/trading/JournalDashboardTab';
 
 // Todo lo que en el sistema anterior (Excel/Apps Script) vivía repartido en
 // secciones separadas (Cuentas, Registrar Trade, Historial, Dashboard) se
-// agrupa acá en una sola pestaña de nav con sub-pestañas — pedido explícito
-// del usuario para mantener el orden (sesión 7-sep-2026).
+// agrupa acá en una sola pestaña de nav con sub-pestañas. Orden y nombres
+// rediseñados a pedido del usuario (2-oct-2026): Dashboard primero (resumen
+// general al entrar), Cuentas renombrada a "Gestión de Cuentas".
 const TABS = [
-  { id: 'cuentas', label: 'Cuentas' },
+  { id: 'dashboard', label: 'Dashboard General' },
+  { id: 'cuentas', label: 'Gestión de Cuentas' },
   { id: 'registrar', label: 'Registrar Trade' },
-  { id: 'historial', label: 'Historial' },
-  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'historial', label: 'Historial & Métricas' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
 
 export function BitacoraTrading() {
-  const [tab, setTab] = useState<TabId>('cuentas');
+  const [tab, setTab] = useState<TabId>('dashboard');
 
   return (
     <div className="flex flex-col gap-6">

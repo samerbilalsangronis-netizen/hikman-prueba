@@ -79,6 +79,22 @@ function EquityChart({ data, colorByAccount, markByAccount }: { data: EquityPoin
   );
 }
 
+// Tarjeta de estadística chica para el resumen global (Equity, Win Rate,
+// P&L) que pidió el usuario arriba de los gráficos — mismo patrón visual
+// que el resto de la Bitácora (cardStyle), sin agregar una librería nueva.
+function StatTile({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex-1 rounded-xl p-4" style={cardStyle}>
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: color ?? 'var(--text-primary)' }}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function JournalDashboardTab() {
   const { accounts, trades } = useTradingJournal();
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -93,8 +109,20 @@ export function JournalDashboardTab() {
     return <p className="rounded-xl p-4 text-sm" style={{ ...cardStyle, color: 'var(--text-muted)' }}>Creá una cuenta para ver el dashboard.</p>;
   }
 
+  const closedTrades = trades.filter((t) => t.status === 'cerrado' && t.pnl !== undefined);
+  const totalInitialBalance = accounts.reduce((sum, a) => sum + a.initialBalance, 0);
+  const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+  const totalEquity = totalInitialBalance + totalPnl;
+  const winRate = closedTrades.length > 0 ? (closedTrades.filter((t) => (t.pnl ?? 0) > 0).length / closedTrades.length) * 100 : 0;
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <StatTile label="Equity Total (todas las cuentas)" value={formatMoney(totalEquity)} />
+        <StatTile label="Win Rate" value={closedTrades.length > 0 ? `${winRate.toFixed(0)}%` : '—'} />
+        <StatTile label="P&L General" value={`${totalPnl >= 0 ? '+' : ''}${formatMoney(totalPnl)}`} color={totalPnl >= 0 ? 'var(--status-good)' : 'var(--status-critical)'} />
+      </div>
+
       <div className="rounded-xl p-4" style={cardStyle}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
