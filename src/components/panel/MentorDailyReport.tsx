@@ -109,6 +109,15 @@ export function MentorDailyReport() {
   const [synthesizing, setSynthesizing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Carga manual del análisis (4-oct-2026) — mientras Gemini está limitado
+  // por cuota y no hay key de Anthropic todavía, el usuario puede llevar el
+  // texto a una IA externa (chat de Gemini/ChatGPT/Claude) y pegar acá los
+  // catalizadores/niveles/escenario a mano — se guarda igual que si lo
+  // hubiera generado el botón "Analizar con IA".
+  const [showManual, setShowManual] = useState(false);
+  const [manualCatalysts, setManualCatalysts] = useState('');
+  const [manualKeyLevels, setManualKeyLevels] = useState('');
+  const [manualScenario, setManualScenario] = useState('');
   // Minimizar la sección (4-oct-2026, mismo pedido que la Agenda Semanal) —
   // para no tener que bajar tanto hasta el Cuaderno de Economía.
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
@@ -144,6 +153,29 @@ export function MentorDailyReport() {
       setError((err as Error).message);
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  function openManual() {
+    setManualCatalysts(entry?.aiAnalysis?.catalysts.join('\n') ?? '');
+    setManualKeyLevels(entry?.aiAnalysis?.keyLevels.join('\n') ?? '');
+    setManualScenario(entry?.aiAnalysis?.scenario ?? '');
+    setShowManual(true);
+  }
+
+  async function handleSaveManual() {
+    setError(null);
+    try {
+      const saved = await saveEntry('mentoria', selectedDay, { text });
+      await setAiAnalysis(saved.id, {
+        catalysts: manualCatalysts.split('\n').map((s) => s.trim()).filter(Boolean),
+        keyLevels: manualKeyLevels.split('\n').map((s) => s.trim()).filter(Boolean),
+        scenario: manualScenario.trim(),
+        analyzedAt: new Date().toISOString(),
+      });
+      setShowManual(false);
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -260,6 +292,13 @@ export function MentorDailyReport() {
         >
           {analyzing ? 'Analizando…' : '🪄 Analizar con IA'}
         </button>
+        <button
+          onClick={openManual}
+          className="rounded-full px-3 py-1.5 text-xs font-semibold"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          ✍️ Cargar análisis manual
+        </button>
         <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
           <input type="file" accept="image/*" disabled={syncMode !== 'cloud' || uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
           <span className="cursor-pointer rounded-full px-3 py-1.5" style={{ border: '1px solid var(--border)' }}>
@@ -326,6 +365,71 @@ export function MentorDailyReport() {
       )}
 
       {showHistory && <MentorHistoryModal onClose={() => setShowHistory(false)} />}
+
+      {showManual && (
+        <div
+          className="fixed inset-0 z-50 flex overflow-y-auto p-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setShowManual(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cargar análisis manual"
+        >
+          <div className="m-auto w-full max-w-lg rounded-xl p-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              ✍️ Cargar análisis manual
+            </h3>
+            <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Llevá el texto del día a una IA externa (Gemini, ChatGPT, Claude…), pedile catalizadores/niveles clave/escenario, y pegá acá lo que te responda.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Catalizadores (uno por línea)
+                <textarea
+                  value={manualCatalysts}
+                  onChange={(e) => setManualCatalysts(e.target.value)}
+                  rows={3}
+                  placeholder={'Ej. CPI por debajo de lo esperado\nFOMC con tono hawkish'}
+                  className="w-full resize-none rounded-md px-2.5 py-1.5 text-sm"
+                  style={{ background: 'var(--page)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Niveles clave (opcional, uno por línea)
+                <textarea
+                  value={manualKeyLevels}
+                  onChange={(e) => setManualKeyLevels(e.target.value)}
+                  rows={2}
+                  placeholder={'Ej. Soporte 1.0850\nResistencia 1.0950'}
+                  className="w-full resize-none rounded-md px-2.5 py-1.5 text-sm"
+                  style={{ background: 'var(--page)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Escenario esperado
+                <textarea
+                  value={manualScenario}
+                  onChange={(e) => setManualScenario(e.target.value)}
+                  rows={3}
+                  placeholder="Ej. Se espera continuidad del rally mientras..."
+                  className="w-full resize-none rounded-md px-2.5 py-1.5 text-sm"
+                  style={{ background: 'var(--page)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowManual(false)} className="rounded-full px-3 py-1.5 text-xs" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveManual} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: 'var(--series-1)', color: '#fff' }}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
