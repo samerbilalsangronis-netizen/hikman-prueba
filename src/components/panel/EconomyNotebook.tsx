@@ -3,7 +3,7 @@ import { useJournal } from '../../data/JournalContext';
 import { useMacroData } from '../../data/MacroDataContext';
 import { JOURNAL_COLORS, JOURNAL_COLOR_HEX, JOURNAL_COLOR_LABELS } from '../../lib/journalColors';
 import { JOURNAL_STICKERS } from '../../lib/journalStickers';
-import { sanitizeJournalHtml, stickerHtml, toDisplayHtml } from '../../lib/richText';
+import { sanitizeJournalHtml, stickerHtml, toDisplayHtml, transformSelectionCase, type CaseMode } from '../../lib/richText';
 import { dayLabel, datesOfWeek, formatWeekRange, todayLocalDate, weekStartOf } from '../../lib/journalWeek';
 import type { JournalEntry } from '../../types';
 
@@ -88,6 +88,35 @@ function DayEditor({ date }: { date: string }) {
     commitFromDom();
   }
 
+  // Negrita/cursiva/subrayado (4-oct-2026, a pedido del usuario) — nativos
+  // del navegador; sanitizeJournalHtml ya sabe leer tanto <strong>/<em>/<u>
+  // como la versión en estilo inline que puede salir con styleWithCSS
+  // activado (ver comentario ahí), así que no hace falta desactivarlo acá.
+  function applyBold() {
+    editorRef.current?.focus();
+    document.execCommand('bold');
+    commitFromDom();
+  }
+
+  function applyItalic() {
+    editorRef.current?.focus();
+    document.execCommand('italic');
+    commitFromDom();
+  }
+
+  function applyUnderline() {
+    editorRef.current?.focus();
+    document.execCommand('underline');
+    commitFromDom();
+  }
+
+  // Mayúscula/minúscula/tipo título (4-oct-2026) — transforma el texto
+  // SELECCIONADO preservando su formato (ver transformSelectionCase).
+  function applyCase(mode: CaseMode) {
+    editorRef.current?.focus();
+    if (transformSelectionCase(mode)) commitFromDom();
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -132,6 +161,24 @@ function DayEditor({ date }: { date: string }) {
             style={{ background: JOURNAL_COLOR_HEX[c], border: '1px solid var(--border)' }}
           />
         ))}
+        {/* Blanco/negro (4-oct-2026) — solo para el texto, no forman parte de
+            la escala de sentimiento de 6 colores (JOURNAL_COLORS). */}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyHighlight('#ffffff')}
+          title="Blanco"
+          className="h-6 w-6 rounded-full"
+          style={{ background: '#ffffff', border: '1px solid var(--border)' }}
+        />
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyHighlight('#000000')}
+          title="Negro"
+          className="h-6 w-6 rounded-full"
+          style={{ background: '#000000', border: '1px solid var(--border)' }}
+        />
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
@@ -141,6 +188,61 @@ function DayEditor({ date }: { date: string }) {
           style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
         >
           ✕ Normal
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Formato:
+        </span>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={applyBold} title="Negrita" className="rounded-md px-2.5 py-1 text-xs font-bold" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+          N
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={applyItalic} title="Cursiva" className="rounded-md px-2.5 py-1 text-xs italic" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+          K
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={applyUnderline}
+          title="Subrayado"
+          className="rounded-md px-2.5 py-1 text-xs underline"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          S
+        </button>
+        <span className="mx-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          ·
+        </span>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyCase('upper')}
+          title="MAYÚSCULA"
+          className="rounded-md px-2.5 py-1 text-[11px] font-medium"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          MAYÚS
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyCase('lower')}
+          title="minúscula"
+          className="rounded-md px-2.5 py-1 text-[11px] font-medium"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          minús
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyCase('title')}
+          title="Tipo Título"
+          className="rounded-md px-2.5 py-1 text-[11px] font-medium"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          Tipo Título
         </button>
       </div>
 
