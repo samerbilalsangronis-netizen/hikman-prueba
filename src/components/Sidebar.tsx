@@ -80,7 +80,30 @@ export function Sidebar() {
             </NavLink>
           );
         })}
+        {/* Enlace externo a TraderMind (bitácora personal) — movido del
+            header acá a pedido del usuario (4-oct-2026). No es una ruta
+            interna (abre en pestaña nueva), por eso es un <a> suelto en vez
+            de un NavLink más dentro de ITEMS. */}
+        <a
+          href="https://bitacora-personal-hc.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Bitácora Personal (TraderMind)"
+          className={`flex items-center gap-2.5 rounded-lg px-0 py-2.5 text-sm font-medium transition-colors ${collapsed ? 'justify-center' : 'justify-center sm:justify-start sm:px-3'}`}
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <span className="shrink-0 text-lg leading-none">🧠</span>
+          {!collapsed && <span className="hidden leading-tight sm:inline">Bitácora Personal</span>}
+        </a>
       </nav>
+
+      {/* Logo grande en el espacio libre de abajo — pedido del usuario
+          (4-oct-2026). Se oculta colapsado: a 64px de ancho no entra bien. */}
+      {!collapsed && (
+        <div className="mt-auto hidden w-full justify-center pt-6 sm:flex">
+          <img src="/logo-icon.png" alt="Hikman Capital" className="h-24 w-auto opacity-90" />
+        </div>
+      )}
     </aside>
   );
 }

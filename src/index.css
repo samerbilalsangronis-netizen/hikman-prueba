@@ -7,9 +7,13 @@
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
   --text-muted: #898781;
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
+  /* Más oscuros que el original (4-oct-2026, a pedido del usuario: "las
+     líneas, los separadores... casi no se ven en el blanco") — los fondos
+     del modo claro se mantienen igual, solo se oscurecen las líneas
+     divisorias para que se note la jerarquía/orden entre secciones. */
+  --gridline: #cfcdc3;
+  --baseline: #a8a69b;
+  --border: rgba(11, 11, 11, 0.22);
 
   --series-1: #2a78d6; /* blue */
   --series-2: #1baf7a; /* aqua */
