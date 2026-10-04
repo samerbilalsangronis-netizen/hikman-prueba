@@ -27,6 +27,17 @@ import { createClient } from '@supabase/supabase-js';
 // SÍ persiste directo en Supabase (mentor_weekly_syntheses) porque también
 // lo dispara un cron de GitHub Actions los viernes sin navegador de por
 // medio (ver .github/workflows/sync-mentor-weekly.yml).
+//
+// --- Agenda Semanal: recordatorio por correo (4-oct-2026) -----------------
+// Dispara un cron de GitHub Actions cada 15 min (ver
+// .github/workflows/sync-calendar-reminders.yml), sin navegador de por
+// medio. Reusa Resend (RESEND_API_KEY, igual que la alerta de trading) y
+// Supabase (VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY, igual que
+// mentor-synthesize). Requiere además:
+//   CALENDAR_REMINDER_EMAIL — a qué correo(s) avisar (uno o varios
+//                             separados por coma)
+// Si falta cualquiera de las tres, devuelve 200 sin hacer nada (mismo
+// criterio no-bloqueante que el resto de este archivo).
 
 interface AlertPayload {
   accountName: string;
@@ -223,6 +234,90 @@ Respondé solo con el informe en texto plano (podés usar saltos de línea y vi�
   }
 }
 
+interface CalendarEventRow {
+  id: string;
+  title: string;
+  currency: string | null;
+  event_at: string;
+  impact: 'alto' | 'medio' | 'bajo';
+  remind_minutes_before: number;
+}
+
+function formatRemindLabel(minutes: number): string {
+  if (minutes >= 1440 && minutes % 1440 === 0) return `${minutes / 1440} día${minutes === 1440 ? '' : 's'}`;
+  if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60} hora${minutes === 60 ? '' : 's'}`;
+  return `${minutes} min`;
+}
+
+async function handleCalendarReminder(req: VercelRequest, res: VercelResponse) {
+  const resendKey = process.env.RESEND_API_KEY;
+  const toEmails = (process.env.CALENDAR_REMINDER_EMAIL ?? '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!resendKey || toEmails.length === 0 || !supabaseUrl || !supabaseAnonKey) {
+    res.status(200).json({ sent: 0, reason: 'RESEND_API_KEY, CALENDAR_REMINDER_EMAIL o las variables de Supabase no están configuradas en Vercel.' });
+    return;
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const now = new Date();
+  // Ventana de búsqueda: desde 2h atrás (margen por si el cron se atrasó o
+  // estuvo caído) hasta 25h adelante (el remindMinutesBefore más largo que
+  // ofrece la UI es 1 día = 1440 min). El filtro exacto por evento (que
+  // depende de SU remind_minutes_before, no de un valor fijo) se hace en JS
+  // después de traer la ventana.
+  const windowStart = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+  const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('id, title, currency, event_at, impact, remind_minutes_before')
+    .eq('alarm_enabled', true)
+    .is('notified_at', null)
+    .gte('event_at', windowStart)
+    .lte('event_at', windowEnd);
+  if (error) {
+    res.status(200).json({ sent: 0, reason: `Supabase: ${error.message}` });
+    return;
+  }
+
+  const due = ((data ?? []) as CalendarEventRow[]).filter((e) => new Date(e.event_at).getTime() - e.remind_minutes_before * 60_000 <= now.getTime());
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'Hikman Capital <onboarding@resend.dev>';
+  let sent = 0;
+  const failures: string[] = [];
+  for (const event of due) {
+    const eventDate = new Date(event.event_at);
+    const dateLabel = eventDate.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const titleWithCurrency = event.currency ? `${event.title} (${event.currency})` : event.title;
+    try {
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: toEmails,
+          subject: `🔔 En ${formatRemindLabel(event.remind_minutes_before)}: ${titleWithCurrency}`,
+          html: `<p>El evento <strong>${event.title}</strong>${event.currency ? ` (${event.currency})` : ''} está programado para el <strong>${dateLabel}</strong>.</p><p>Impacto: <strong>${event.impact}</strong>.</p>`,
+        }),
+      });
+      if (!resendRes.ok) {
+        failures.push(`${event.id}: Resend HTTP ${resendRes.status}`);
+        continue;
+      }
+      await supabase.from('calendar_events').update({ notified_at: new Date().toISOString() }).eq('id', event.id);
+      sent += 1;
+    } catch (err) {
+      failures.push(`${event.id}: ${(err as Error).message}`);
+    }
+  }
+
+  res.status(200).json({ sent, checked: due.length, failures });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -232,6 +327,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = req.query.action;
   if (action === 'mentor-analyze') return handleMentorAnalyze(req, res);
   if (action === 'mentor-synthesize') return handleMentorSynthesize(req, res);
+  if (action === 'calendar-reminder') return handleCalendarReminder(req, res);
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });

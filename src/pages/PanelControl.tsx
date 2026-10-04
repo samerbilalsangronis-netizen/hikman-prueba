@@ -5,6 +5,7 @@ import { CurrencyBiasCompactCard } from '../components/CurrencyBiasCompactCard';
 import { DocumentUploadList } from '../components/DocumentUploadList';
 import { EconomyNotebook } from '../components/panel/EconomyNotebook';
 import { MentorDailyReport } from '../components/panel/MentorDailyReport';
+import { WeeklyAgenda } from '../components/panel/WeeklyAgenda';
 
 export function PanelControl() {
   const { headlines, biases, reports, addReport, deleteReport } = useMacroData();
@@ -37,6 +38,8 @@ export function PanelControl() {
           })}
         </div>
       </div>
+
+      <WeeklyAgenda />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
         <div className="flex flex-col gap-6 lg:order-1">

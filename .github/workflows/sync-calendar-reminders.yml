@@ -1,0 +1,27 @@
+name: Recordatorios de Agenda Semanal
+
+# Revisa cada 15 min si hay eventos de la Agenda Semanal (Panel de Control)
+# con alarma activada que ya entraron en su ventana de aviso, y manda el
+# correo de recordatorio — pedido explícito del usuario (4-oct-2026).
+#
+# El endpoint (api/trading-alert-email.ts?action=calendar-reminder) hace
+# todo el trabajo: lee calendar_events de Supabase, decide cuáles están
+# "vencidos" (event_at - remind_minutes_before <= ahora) y no fueron
+# notificados todavía, manda el correo vía Resend y marca notified_at —
+# este workflow solo lo dispara, no necesita credenciales acá.
+#
+# Minutos 4/19/34/49 (no 0/15/30/45): mismo criterio que
+# sync-currencies.yml — evitar la marca exacta de cuarto de hora, que es
+# donde más compite la cola de GitHub Actions.
+on:
+  schedule:
+    - cron: '4,19,34,49 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Revisar y mandar recordatorios pendientes
+        run: curl -sS --max-time 60 -X POST https://hikman-prueba.vercel.app/api/trading-alert-email?action=calendar-reminder

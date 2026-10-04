@@ -56,6 +56,13 @@ export function datesOfWeek(weekStart: string): string[] {
   });
 }
 
+/** Lunes de la semana `deltaWeeks` semanas antes/después de `weekStart`. */
+export function shiftWeek(weekStart: string, deltaWeeks: number): string {
+  const d = parseLocalDate(weekStart);
+  d.setDate(d.getDate() + deltaWeeks * 7);
+  return formatLocalDate(d);
+}
+
 export function isCurrentWeek(weekStart: string): boolean {
   return weekStart === weekStartOf(todayLocalDate());
 }

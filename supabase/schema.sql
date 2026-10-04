@@ -521,3 +521,34 @@ create policy "public read/write mentor_weekly_syntheses"
 
 -- Las imágenes del cuaderno reusan el bucket "documents" ya creado arriba,
 -- path prefijado "journal/".
+
+-- --- Agenda Semanal: eventos económicos + recordatorio por correo (4-oct-2026) ---
+-- Carga manual (como un to-do list), a diferencia de journal_entries NO es
+-- "una fila por día" — puede haber varios eventos el mismo día. `event_at`
+-- guarda fecha+hora exacta en UTC (el cliente la manda ya convertida desde
+-- un <input type="datetime-local">, que JS interpreta en la zona horaria
+-- del navegador, así que no hace falta guardar ninguna zona horaria acá).
+-- `notified_at` evita mandar el recordatorio más de una vez por evento —
+-- lo pone api/trading-alert-email.ts?action=calendar-reminder (ver
+-- .github/workflows/sync-calendar-reminders.yml) apenas lo manda.
+create table if not exists calendar_events (
+  id text primary key,
+  title text not null,
+  currency text check (currency in ('USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'CHF', 'CNY')),
+  event_at timestamptz not null,
+  impact text not null default 'medio' check (impact in ('alto', 'medio', 'bajo')),
+  alarm_enabled boolean not null default false,
+  remind_minutes_before integer not null default 60,
+  notified_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists calendar_events_event_at_idx on calendar_events (event_at);
+
+alter table calendar_events enable row level security;
+
+drop policy if exists "public read/write calendar_events" on calendar_events;
+create policy "public read/write calendar_events"
+  on calendar_events for all
+  using (true)
+  with check (true);

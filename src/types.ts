@@ -305,3 +305,26 @@ export interface MentorWeeklySynthesis {
   content: string;
   createdAt: string;
 }
+
+// --- Agenda Semanal (4-oct-2026) --------------------------------------------
+// Carga manual de eventos económicos importantes de la semana, con alarma
+// opcional que dispara un correo de recordatorio (ver api/trading-alert-email.ts
+// ?action=calendar-reminder). Reusa ImpactLevel (mismo esquema de colores que
+// Titulares) en vez de inventar otra escala.
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  /** Opcional — no todos los eventos son específicos de una divisa. */
+  currency?: Currency;
+  /** Fecha/hora exacta del evento, ISO con hora (se guarda en UTC, el input es datetime-local). */
+  eventAt: string;
+  impact: ImpactLevel;
+  alarmEnabled: boolean;
+  /** Cuántos minutos antes de eventAt se manda el correo de recordatorio. */
+  remindMinutesBefore: number;
+  /** Si ya se mandó el correo para este evento (evita duplicados) — ausente/null = no mandado. */
+  notifiedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
