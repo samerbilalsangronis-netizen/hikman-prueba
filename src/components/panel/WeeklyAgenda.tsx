@@ -112,11 +112,13 @@ export function WeeklyAgenda() {
       <div className={collapsed ? 'flex flex-wrap items-center justify-between gap-3' : 'mb-3 flex flex-wrap items-center justify-between gap-3'}>
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--text-muted)' }}
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'var(--surface-2)' }}
           title={collapsed ? 'Expandir Agenda Semanal' : 'Minimizar Agenda Semanal'}
         >
-          <span className="text-xs leading-none">{collapsed ? '▸' : '▾'}</span>
+          <span className="text-sm leading-none" style={{ color: 'var(--series-1)' }}>
+            {collapsed ? '▸' : '▾'}
+          </span>
           📅 Agenda Semanal
           {collapsed && weekEvents.length > 0 && (
             <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold normal-case" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
