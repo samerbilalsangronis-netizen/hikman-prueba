@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
-// Barra lateral fija con los 4 módulos principales de navegación — pedido
+// Barra lateral fija con los módulos principales de navegación — pedido
 // explícito del usuario (2-oct-2026) para sacar la navegación del header y
-// dejarlo solo con divisa/sincronización/tema. Cada módulo "grande" (Macro
-// Fundamental, Técnico/Avanzado) agrupa varias rutas existentes; cuál ruta
-// pertenece a cuál grupo se define en MACRO_PATHS/TECNICO_PATHS más abajo
-// (usado también por Layout.tsx para decidir qué sub-nav y qué barra de
-// divisas mostrar).
+// dejarlo solo con divisa/sincronización/tema. El módulo "grande" Macro
+// Fundamental agrupa varias rutas existentes; cuál ruta pertenece a ese
+// grupo se define en MACRO_PATHS más abajo (usado también por Layout.tsx
+// para decidir qué sub-nav y qué barra de divisas mostrar).
+// Análisis Técnico/Avanzado (Fortaleza + Renta Variable) se quitó a pedido
+// del usuario (4-oct-2026, "realmente no lo uso") — ver HANDOFF.md.
 export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/alemania', '/francia', '/banqueros', '/titulares', '/actualizar'];
-export const TECNICO_PATHS = ['/fortaleza', '/renta-variable'];
 
 const COLLAPSED_KEY = 'hikman:sidebar-collapsed';
 
@@ -24,7 +24,6 @@ const ITEMS: SidebarItem[] = [
   { to: '/panel-control', icon: '📊', label: 'Panel de Control' },
   { to: '/bitacora-trading', icon: '🧾', label: 'Bitácora de Trading' },
   { to: '/', icon: '🏛️', label: 'Análisis Macro Fundamental', activePaths: MACRO_PATHS },
-  { to: '/fortaleza', icon: '🕯️', label: 'Análisis Técnico/Avanzado', activePaths: TECNICO_PATHS },
 ];
 
 export function Sidebar() {

@@ -21,7 +21,6 @@ publican el mismo dato en dos vueltas.
   mayores economías de la eurozona.
 - **Banqueros** (`/banqueros`) — perfiles de los responsables de política monetaria de los 9 bancos centrales.
 - **Titulares** (`/titulares`) — noticias de mercado relevantes por divisa, traducidas automáticamente.
-- **Renta Variable** (`/renta-variable`) — cotizaciones de referencia por divisa.
 - **Actualizar Datos** (`/actualizar`) — panel para cargar manualmente el último dato de un
   indicador (para las fuentes sin API pública) y exportar el dataset combinado a JSON.
 

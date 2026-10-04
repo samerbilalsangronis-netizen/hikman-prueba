@@ -5,7 +5,7 @@ import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
 import { indicatorsByCountry, indicatorsBySection } from '../data/indicators';
 import { bankersForCurrency } from '../data/centralBankers';
 import { ReleaseScheduleTab } from './ReleaseScheduleTab';
-import { Sidebar, MACRO_PATHS, TECNICO_PATHS } from './Sidebar';
+import { Sidebar, MACRO_PATHS } from './Sidebar';
 import type { Currency } from '../types';
 
 // Sub-nav de "Análisis Macro Fundamental" — data-driven: una divisa sin
@@ -13,7 +13,7 @@ import type { Currency } from '../types';
 // no muestra esa pestaña, evita hardcodear una lista de divisas
 // "incompletas" y funciona automáticamente para cualquier divisa futura con
 // el mismo patrón. Los módulos que ahora viven en la barra lateral (Panel de
-// Control, Bitácora, Fortaleza, Renta Variable) NO van acá — ver Sidebar.tsx.
+// Control, Bitácora) NO van acá — ver Sidebar.tsx.
 function macroNavFor(currency: Currency) {
   const items: { to: string; label: string; end?: boolean }[] = [
     { to: '/', label: 'Resumen', end: true },
@@ -52,11 +52,6 @@ function macroNavFor(currency: Currency) {
 
   return items;
 }
-
-const TECNICO_NAV = [
-  { to: '/fortaleza', label: '💪 Fortaleza' },
-  { to: '/renta-variable', label: '📈 Renta Variable' },
-];
 
 function SubNav({ items }: { items: { to: string; label: string; end?: boolean }[] }) {
   return (
@@ -101,7 +96,6 @@ export function Layout() {
   const { pathname } = useLocation();
 
   const inMacro = MACRO_PATHS.includes(pathname);
-  const inTecnico = TECNICO_PATHS.includes(pathname);
 
   return (
     <div className="relative isolate flex min-h-screen" style={{ background: 'var(--page)' }}>
@@ -130,7 +124,7 @@ export function Layout() {
                 </>
               ) : (
                 <span className="min-w-0 truncate text-sm font-semibold sm:text-base" style={{ color: 'var(--text-primary)' }}>
-                  {pathname === '/panel-control' ? 'Panel de Control' : pathname === '/bitacora-trading' ? 'Bitácora de Trading' : 'Análisis Técnico/Avanzado'}
+                  {pathname === '/panel-control' ? 'Panel de Control' : 'Bitácora de Trading'}
                 </span>
               )}
             </div>
@@ -194,7 +188,6 @@ export function Layout() {
         </header>
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
           {inMacro && <SubNav items={macroNavFor(currency)} />}
-          {inTecnico && <SubNav items={TECNICO_NAV} />}
           <Outlet context={{ theme }} />
         </main>
         <footer className="mx-auto w-full max-w-6xl px-4 py-8 text-xs sm:px-6" style={{ color: 'var(--text-muted)' }}>
