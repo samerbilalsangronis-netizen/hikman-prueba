@@ -1,6 +1,6 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **6-sep-2026**, actualizado al cierre de la
+Fecha de este resumen: **4-oct-2026**, actualizado al cierre de la
 sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
 lea desde el repo) al abrir el chat nuevo — está pensado para ser
 autocontenido. El documento es largo y crece cronológicamente (sesión
@@ -8,7 +8,192 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 6-sep-2026
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 4-oct-2026
+
+Todo lo de esta sesión está committeado y pusheado a
+`claude/handoff-continuacion-xvvz4b` (rama de trabajo de esta sesión en
+particular). **No se re-sincronizó todavía con
+`claude/macro-usd-web-dashboard-xm5ypk`** — a diferencia de sesiones
+anteriores, esta vez no hubo pedido explícito de pushear a ambas ramas
+dentro de esta ventana; antes de cerrar conviene confirmar con el
+usuario si hay que mergear/pushear también a la rama vieja, siguiendo el
+mismo patrón de fast-forward merge que se usó en sesiones anteriores
+(ver sección histórica de abajo).
+
+### Qué se hizo esta sesión (en orden)
+
+**1) Corrección de datos de GBP (ventas minoristas + inflación) —**
+el usuario reportó que una captura de pantalla de un calendario
+económico no coincidía con lo que mostraba la app. Se verificó contra
+ONS y se cargó `supabase/update_gbp_manual_2026-09-20.sql`: CPI de
+agosto (general 3.1% a/a / 0.5% m/m, núcleo 2.6% a/a / 0.3% m/m) más un
+upsert de ventas minoristas (agosto + julio revisado) como red de
+seguridad, aunque ese indicador ya es automático. También se actualizó
+`src/data/indicatorsGbp.ts` con las descripciones/notas de revisión más
+recientes. **Pendiente: confirmar que el usuario corrió este .sql en el
+SQL Editor de Supabase** (se lo guié paso a paso tras un error de
+"column kind does not exist" — ver más abajo — y confirmó "Success. No
+rows returned" para el fix de esa tabla, pero no quedó explícito que
+además corrió el script de GBP en sí).
+
+**2) Fix de un error de Supabase al re-correr `schema.sql` —** el
+usuario tenía una tabla `journal_entries` a medio crear (de un intento
+anterior) sin la columna `kind`, lo que rompía el `schema.sql` completo
+con `ERROR: 42703: column "kind" does not exist`. Se le indicó correr
+`drop table if exists journal_entries cascade; drop table if exists
+mentor_weekly_syntheses cascade;` y volver a correr `schema.sql`
+completo sin editarlo. Confirmado "Success. No rows returned".
+
+**3) Rebranding completo del logo —** el usuario subió una imagen nueva
+(emblema toro/oso con "HC", blanco sobre fondo negro) para reemplazar el
+logo viejo (monograma HC con colores de la bandera de Venezuela).
+Problema: el arte es blanco sobre negro, así que un PNG transparente se
+volvía casi invisible en el tema claro (confirmado visualmente con una
+prueba lado a lado). Se le preguntó al usuario cómo resolverlo y eligió
+"insignia con fondo negro redondeado" — se generó con Python/PIL
+(`alpha = max(r,g,b)` para la transparencia, `ImageDraw.rounded_rectangle`
+como máscara para el badge). Archivos regenerados:
+`public/logo-icon.png`, `public/favicon.png`, `public/logo-full.png`
+(badge negro redondeado) y `public/splash-logo.png` (emblema+texto sin
+badge, para el splash que ya tiene fondo oscuro propio).
+
+**4) Reemplazo del video de intro —** el usuario pidió de una vez
+sacar también `public/intro-splash.mp4` (9s, animaba el logo viejo), ya
+que no había forma de generar un video fiel al logo nuevo sin un editor
+dedicado. `src/components/SplashScreen.tsx` se reescribió para usar
+`splash-logo.png` + una animación CSS (`@keyframes splash-logo-in` en
+`src/index.css`, fade+scale, `HOLD_MS=1400`/`ENTER_MS=700`, reutiliza
+`.pulse-glow` ya existente). El `.mp4` viejo se borró (confirmado sin
+referencias restantes).
+
+**5) Bug de scroll en los modales de historial de sesgo —** el usuario
+reportó que al abrir el historial de sesgos (ej. USD) se abría "a mitad"
+del historial y no se podía subir para ver fechas anteriores. Causa:
+patrón CSS `flex items-center`/`justify-center` + `overflow-y-auto` —
+cuando el contenido es más alto que el contenedor, los navegadores no
+dejan hacer scroll hacia el lado que desborda si el padre está
+centrando con flex. Se encontró el mismo patrón duplicado en **5**
+componentes de modal y se arregló en todos (no solo en el reportado):
+`CurrencyBiasCompactCard.tsx`, `HistoryModal.tsx`,
+`SubcomponentModal.tsx`, `trading/AccountsTab.tsx` (`NewAccountModal`),
+`panel/EconomyNotebook.tsx`. Fix: sacar `items-center`/`items-start`/
+`justify-center` del contenedor exterior (queda `flex overflow-y-auto
+p-4`) y cambiar `my-8` por `m-auto` en el wrapper interior — sigue
+centrando contenido corto pero permite scroll completo en contenido
+largo. Verificado con Playwright (`scrollTop` llegaba a 0 al abrir pese
+a que `scrollHeight` superaba por mucho a `clientHeight`).
+
+Además, pedido en el mismo mensaje: **buscador interno por fecha** en el
+historial de sesgos. Se agregó en `src/components/CurrencyBiasCard.tsx`:
+estado `historyDateFilter` + `<input type="date">`, con lógica de rango
+`[startedAt, endedAt)` por snapshot (`historyWithRange`/
+`filteredHistory`) para filtrar el historial por la fecha que estuvo
+vigente ese sesgo.
+
+**6) Cuaderno de Economía: colores usables + catálogo de stickers —**
+el usuario notó que el cuaderno tenía una paleta de colores que no
+servía para nada (no se podían aplicar) y pidió que resaltar/seleccionar
+texto sí cambiara el color de las letras, más un catálogo de "stickers"
+de referencia económica (hawkish/dovish/neutral, etc. — "si no es
+posible, omitilo"). Se implementó todo:
+  - `src/lib/richText.ts` (nuevo): `sanitizeJournalHtml()`,
+    `stickerHtml()`, `toDisplayHtml()` — nunca copia `style`/`class`
+    crudo del DOM de un contentEditable, siempre reconstruye desde cero
+    cada elemento permitido (color validado por regex hex/rgb; los
+    stickers se reconstruyen desde `data-color`/`data-text`, inmune a
+    que el navegador mangle el atributo `style` al aplicar comandos de
+    formato alrededor).
+  - `src/components/panel/EconomyNotebook.tsx`: `DayEditor` reescrito a
+    `contentEditable` con toolbar de resaltado (6 swatches + "✕
+    Normal") y toolbar de stickers (6 botones). Ambos llaman
+    `document.execCommand('styleWithCSS', false, 'true')` **antes** de
+    `foreColor`/`insertHTML` — sin esto, `execCommand('foreColor')`
+    produce `<font color>` en vez de `<span style>` y el sanitizador lo
+    descartaba silenciosamente (se agregó además manejo defensivo de
+    `<font>` como fallback). Ojo con el tipo de TS: el tercer argumento
+    de `execCommand` está tipado como `string`, no `boolean` — hay que
+    pasar `'true'`, no `true`.
+  - El modal de histórico (Bóveda) ahora renderiza con
+    `dangerouslySetInnerHTML` (contenido ya sanitizado por
+    `richText.ts`).
+  - `src/lib/journalStickers.ts` (nuevo): catálogo de 6 stickers
+    (Hawkish / Neutro Alcista / Neutro / Neutro Bajista / Dovish / Alto
+    Impacto).
+  - A mitad del pedido el usuario acotó la paleta a **6 colores
+    exactos**: rojo, naranja, naranja tenue, verde fuerte, verde claro,
+    gris. `src/types.ts` (`JournalColor`) y `src/lib/journalColors.ts`
+    se actualizaron a esa escala de 6 pasos (bajista→alcista), con
+    `JOURNAL_COLOR_TEXT` nuevo (color de texto con contraste por
+    swatch).
+  - `supabase/schema.sql`: el CHECK constraint de `journal_entries.color`
+    se actualizó a los 6 colores nuevos, con un bloque `do $$ ... $$`
+    que migra valores viejos (7 colores) a los nuevos antes de
+    reemplazar el constraint (mismo patrón ya usado para
+    `currency_bias_reasons.color`). **Pendiente: el usuario tiene que
+    re-correr `schema.sql` una vez más** — no está confirmado que lo
+    haya corrido después de este cambio puntual (sí confirmó haberlo
+    corrido antes, para el fix de la tabla `journal_entries`/
+    `mentor_weekly_syntheses`, pero eso fue anterior a agregar esta
+    migración de colores).
+
+**7) Reorganización final: sidebar + logo abajo + paleta modo claro —**
+en el mismo mensaje el usuario pidió tres cosas:
+  - Mover el enlace "Bitácora Personal" (TraderMind,
+    `https://bitacora-personal-hc.vercel.app`) del header a la barra
+    lateral. Se sacó de `Layout.tsx` (vivía entre `<ReleaseScheduleTab
+    />` y el botón de tema) y se agregó dentro de `<nav>` en
+    `src/components/Sidebar.tsx`, después del `.map()` de `ITEMS`, como
+    un `<a target="_blank">` suelto (no es ruta interna, no va en el
+    array `ITEMS`).
+  - Agregar el logo grande en el espacio vacío de abajo de esa columna.
+    Agregado en `Sidebar.tsx` después de `</nav>`: un `<div
+    className="mt-auto ...">` con `<img src="/logo-icon.png" ...
+    className="h-24 w-auto opacity-90">`, oculto cuando `collapsed`
+    (a 64px de ancho no entra bien) y oculto en mobile (`hidden ...
+    sm:flex`, la sidebar es angosta en mobile).
+  - Oscurecer líneas/separadores del modo claro (el usuario dijo que
+    "casi no se ven en el blanco"). Se tocó **solo el bloque base
+    `:root`** de `src/index.css` (nunca los bloques de modo oscuro):
+    `--gridline: #e1e0d9 → #cfcdc3`, `--baseline: #c3c2b7 → #a8a69b`,
+    `--border: rgba(11,11,11,0.1) → rgba(11,11,11,0.22)`. **Ojo:** el
+    usuario escribió literalmente "quiero que los fondos sigan siendo
+    **negros**" en modo claro, lo cual no tiene sentido tal cual (modo
+    claro ya tiene fondos claros) — se interpretó como un probable
+    error de tipeo por "blancos" (es decir: "los fondos se mantienen
+    como están, solo oscurecé las líneas") dado el resto de la frase, y
+    se avisó explícitamente de esta interpretación en la respuesta al
+    usuario. **Esto no fue confirmado ni corregido por el usuario
+    todavía** — si en la próxima sesión el usuario menciona que los
+    fondos del modo claro deberían ser negros de verdad, es porque esta
+    interpretación estaba equivocada.
+
+### Pendiente explícito para la próxima sesión
+
+- Confirmar si hay que sincronizar `claude/macro-usd-web-dashboard-xm5ypk`
+  con el trabajo de esta sesión (no se hizo todavía, ver nota arriba).
+- `ANTHROPIC_API_KEY` (y opcionalmente `ANTHROPIC_MODEL`, default
+  `claude-sonnet-5`) en Vercel para que funcione el agente Mentor AI
+  (`?action=mentor-analyze`/`?action=mentor-synthesize` dentro de
+  `api/trading-alert-email.ts`) — el usuario dijo que iba a conseguir la
+  key pero no confirmó dentro de esta ventana que ya la haya puesto.
+- Re-correr `supabase/schema.sql` completo una vez más (incluye la
+  migración de colores de `journal_entries` a la paleta de 6 colores).
+- Confirmar/corregir la interpretación de "fondos negros" en modo claro
+  (ver punto 7 arriba).
+- Heredado de la sección histórica de la sesión del 6-sep-2026 (abajo),
+  sin confirmar todavía si se corrieron:
+  `supabase/import_cb_consumer_confidence_2026-08-25.sql`,
+  `supabase/fix_jpy_tokyo_cpi_rebase_2026-08-28.sql`,
+  `supabase/cleanup_cad_gdp_yoy_2026-08-28.sql`,
+  `supabase/cleanup_jpy_tokyo_core_cpi_2026-08-28.sql`.
+  - **Actualización:** la pregunta abierta que deja esa sección sobre si
+    `jpy_cpi`/`jpy_core_cpi` (nacional) tenían el mismo problema de
+    rebase 2020→2025 que el Tokyo CPI **ya se resolvió** en una sesión
+    posterior — `api/jpy-sync.ts` se migró a los códigos e-Stat base
+    2025. Esa pregunta puntual ya NO está pendiente, aunque los 4 `.sql`
+    de arriba sigan sin confirmación de haberse corrido.
+
+## Sesión 6-sep-2026
 
 Todo mergeado y en producción en ambas ramas (`claude/handoff-continuacion-xvvz4b`
 y `claude/macro-usd-web-dashboard-xm5ypk` — este repo las sigue
