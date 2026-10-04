@@ -122,14 +122,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// El free tier de Gemini devuelve 503 "high demand" con bastante frecuencia
-// — es transitorio del lado de Google (confirmado en vivo, 4-oct-2026), así
-// que conviene reintentar un par de veces antes de mostrarle el error al
-// usuario, en vez de que tenga que tocar "Analizar con IA" de nuevo a mano.
+// El free tier de Gemini devuelve 503 cuando el modelo está sobrecargado —
+// confirmado en vivo (4-oct-2026) que en este caso es, al menos en parte, el
+// límite del free tier de la cuenta (ej. "Gemini 3.8 Flash": 5 solicitudes
+// por minuto, 20 por día — ver aistudio.google.com/u/2/rate-limit), no solo
+// saturación genérica del lado de Google. Por eso UN solo reintento corto
+// (no 3 como al principio): cada intento consume una solicitud de esa cuota
+// diaria tan chica, así que reintentar de más empeora el problema en vez de
+// ayudar. Si el segundo intento también falla, se lo decimos clarito al
+// usuario en vez de dejarlo adivinar.
 async function callGemini(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await sleep(1500 * attempt);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await sleep(2000);
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -137,9 +141,13 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
     });
     if (res.ok) return parseGeminiResponse(await res.json());
     if (res.status !== 503) throw new Error(`Gemini: HTTP ${res.status} ${await res.text()}`);
-    lastError = new Error(`Gemini: HTTP 503 ${await res.text()}`);
+    if (attempt === 1) {
+      throw new Error(
+        `Gemini: el modelo "${model}" sigue sobrecargado después de reintentar. Puede ser el límite diario/por minuto del free tier de tu cuenta (revisá aistudio.google.com/u/2/rate-limit) — probá con otro GEMINI_MODEL, esperá a que se resetee la cuota, o habilitá facturación en Google AI Studio.`,
+      );
+    }
   }
-  throw lastError ?? new Error('Gemini: no se pudo completar la solicitud.');
+  throw new Error('Gemini: no se pudo completar la solicitud.');
 }
 
 function parseGeminiResponse(json: { candidates?: { content?: { parts?: { text?: string }[] } }[] }): string {
