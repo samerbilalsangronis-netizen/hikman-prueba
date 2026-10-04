@@ -118,14 +118,31 @@ async function callClaude(apiKey: string, model: string, prompt: string, maxToke
   return text;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// El free tier de Gemini devuelve 503 "high demand" con bastante frecuencia
+// — es transitorio del lado de Google (confirmado en vivo, 4-oct-2026), así
+// que conviene reintentar un par de veces antes de mostrarle el error al
+// usuario, en vez de que tenga que tocar "Analizar con IA" de nuevo a mano.
 async function callGemini(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }),
-  });
-  if (!res.ok) throw new Error(`Gemini: HTTP ${res.status} ${await res.text()}`);
-  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(1500 * attempt);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }),
+    });
+    if (res.ok) return parseGeminiResponse(await res.json());
+    if (res.status !== 503) throw new Error(`Gemini: HTTP ${res.status} ${await res.text()}`);
+    lastError = new Error(`Gemini: HTTP 503 ${await res.text()}`);
+  }
+  throw lastError ?? new Error('Gemini: no se pudo completar la solicitud.');
+}
+
+function parseGeminiResponse(json: { candidates?: { content?: { parts?: { text?: string }[] } }[] }): string {
   const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('');
   if (!text) throw new Error('Gemini: respuesta sin texto (puede haber sido bloqueada por los filtros de seguridad)');
   return text;
