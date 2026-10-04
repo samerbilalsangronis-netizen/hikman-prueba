@@ -1,37 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useJournal } from '../../data/JournalContext';
 import { useMacroData } from '../../data/MacroDataContext';
 import { JOURNAL_COLORS, JOURNAL_COLOR_HEX, JOURNAL_COLOR_LABELS } from '../../lib/journalColors';
+import { JOURNAL_STICKERS } from '../../lib/journalStickers';
+import { sanitizeJournalHtml, stickerHtml, toDisplayHtml } from '../../lib/richText';
 import { dayLabel, datesOfWeek, formatWeekRange, todayLocalDate, weekStartOf } from '../../lib/journalWeek';
-import type { JournalColor, JournalEntry } from '../../types';
+import type { JournalEntry } from '../../types';
 
-// Cuaderno de Economía (2-oct-2026, a pedido del usuario) — diario tipo
-// "feed" con una entrada por día (lunes a domingo), color semántico y fotos
-// opcionales. No hay una acción de "archivar": cualquier entrada cuya fecha
-// cae fuera de la semana en curso ya cuenta como historial (ver
-// lib/journalWeek.ts) — la Bóveda solo agrupa y muestra lo que ya pasó.
-
-function ColorPicker({ value, onChange }: { value: JournalColor; onChange: (c: JournalColor) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {JOURNAL_COLORS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          onClick={() => onChange(c)}
-          title={JOURNAL_COLOR_LABELS[c]}
-          className="h-6 w-6 rounded-full transition-transform"
-          style={{
-            background: JOURNAL_COLOR_HEX[c],
-            outline: value === c ? '2px solid var(--text-primary)' : 'none',
-            outlineOffset: 2,
-            transform: value === c ? 'scale(1.1)' : 'scale(1)',
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// Cuaderno de Economía (2-oct-2026, editor de texto enriquecido agregado
+// 4-oct-2026 a pedido del usuario) — diario tipo "feed" con una entrada por
+// día (lunes a domingo) y fotos opcionales. El texto es un contentEditable
+// (mismo patrón que el resumen semanal de CurrencyBiasCard.tsx): se puede
+// seleccionar una frase y resaltarla con cualquiera de los 6 colores de la
+// escala de sentimiento, o insertar un "sticker" de referencia (Hawkish/
+// Dovish/etc.) en el cursor. No hay una acción de "archivar": cualquier
+// entrada cuya fecha cae fuera de la semana en curso ya cuenta como
+// historial (ver lib/journalWeek.ts) — la Bóveda solo agrupa y muestra lo
+// que ya pasó.
 
 function EntryImages({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null;
@@ -50,24 +35,65 @@ function DayEditor({ date }: { date: string }) {
   const { entries, saveEntry, uploadJournalImage } = useJournal();
   const { syncMode } = useMacroData();
   const entry = entries.find((e) => e.kind === 'economia' && e.date === date);
-  const [text, setText] = useState(entry?.text ?? '');
-  const [color, setColor] = useState<JournalColor>(entry?.color ?? 'gris');
+
+  const editorRef = useRef<HTMLDivElement>(null);
+  const lastSyncedRef = useRef<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sincroniza el contentEditable con entry.text solo cuando el cambio viene
+  // de "afuera" (cambiar de día, carga inicial) — nunca mientras el usuario
+  // está escribiendo, porque pisarle el innerHTML le resetearía el cursor a
+  // cada tecla. Mismo patrón que CurrencyBiasCard.tsx.
   useEffect(() => {
-    setText(entry?.text ?? '');
-    setColor(entry?.color ?? 'gris');
-  }, [entry?.id, date]);
+    const el = editorRef.current;
+    if (!el) return;
+    const html = toDisplayHtml(entry?.text ?? '');
+    if (document.activeElement === el && lastSyncedRef.current !== null) return;
+    el.innerHTML = html;
+    lastSyncedRef.current = html;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, entry?.id]);
 
-  function handleColorChange(c: JournalColor) {
-    setColor(c);
-    saveEntry('economia', date, { color: c });
+  function commitFromDom() {
+    const el = editorRef.current;
+    if (!el) return;
+    const html = sanitizeJournalHtml(el.innerHTML);
+    lastSyncedRef.current = html;
+    saveEntry('economia', date, { text: html });
   }
 
-  function handleTextBlur() {
-    if (text === (entry?.text ?? '')) return;
-    saveEntry('economia', date, { text });
+  // onMouseDown con preventDefault evita que el botón le robe el foco/la
+  // selección al contentEditable antes de aplicar execCommand — si no, la
+  // selección de texto ya estaría vacía al hacer click en un color.
+  function applyHighlight(hex: string) {
+    editorRef.current?.focus();
+    // Sin esto, foreColor genera <font color="..."> en vez de
+    // <span style="color:...">, que es lo que sabe leer sanitizeJournalHtml.
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand('foreColor', false, hex);
+    commitFromDom();
+  }
+
+  function removeHighlight() {
+    editorRef.current?.focus();
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand('foreColor', false, 'inherit');
+    commitFromDom();
+  }
+
+  function insertSticker(label: string, color: string, textColor: string) {
+    editorRef.current?.focus();
+    document.execCommand('insertHTML', false, stickerHtml(label, color, textColor));
+    commitFromDom();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      commitFromDom();
+    }
   }
 
   async function handleFile(file: File | undefined) {
@@ -87,20 +113,65 @@ function DayEditor({ date }: { date: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-          {dayLabel(date)} · {new Date(`${date}T00:00:00`).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+        {dayLabel(date)} · {new Date(`${date}T00:00:00`).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+      </span>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Resaltar:
         </span>
-        <ColorPicker value={color} onChange={handleColorChange} />
+        {JOURNAL_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyHighlight(JOURNAL_COLOR_HEX[c])}
+            title={JOURNAL_COLOR_LABELS[c]}
+            className="h-6 w-6 rounded-full"
+            style={{ background: JOURNAL_COLOR_HEX[c], border: '1px solid var(--border)' }}
+          />
+        ))}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={removeHighlight}
+          title="Quitar color"
+          className="rounded-md px-2 py-1 text-[11px]"
+          style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          ✕ Normal
+        </button>
       </div>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={handleTextBlur}
-        placeholder="Narrativa del mercado de hoy… (ej. CPI USD sorprendió a la baja)"
-        rows={4}
-        className="w-full resize-none rounded-md px-3 py-2 text-sm"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Stickers:
+        </span>
+        {JOURNAL_STICKERS.map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => insertSticker(s.label, s.color, s.textColor)}
+            className="journal-sticker"
+            style={{ background: s.color, color: s.textColor, cursor: 'pointer' }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={commitFromDom}
+        onKeyDown={handleKeyDown}
+        onBlur={commitFromDom}
+        data-placeholder="Narrativa del mercado de hoy… (ej. CPI USD sorprendió a la baja)"
+        className="journal-editable w-full rounded-md px-3 py-2 text-sm"
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', minHeight: '6rem', whiteSpace: 'pre-wrap' }}
       />
       <EntryImages urls={entry?.imageUrls ?? []} />
       <div className="flex items-center gap-2">
@@ -176,13 +247,12 @@ function HistoryModal({ onClose }: { onClose: () => void }) {
               ) : (
                 weekEntries.map((e) => (
                   <div key={e.id} className="flex flex-col gap-1.5 rounded-md p-3" style={{ background: 'var(--surface-2)' }}>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: JOURNAL_COLOR_HEX[e.color] }} />
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {dayLabel(e.date)} · {e.date}
-                      </span>
-                    </div>
-                    {e.text && <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{e.text}</p>}
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {dayLabel(e.date)} · {e.date}
+                    </span>
+                    {e.text && (
+                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ __html: toDisplayHtml(e.text) }} />
+                    )}
                     <EntryImages urls={e.imageUrls} />
                   </div>
                 ))
@@ -222,7 +292,6 @@ export function EconomyNotebook() {
       <div className="mb-3 flex gap-1 overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
         {days.map((d) => {
           const hasEntry = entries.some((e) => e.kind === 'economia' && e.date === d && (e.text.length > 0 || e.imageUrls.length > 0));
-          const entryColor = entries.find((e) => e.kind === 'economia' && e.date === d)?.color;
           return (
             <button
               key={d}
@@ -231,12 +300,7 @@ export function EconomyNotebook() {
               style={{ background: selectedDay === d ? 'var(--series-1)' : 'transparent', color: selectedDay === d ? '#fff' : 'var(--text-secondary)' }}
             >
               {dayLabel(d, true)}
-              {hasEntry && entryColor && (
-                <span
-                  className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full"
-                  style={{ background: JOURNAL_COLOR_HEX[entryColor] }}
-                />
-              )}
+              {hasEntry && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full" style={{ background: selectedDay === d ? '#fff' : 'var(--series-1)' }} />}
             </button>
           );
         })}

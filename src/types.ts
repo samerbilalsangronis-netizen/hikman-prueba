@@ -270,7 +270,10 @@ export type JournalEntryKind = 'economia' | 'mentoria';
 
 /** Paleta completa pedida por el usuario — no solo rojo/verde/gris, ver
  * lib/journalColors.ts para las etiquetas y el color real de cada uno. */
-export type JournalColor = 'rojo' | 'verde' | 'amarillo' | 'azul' | 'morado' | 'naranja' | 'gris';
+/** Escala de sentimiento de 6 pasos (de más bajista a más alcista) — pedida
+ * explícita del usuario (4-oct-2026) en vez de una paleta genérica, para que
+ * cada color tenga un significado financiero claro de entrada. */
+export type JournalColor = 'rojo' | 'naranja' | 'naranja_tenue' | 'gris' | 'verde_claro' | 'verde_fuerte';
 
 export interface MentorAiAnalysis {
   catalysts: string[];

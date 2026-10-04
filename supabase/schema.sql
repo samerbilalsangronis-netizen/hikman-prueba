@@ -451,7 +451,7 @@ create table if not exists journal_entries (
   id text primary key,
   kind text not null check (kind in ('economia', 'mentoria')),
   entry_date date not null,
-  color text not null default 'gris' check (color in ('rojo', 'verde', 'amarillo', 'azul', 'morado', 'naranja', 'gris')),
+  color text not null default 'gris' check (color in ('rojo', 'naranja', 'naranja_tenue', 'gris', 'verde_claro', 'verde_fuerte')),
   text text not null default '',
   image_urls text[] not null default '{}',
   -- Solo se usa en kind='mentoria' — resultado de la última corrida del
@@ -466,6 +466,33 @@ create table if not exists journal_entries (
   unique (kind, entry_date)
 );
 create index if not exists journal_entries_kind_date_idx on journal_entries (kind, entry_date desc);
+
+-- Migración: la paleta original tenía 7 colores genéricos (rojo/verde/
+-- amarillo/azul/morado/naranja/gris) — se reemplaza por la escala de
+-- sentimiento de 6 pasos que pidió el usuario (4-oct-2026). Mapeo
+-- aproximado de lo viejo a lo nuevo antes de aplicar el constraint nuevo
+-- (no hace nada si la tabla ya tiene el constraint nuevo o está vacía).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'journal_entries' and column_name = 'color'
+  ) then
+    update journal_entries
+    set color = case color
+      when 'verde' then 'verde_fuerte'
+      when 'amarillo' then 'naranja_tenue'
+      when 'azul' then 'gris'
+      when 'morado' then 'gris'
+      else color
+    end
+    where color in ('verde', 'amarillo', 'azul', 'morado');
+  end if;
+end $$;
+alter table journal_entries drop constraint if exists journal_entries_color_check;
+alter table journal_entries
+  add constraint journal_entries_color_check
+  check (color in ('rojo', 'naranja', 'naranja_tenue', 'gris', 'verde_claro', 'verde_fuerte'));
 
 -- Síntesis semanal (viernes) de los informes diarios de mentoría — generada
 -- por el agente IA (api/trading-alert-email.ts?action=mentor-synthesize) a
