@@ -34,10 +34,17 @@ import nodemailer from 'nodemailer';
 //   CALENDAR_REMINDER_EMAIL — a qué correo(s) avisar de la Agenda Semanal
 //                             (uno o varios separados por coma)
 //
-// --- Agente IA de mentoría ---------------------------------------------
-// Usa la API de Anthropic (console.anthropic.com). Requiere en Vercel:
+// --- Agente IA de mentoría (soporta 2 proveedores, 4-oct-2026) -----------
+// Claude (console.anthropic.com) tiene prioridad si está configurado;
+// si no, cae a Gemini (aistudio.google.com/apikey — gratis, distinto de
+// la suscripción paga "Gemini Pro/Advanced" de la app de chat) — así
+// funciona ya con uno solo de los dos, y el día que se agregue el otro no
+// hay que tocar código (ver resolveAiProvider() más abajo). Requiere en
+// Vercel AL MENOS UNO de:
 //   ANTHROPIC_API_KEY     — API key de Anthropic
 //   ANTHROPIC_MODEL       — opcional, default 'claude-sonnet-5'
+//   GEMINI_API_KEY        — API key de Gemini (Google AI Studio)
+//   GEMINI_MODEL          — opcional, default 'gemini-flash-latest'
 // mentor-analyze es sin estado (recibe texto, devuelve el análisis — lo
 // persiste el cliente via JournalContext.setAiAnalysis). mentor-synthesize
 // SÍ persiste directo en Supabase (mentor_weekly_syntheses) porque también
@@ -111,6 +118,40 @@ async function callClaude(apiKey: string, model: string, prompt: string, maxToke
   return text;
 }
 
+async function callGemini(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }),
+  });
+  if (!res.ok) throw new Error(`Gemini: HTTP ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('');
+  if (!text) throw new Error('Gemini: respuesta sin texto (puede haber sido bloqueada por los filtros de seguridad)');
+  return text;
+}
+
+// Agente IA de mentoría (4-oct-2026) — soporta dos proveedores para que la
+// función funcione aunque el usuario todavía no tenga la key de Anthropic:
+// Claude tiene prioridad si ANTHROPIC_API_KEY está configurada, si no cae a
+// Gemini (GEMINI_API_KEY, conseguida gratis en aistudio.google.com/apikey —
+// distinta de la suscripción paga "Gemini Pro/Advanced" de la app de chat).
+// Así alcanza con setear una sola, y el día que se agregue la otra el
+// comportamiento cambia solo, sin tocar código.
+function resolveAiProvider(): { provider: 'claude' | 'gemini'; apiKey: string; model: string } | null {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) return { provider: 'claude', apiKey: anthropicKey, model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5' };
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) return { provider: 'gemini', apiKey: geminiKey, model: process.env.GEMINI_MODEL || 'gemini-flash-latest' };
+  return null;
+}
+
+async function callAi(prompt: string, maxTokens: number): Promise<string> {
+  const config = resolveAiProvider();
+  if (!config) throw new Error('Falta configurar ANTHROPIC_API_KEY o GEMINI_API_KEY en Vercel.');
+  return config.provider === 'claude' ? callClaude(config.apiKey, config.model, prompt, maxTokens) : callGemini(config.apiKey, config.model, prompt, maxTokens);
+}
+
 // La API a veces envuelve el JSON en ```json ... ``` pese a pedir "solo
 // JSON" — se extrae el primer bloque {...} en vez de confiar en que
 // response.trim() ya sea JSON puro.
@@ -147,9 +188,8 @@ function todayLocalDate(): string {
 }
 
 async function handleMentorAnalyze(req: VercelRequest, res: VercelResponse) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: 'Falta la variable de entorno ANTHROPIC_API_KEY en Vercel.' });
+  if (!resolveAiProvider()) {
+    res.status(500).json({ error: 'Falta configurar ANTHROPIC_API_KEY o GEMINI_API_KEY en Vercel.' });
     return;
   }
   const { text } = (req.body ?? {}) as { text?: string };
@@ -171,8 +211,7 @@ ${text}
 Respondé ÚNICAMENTE con un objeto JSON válido con esas 3 claves (catalysts, keyLevels, scenario), sin texto antes ni después.`;
 
   try {
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-    const raw = await callClaude(apiKey, model, prompt, 1024);
+    const raw = await callAi(prompt, 1024);
     const parsed = extractJson(raw) as { catalysts?: unknown; keyLevels?: unknown; scenario?: unknown };
     const catalysts = Array.isArray(parsed.catalysts) ? parsed.catalysts.map(String) : [];
     const keyLevels = Array.isArray(parsed.keyLevels) ? parsed.keyLevels.map(String) : [];
@@ -184,11 +223,10 @@ Respondé ÚNICAMENTE con un objeto JSON válido con esas 3 claves (catalysts, k
 }
 
 async function handleMentorSynthesize(req: VercelRequest, res: VercelResponse) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: 'Falta la variable de entorno ANTHROPIC_API_KEY en Vercel.' });
+  if (!resolveAiProvider()) {
+    res.status(500).json({ error: 'Falta configurar ANTHROPIC_API_KEY o GEMINI_API_KEY en Vercel.' });
     return;
   }
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -231,8 +269,7 @@ ${notesBlock}
 Respondé solo con el informe en texto plano (podés usar saltos de línea y viñetas con "-"), sin JSON ni encabezados tipo "Informe Ejecutivo Semanal:".`;
 
   try {
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-    const content = await callClaude(apiKey, model, prompt, 2048);
+    const content = await callAi(prompt, 2048);
     const id = crypto.randomUUID();
     const { error: upsertError } = await supabase.from('mentor_weekly_syntheses').upsert({ id, week_start: weekStart, content: content.trim() }, { onConflict: 'week_start' });
     if (upsertError) throw new Error(upsertError.message);
