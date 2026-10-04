@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CURRENCIES } from '../../data/CurrencyContext';
 import { useCalendarEvents } from '../../data/CalendarEventsContext';
 import { IMPACT_COLORS, IMPACT_LABELS } from '../../lib/impact';
@@ -34,11 +34,21 @@ function formFromEvent(event: CalendarEvent): FormState {
   return { title: event.title, currency: event.currency ?? '', date, time, impact: event.impact, alarmEnabled: event.alarmEnabled, remindMinutesBefore: event.remindMinutesBefore };
 }
 
+const COLLAPSED_KEY = 'hikman:weekly-agenda-collapsed';
+
 export function WeeklyAgenda() {
   const { events, addEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const [weekStart, setWeekStart] = useState(() => weekStartOf(todayLocalDate()));
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  // Minimizar la sección sin perder lo cargado (4-oct-2026) — pedido del
+  // usuario para no tener que bajar tanto para llegar al Cuaderno de
+  // Economía. Mismo patrón de persistencia que el colapso del Sidebar.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
 
   const weekDates = useMemo(() => datesOfWeek(weekStart), [weekStart]);
   const today = todayLocalDate();
@@ -99,10 +109,21 @@ export function WeeklyAgenda() {
 
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+      <div className={collapsed ? 'flex flex-wrap items-center justify-between gap-3' : 'mb-3 flex flex-wrap items-center justify-between gap-3'}>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--text-muted)' }}
+          title={collapsed ? 'Expandir Agenda Semanal' : 'Minimizar Agenda Semanal'}
+        >
+          <span className="text-xs leading-none">{collapsed ? '▸' : '▾'}</span>
           📅 Agenda Semanal
-        </h2>
+          {collapsed && weekEvents.length > 0 && (
+            <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold normal-case" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+              {weekEvents.length}
+            </span>
+          )}
+        </button>
         <button
           onClick={() => openNew()}
           className="rounded-full px-3 py-1.5 text-xs font-semibold"
@@ -112,6 +133,8 @@ export function WeeklyAgenda() {
         </button>
       </div>
 
+      {!collapsed && (
+      <>
       <div className="mb-3 flex items-center justify-between gap-2">
         <button onClick={() => setWeekStart((w) => shiftWeek(w, -1))} className="rounded-full px-2 py-1 text-xs" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
           ← Anterior
@@ -219,6 +242,8 @@ export function WeeklyAgenda() {
           );
         })}
       </div>
+      </>
+      )}
 
       {form && (
         <div
