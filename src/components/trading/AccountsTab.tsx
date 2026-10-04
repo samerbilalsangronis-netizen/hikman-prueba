@@ -36,7 +36,7 @@ function NewAccountModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center"
+      className="fixed inset-0 z-[60] flex overflow-y-auto p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
       role="dialog"
@@ -46,7 +46,7 @@ function NewAccountModal({ onClose }: { onClose: () => void }) {
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="my-8 flex w-full max-w-md flex-col gap-3 rounded-xl p-4"
+        className="m-auto flex w-full max-w-md flex-col gap-3 rounded-xl p-4"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
         <div className="flex items-start justify-between gap-3">

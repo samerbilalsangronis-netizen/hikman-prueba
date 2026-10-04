@@ -33,15 +33,18 @@ export function HistoryModal({ meta, points, releaseStage, onClose }: HistoryMod
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center"
+      className="fixed inset-0 z-[60] flex overflow-y-auto p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`Histórico de ${meta.label}`}
     >
+      {/* m-auto (no items-center en el padre): centra cuando entra en
+          pantalla, pero deja hacer scroll hasta arriba cuando el contenido
+          es más alto que la ventana (items-center recorta ese overflow). */}
       <div
-        className="my-8 w-full max-w-3xl rounded-xl p-4"
+        className="m-auto w-full max-w-3xl rounded-xl p-4"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >

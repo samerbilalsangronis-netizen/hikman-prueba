@@ -116,14 +116,19 @@ export function CurrencyBiasCompactCard({ bias }: { bias: CurrencyBias }) {
 
       {expanded && (
         <div
-          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center"
+          className="fixed inset-0 z-[60] flex overflow-y-auto p-4"
           style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={() => setExpanded(false)}
           role="dialog"
           aria-modal="true"
           aria-label={`Sesgo de ${bias.currency}`}
         >
-          <div className="my-8 w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+          {/* m-auto (no items-center en el padre) centra cuando el contenido
+              entra en pantalla pero deja hacer scroll hasta el principio
+              cuando es más alto que la ventana — con items-center, el
+              navegador recorta el overflow de ARRIBA y no deja llegar ahí
+              (bug de scroll conocido de flexbox centrado). */}
+          <div className="m-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <CurrencyBiasCard bias={bias} />
           </div>
         </div>

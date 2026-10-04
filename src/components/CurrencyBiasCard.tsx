@@ -73,6 +73,7 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
   const summaryRef = useRef<HTMLDivElement>(null);
   const lastSyncedSummaryRef = useRef<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyDateFilter, setHistoryDateFilter] = useState('');
   const [editingBase, setEditingBase] = useState(false);
   const [centralBank, setCentralBank] = useState(bias.centralBank);
   const [policyRate, setPolicyRate] = useState(bias.policyRate);
@@ -196,6 +197,20 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
       </div>
     );
   }
+
+  // Cada snapshot de historial cubre [startedAt, endedAt) — endedAt es el
+  // startedAt del siguiente más reciente (o el de la semana en curso, para
+  // el primero del array). El buscador por fecha filtra por ese rango, no
+  // por coincidencia exacta, porque el usuario busca "¿qué sesgo regía tal
+  // día?", no una fecha exacta de inicio de semana.
+  const historyWithRange = bias.history.map((snapshot, i) => ({
+    snapshot,
+    key: snapshot.id ?? String(i),
+    endedAt: i === 0 ? bias.current.startedAt : bias.history[i - 1].startedAt,
+  }));
+  const filteredHistory = historyDateFilter
+    ? historyWithRange.filter(({ snapshot, endedAt }) => snapshot.startedAt.slice(0, 10) <= historyDateFilter && historyDateFilter < endedAt.slice(0, 10))
+    : historyWithRange;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl p-5" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
@@ -399,9 +414,30 @@ export function CurrencyBiasCard({ bias }: CurrencyBiasCardProps) {
           {bias.history.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }}>Todavía no hay semanas archivadas.</p>
           ) : (
-            bias.history.map((snapshot, i) =>
-              renderSnapshot(snapshot, snapshot.id ?? String(i), i === 0 ? bias.current.startedAt : bias.history[i - 1].startedAt),
-            )
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                  Buscar por fecha:
+                  <input
+                    type="date"
+                    value={historyDateFilter}
+                    onChange={(e) => setHistoryDateFilter(e.target.value)}
+                    className="rounded-md px-2 py-1 text-xs"
+                    style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
+                </label>
+                {historyDateFilter && (
+                  <button onClick={() => setHistoryDateFilter('')} className="underline" style={{ color: 'var(--text-muted)' }}>
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              {filteredHistory.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)' }}>Ninguna semana archivada incluye esa fecha.</p>
+              ) : (
+                filteredHistory.map(({ snapshot, key, endedAt }) => renderSnapshot(snapshot, key, endedAt))
+              )}
+            </>
           )}
         </div>
       )}
