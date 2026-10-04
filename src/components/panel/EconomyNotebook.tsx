@@ -125,6 +125,49 @@ function DayEditor({ date }: { date: string }) {
     }
   }
 
+  // Pegar capturas de pantalla directo en el texto con Ctrl+V (4-oct-2026,
+  // a pedido del usuario) — a diferencia de "📎 Adjuntar imagen" (que suma a
+  // la galería de abajo), esto inserta la imagen en el lugar exacto del
+  // cursor, como un sticker más dentro de la narrativa. La subida a
+  // Supabase es asincrónica pero el cursor/selección no sobreviven ese
+  // tiempo si el usuario tocó otra cosa mientras tanto — por eso se clona el
+  // Range ANTES de subir y se restaura justo antes de insertar.
+  async function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    let imageFile: File | null = null;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        imageFile = item.getAsFile();
+        break;
+      }
+    }
+    if (!imageFile) return; // No es una imagen — dejar que el pegado normal de texto siga su curso.
+    e.preventDefault();
+    if (syncMode !== 'cloud') {
+      setError('Pegar capturas necesita Supabase configurado.');
+      return;
+    }
+    const selection = window.getSelection();
+    const savedRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadJournalImage(imageFile);
+      editorRef.current?.focus();
+      if (savedRange) {
+        selection?.removeAllRanges();
+        selection?.addRange(savedRange);
+      }
+      document.execCommand('insertHTML', false, `<img src="${url}" class="journal-inline-image">`);
+      commitFromDom();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
     setError(null);
@@ -270,8 +313,9 @@ function DayEditor({ date }: { date: string }) {
         suppressContentEditableWarning
         onInput={commitFromDom}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={commitFromDom}
-        data-placeholder="Narrativa del mercado de hoy… (ej. CPI USD sorprendió a la baja)"
+        data-placeholder="Narrativa del mercado de hoy… (ej. CPI USD sorprendió a la baja). Ctrl+V pega capturas directo acá."
         className="journal-editable w-full rounded-md px-3 py-2 text-sm"
         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', minHeight: '6rem', whiteSpace: 'pre-wrap' }}
       />

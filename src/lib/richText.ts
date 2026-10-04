@@ -66,6 +66,13 @@ export function sanitizeJournalHtml(html: string): string {
       if (bold) result = `<strong>${result}</strong>`;
       return result;
     }
+    if (tag === 'img') {
+      // Capturas pegadas con Ctrl+V (4-oct-2026) — solo se acepta src
+      // http(s) (nunca data:/javascript:), nunca el atributo src tal cual
+      // sin validar, por las dudas de que se haya pegado HTML de otro lado.
+      const src = el.getAttribute('src') ?? '';
+      return /^https:\/\//.test(src) ? `<img src="${src.replace(/"/g, '&quot;')}" class="journal-inline-image" alt="Captura pegada">` : '';
+    }
     // document.execCommand('foreColor') genera <font color="..."> en vez de
     // <span style="color:..."> salvo que styleWithCSS esté activado (ver
     // EconomyNotebook.tsx) — se normaliza igual acá por las dudas, por si
@@ -119,6 +126,6 @@ export function transformSelectionCase(mode: CaseMode): boolean {
  * sin formato) a HTML válido para el editor — igual criterio que
  * CurrencyBiasCard.tsx para sus resúmenes viejos. */
 export function toDisplayHtml(raw: string): string {
-  if (/<\/?(strong|br|span|em|u)\b/i.test(raw)) return sanitizeJournalHtml(raw);
+  if (/<\/?(strong|br|span|em|u|img)\b/i.test(raw)) return sanitizeJournalHtml(raw);
   return escapeHtml(raw).replace(/\n/g, '<br>');
 }

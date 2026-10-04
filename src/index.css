@@ -175,6 +175,20 @@ body {
   user-select: none;
 }
 
+/* Capturas pegadas con Ctrl+V directo en el texto del Cuaderno de Economía
+   (4-oct-2026, a pedido del usuario — "verlas en imagen" al lado de la
+   narrativa, no solo en la galería aparte de abajo). display:block (no
+   inline) para que no quede apretada entre palabras; max-height para que
+   una captura grande no se trague toda la tarjeta. */
+.journal-inline-image {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  border-radius: 8px;
+  margin: 6px 0;
+  border: 1px solid var(--border);
+}
+
 /* Badge de "sesgo actualizado hoy" en las tarjetas compactas del Panel de
    Control (2-oct-2026) — mismo mecanismo que pulse-glow pero con box-shadow
    (este sí es un <span> HTML puro, no SVG). */
