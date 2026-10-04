@@ -1,8 +1,53 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useTradingJournal } from '../../data/TradingJournalContext';
 import { accountEquityCurve, combinedEquityCurve, monthlyGain, type EquityPoint } from '../../lib/trading';
+import { EQUITY_INTERVALS, EQUITY_INTERVAL_LABELS, filterEquityByInterval, type EquityInterval } from '../../lib/tradingIntervals';
 import { cardStyle, formatDateTime, formatMoney, formatPct, inputStyle } from './tradingUi';
+
+// Botón de minimizar + persistencia en localStorage — mismo patrón que
+// WeeklyAgenda.tsx/MentorDailyReport.tsx en Panel de Control (4-oct-2026,
+// pedido del usuario para "optimizar el orden" de las tarjetas apiladas).
+function useCollapsed(storageKey: string) {
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(storageKey) === '1');
+  useEffect(() => {
+    localStorage.setItem(storageKey, collapsed ? '1' : '0');
+  }, [collapsed, storageKey]);
+  return [collapsed, setCollapsed] as const;
+}
+
+function CollapseToggle({ collapsed, onToggle, title, label }: { collapsed: boolean; onToggle: () => void; title: string; label: string }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold"
+      style={{ color: 'var(--text-primary)', border: '1px solid var(--border)', background: 'var(--surface-2)' }}
+      title={title}
+    >
+      <span className="text-sm leading-none" style={{ color: 'var(--series-1)' }}>
+        {collapsed ? '▸' : '▾'}
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function IntervalPicker({ value, onChange }: { value: EquityInterval; onChange: (v: EquityInterval) => void }) {
+  return (
+    <div className="flex gap-1 overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
+      {EQUITY_INTERVALS.map((i) => (
+        <button
+          key={i}
+          onClick={() => onChange(i)}
+          className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+          style={{ background: value === i ? 'var(--series-1)' : 'transparent', color: value === i ? '#fff' : 'var(--text-secondary)' }}
+        >
+          {EQUITY_INTERVAL_LABELS[i]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const PALETTE = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)', 'var(--series-5)', 'var(--series-6)', 'var(--series-7)', 'var(--series-8)'];
 
@@ -98,11 +143,16 @@ function StatTile({ label, value, color }: { label: string; value: string; color
 export function JournalDashboardTab() {
   const { accounts, trades } = useTradingJournal();
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [individualInterval, setIndividualInterval] = useState<EquityInterval>('all');
+  const [combinedInterval, setCombinedInterval] = useState<EquityInterval>('all');
   const colorByAccount = useAccountColors(accounts.map((a) => a.id));
+  const [collapsedIndividual, setCollapsedIndividual] = useCollapsed('hikman:trading-equity-individual-collapsed');
+  const [collapsedCombined, setCollapsedCombined] = useCollapsed('hikman:trading-equity-combined-collapsed');
+  const [collapsedMonthly, setCollapsedMonthly] = useCollapsed('hikman:trading-monthly-gain-collapsed');
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? accounts[0];
-  const individualCurve = selectedAccount ? accountEquityCurve(selectedAccount, trades) : [];
-  const combinedCurve = combinedEquityCurve(accounts, trades);
+  const individualCurve = filterEquityByInterval(selectedAccount ? accountEquityCurve(selectedAccount, trades) : [], individualInterval);
+  const combinedCurve = filterEquityByInterval(combinedEquityCurve(accounts, trades), combinedInterval);
   const combinedMonthlyGain = monthlyGain(accounts, trades);
 
   if (accounts.length === 0) {
@@ -124,44 +174,73 @@ export function JournalDashboardTab() {
       </div>
 
       <div className="rounded-xl p-4" style={cardStyle}>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Curva de equity por cuenta
-          </h3>
-          <select value={selectedAccount?.id} onChange={(e) => setSelectedAccountId(e.target.value)} className="rounded-md px-3 py-1.5 text-sm" style={inputStyle}>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+        <div className={collapsedIndividual ? 'flex flex-wrap items-center justify-between gap-2' : 'mb-2 flex flex-wrap items-center justify-between gap-2'}>
+          <CollapseToggle
+            collapsed={collapsedIndividual}
+            onToggle={() => setCollapsedIndividual((v) => !v)}
+            title={collapsedIndividual ? 'Expandir' : 'Minimizar'}
+            label="Curva de equity por cuenta"
+          />
+          {!collapsedIndividual && (
+            <select value={selectedAccount?.id} onChange={(e) => setSelectedAccountId(e.target.value)} className="rounded-md px-3 py-1.5 text-sm" style={inputStyle}>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
-        <EquityChart data={individualCurve} />
+        {!collapsedIndividual && (
+          <>
+            <div className="mb-2 flex justify-end">
+              <IntervalPicker value={individualInterval} onChange={setIndividualInterval} />
+            </div>
+            <EquityChart data={individualCurve} />
+          </>
+        )}
       </div>
 
       <div className="rounded-xl p-4" style={cardStyle}>
-        <h3 className="mb-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Curva general (todas las cuentas)
-        </h3>
-        <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Cada punto está coloreado según la cuenta donde ocurrió ese trade.
-        </p>
-        <EquityChart data={combinedCurve} colorByAccount={colorByAccount} markByAccount />
-        <div className="mt-3 flex flex-wrap gap-3">
-          {accounts.map((a) => (
-            <span key={a.id} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: colorByAccount.get(a.id) }} />
-              {a.name}
-            </span>
-          ))}
+        <div className={collapsedCombined ? 'flex items-center justify-between gap-2' : 'mb-1 flex items-center justify-between gap-2'}>
+          <CollapseToggle
+            collapsed={collapsedCombined}
+            onToggle={() => setCollapsedCombined((v) => !v)}
+            title={collapsedCombined ? 'Expandir' : 'Minimizar'}
+            label="Curva general (todas las cuentas)"
+          />
         </div>
+        {!collapsedCombined && (
+          <>
+            <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Cada punto está coloreado según la cuenta donde ocurrió ese trade.
+            </p>
+            <div className="mb-2 flex justify-end">
+              <IntervalPicker value={combinedInterval} onChange={setCombinedInterval} />
+            </div>
+            <EquityChart data={combinedCurve} colorByAccount={colorByAccount} markByAccount />
+            <div className="mt-3 flex flex-wrap gap-3">
+              {accounts.map((a) => (
+                <span key={a.id} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: colorByAccount.get(a.id) }} />
+                  {a.name}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="rounded-xl p-4" style={cardStyle}>
-        <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Ganancia mensual (todas las cuentas)
-        </h3>
-        {combinedMonthlyGain.length === 0 ? (
+        <div className={collapsedMonthly ? 'flex items-center justify-between gap-2' : 'mb-2 flex items-center justify-between gap-2'}>
+          <CollapseToggle
+            collapsed={collapsedMonthly}
+            onToggle={() => setCollapsedMonthly((v) => !v)}
+            title={collapsedMonthly ? 'Expandir' : 'Minimizar'}
+            label="Ganancia mensual (todas las cuentas)"
+          />
+        </div>
+        {!collapsedMonthly && (combinedMonthlyGain.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Sin trades cerrados todavía.
           </p>
@@ -181,7 +260,7 @@ export function JournalDashboardTab() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

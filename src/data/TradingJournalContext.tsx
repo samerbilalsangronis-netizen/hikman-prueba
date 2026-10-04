@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
 import { computeAccountAlerts, ruleLabel } from '../lib/trading';
-import type { Trade, TradingAccount, TradingAccountRule } from '../types';
+import type { Trade, TradeIdea, TradingAccount, TradingAccountRule } from '../types';
 
 // Bitácora de Trading (migrado del sistema anterior en Excel/Apps Script,
 // sesión 7-sep-2026) — mismo patrón que MacroDataContext.tsx: Supabase como
@@ -12,6 +12,7 @@ import type { Trade, TradingAccount, TradingAccountRule } from '../types';
 
 const ACCOUNTS_KEY = 'trading-journal:accounts:v1';
 const TRADES_KEY = 'trading-journal:trades:v1';
+const IDEAS_KEY = 'trading-journal:ideas:v1';
 const NOTIFIED_KEY = 'trading-journal:notified:v1'; // dedupe de emails de alerta
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -39,6 +40,7 @@ function loadNotified(): Record<string, string> {
 interface TradingJournalValue {
   accounts: TradingAccount[];
   trades: Trade[];
+  tradeIdeas: TradeIdea[];
   loading: boolean;
   syncError: boolean;
   addAccount: (input: { name: string; type: TradingAccount['type']; initialBalance: number }) => Promise<void>;
@@ -54,6 +56,11 @@ interface TradingJournalValue {
   updateTrade: (tradeId: string, patch: Partial<Omit<Trade, 'id' | 'accountId' | 'createdAt'>>) => Promise<void>;
   deleteTrade: (tradeId: string) => Promise<void>;
   uploadTradeScreenshot: (file: File) => Promise<string>;
+  /** Crea una idea nueva como 'activa' — si ya había una 'activa', pasa a 'descartada' automáticamente (como mucho una activa a la vez). */
+  saveIdea: (input: { instrument: string; direction: Trade['direction']; entryZone?: string; stopLoss?: string; takeProfit?: string; notes: string }) => Promise<TradeIdea>;
+  updateIdea: (id: string, patch: Partial<Pick<TradeIdea, 'instrument' | 'direction' | 'entryZone' | 'stopLoss' | 'takeProfit' | 'notes'>>) => Promise<void>;
+  markIdeaExecuted: (id: string) => Promise<void>;
+  discardIdea: (id: string) => Promise<void>;
 }
 
 const TradingJournalContext = createContext<TradingJournalValue | null>(null);
@@ -61,6 +68,7 @@ const TradingJournalContext = createContext<TradingJournalValue | null>(null);
 export function TradingJournalProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<TradingAccount[]>(() => loadLocal(ACCOUNTS_KEY));
   const [trades, setTrades] = useState<Trade[]>(() => loadLocal(TRADES_KEY));
+  const [tradeIdeas, setTradeIdeas] = useState<TradeIdea[]>(() => loadLocal(IDEAS_KEY));
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(false);
 
@@ -72,17 +80,18 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const [accountsRes, rulesRes, tradesRes] = await withTimeout(
+        const [accountsRes, rulesRes, tradesRes, ideasRes] = await withTimeout(
           Promise.all([
             supabase.from('trading_accounts').select('id, name, type, status, initial_balance, created_at'),
             supabase.from('trading_account_rules').select('id, account_id, type, value, description, enabled'),
             supabase.from('trades').select('*').order('entry_time', { ascending: true }),
+            supabase.from('trade_ideas').select('*').order('created_at', { ascending: false }),
           ]),
           15000,
           'Bitácora de Trading',
         );
         if (cancelled) return;
-        if (accountsRes.error || rulesRes.error || tradesRes.error) throw accountsRes.error || rulesRes.error || tradesRes.error;
+        if (accountsRes.error || rulesRes.error || tradesRes.error || ideasRes.error) throw accountsRes.error || rulesRes.error || tradesRes.error || ideasRes.error;
 
         const rulesByAccount = new Map<string, TradingAccountRule[]>();
         for (const r of rulesRes.data ?? []) {
@@ -121,8 +130,21 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
           createdAt: t.created_at,
           updatedAt: t.updated_at,
         }));
+        const loadedIdeas: TradeIdea[] = (ideasRes.data ?? []).map((i) => ({
+          id: i.id,
+          instrument: i.instrument,
+          direction: i.direction,
+          entryZone: i.entry_zone ?? undefined,
+          stopLoss: i.stop_loss ?? undefined,
+          takeProfit: i.take_profit ?? undefined,
+          notes: i.notes ?? '',
+          status: i.status,
+          createdAt: i.created_at,
+          updatedAt: i.updated_at,
+        }));
         setAccounts(loadedAccounts);
         setTrades(loadedTrades);
+        setTradeIdeas(loadedIdeas);
         setSyncError(false);
       } catch (err) {
         console.error('No se pudo cargar la Bitácora de Trading desde Supabase', err);
@@ -368,6 +390,82 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
     return data.publicUrl;
   }, []);
 
+  // Seguimiento de Idea Operativa (4-oct-2026) — ver el comentario en types.ts.
+  const saveIdea = useCallback(
+    async (input: { instrument: string; direction: Trade['direction']; entryZone?: string; stopLoss?: string; takeProfit?: string; notes: string }) => {
+      const now = new Date().toISOString();
+      const next: TradeIdea = { id: crypto.randomUUID(), status: 'activa', createdAt: now, updatedAt: now, ...input };
+      setTradeIdeas((prev) => {
+        // Como mucho una idea 'activa' a la vez — la anterior pasa a 'descartada'.
+        const updated = [next, ...prev.map((i) => (i.status === 'activa' ? { ...i, status: 'descartada' as const, updatedAt: now } : i))];
+        if (!supabaseEnabled) localStorage.setItem(IDEAS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      if (supabaseEnabled && supabase) {
+        try {
+          await supabase.from('trade_ideas').update({ status: 'descartada', updated_at: now }).eq('status', 'activa');
+          await supabase.from('trade_ideas').insert({
+            id: next.id,
+            instrument: next.instrument,
+            direction: next.direction,
+            entry_zone: next.entryZone ?? null,
+            stop_loss: next.stopLoss ?? null,
+            take_profit: next.takeProfit ?? null,
+            notes: next.notes,
+            status: 'activa',
+          });
+        } catch (err) {
+          console.error('No se pudo guardar la idea operativa en Supabase', err);
+        }
+      }
+      return next;
+    },
+    [],
+  );
+
+  const updateIdea = useCallback(
+    async (id: string, patch: Partial<Pick<TradeIdea, 'instrument' | 'direction' | 'entryZone' | 'stopLoss' | 'takeProfit' | 'notes'>>) => {
+      const now = new Date().toISOString();
+      setTradeIdeas((prev) => {
+        const updated = prev.map((i) => (i.id === id ? { ...i, ...patch, updatedAt: now } : i));
+        if (!supabaseEnabled) localStorage.setItem(IDEAS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      if (!supabaseEnabled || !supabase) return;
+      try {
+        const row: Record<string, unknown> = { updated_at: now };
+        if (patch.instrument !== undefined) row.instrument = patch.instrument;
+        if (patch.direction !== undefined) row.direction = patch.direction;
+        if (patch.entryZone !== undefined) row.entry_zone = patch.entryZone;
+        if (patch.stopLoss !== undefined) row.stop_loss = patch.stopLoss;
+        if (patch.takeProfit !== undefined) row.take_profit = patch.takeProfit;
+        if (patch.notes !== undefined) row.notes = patch.notes;
+        await supabase.from('trade_ideas').update(row).eq('id', id);
+      } catch (err) {
+        console.error('No se pudo actualizar la idea operativa en Supabase', err);
+      }
+    },
+    [],
+  );
+
+  const setIdeaStatus = useCallback(async (id: string, status: TradeIdea['status']) => {
+    const now = new Date().toISOString();
+    setTradeIdeas((prev) => {
+      const updated = prev.map((i) => (i.id === id ? { ...i, status, updatedAt: now } : i));
+      if (!supabaseEnabled) localStorage.setItem(IDEAS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (!supabaseEnabled || !supabase) return;
+    try {
+      await supabase.from('trade_ideas').update({ status, updated_at: now }).eq('id', id);
+    } catch (err) {
+      console.error('No se pudo actualizar el estado de la idea operativa en Supabase', err);
+    }
+  }, []);
+
+  const markIdeaExecuted = useCallback((id: string) => setIdeaStatus(id, 'ejecutada'), [setIdeaStatus]);
+  const discardIdea = useCallback((id: string) => setIdeaStatus(id, 'descartada'), [setIdeaStatus]);
+
   // Notificación por correo (una sola vez por transición de severidad, no en
   // cada render) — ver api/trading-alert-email.ts. Corre acá (a nivel
   // Provider, montado una vez para toda la app) para que dispare sin
@@ -399,6 +497,7 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
     () => ({
       accounts,
       trades,
+      tradeIdeas,
       loading,
       syncError,
       addAccount,
@@ -412,8 +511,33 @@ export function TradingJournalProvider({ children }: { children: ReactNode }) {
       updateTrade,
       deleteTrade,
       uploadTradeScreenshot,
+      saveIdea,
+      updateIdea,
+      markIdeaExecuted,
+      discardIdea,
     }),
-    [accounts, trades, loading, syncError, addAccount, updateAccount, deleteAccount, addRule, updateRule, deleteRule, openTrade, closeTrade, updateTrade, deleteTrade, uploadTradeScreenshot],
+    [
+      accounts,
+      trades,
+      tradeIdeas,
+      loading,
+      syncError,
+      addAccount,
+      updateAccount,
+      deleteAccount,
+      addRule,
+      updateRule,
+      deleteRule,
+      openTrade,
+      closeTrade,
+      updateTrade,
+      deleteTrade,
+      uploadTradeScreenshot,
+      saveIdea,
+      updateIdea,
+      markIdeaExecuted,
+      discardIdea,
+    ],
   );
 
   return <TradingJournalContext.Provider value={value}>{children}</TradingJournalContext.Provider>;

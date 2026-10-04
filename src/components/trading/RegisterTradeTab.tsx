@@ -1,24 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTradingJournal } from '../../data/TradingJournalContext';
 import type { Trade, TradeDirection } from '../../types';
+import type { TradePrefill } from './IdeaTracker';
 import { cardStyle, formatDateTime, formatMoney, inputStyle, localInputValueToIso, nowLocalInputValue } from './tradingUi';
 
-function OpenTradeForm() {
+// prefill viene del Seguimiento de Idea Operativa (ver IdeaTracker.tsx +
+// BitacoraTrading.tsx, 4-oct-2026) — al montar con datos, los consume una
+// sola vez (onPrefillConsumed) para que la próxima vez que se entre a esta
+// pestaña sin pasar por "Cargar Trade" el formulario arranque vacío, no con
+// la idea anterior.
+function OpenTradeForm({ prefill, onPrefillConsumed }: { prefill?: TradePrefill | null; onPrefillConsumed?: () => void }) {
   const { accounts, openTrade, uploadTradeScreenshot } = useTradingJournal();
   const activeAccounts = accounts.filter((a) => a.status === 'activa');
   const [accountId, setAccountId] = useState('');
-  const [instrument, setInstrument] = useState('');
-  const [direction, setDirection] = useState<TradeDirection>('compra');
+  const [instrument, setInstrument] = useState(prefill?.instrument ?? '');
+  const [direction, setDirection] = useState<TradeDirection>(prefill?.direction ?? 'compra');
   const [size, setSize] = useState('');
-  const [entryPrice, setEntryPrice] = useState('');
-  const [stopLoss, setStopLoss] = useState('');
-  const [takeProfit, setTakeProfit] = useState('');
+  const [entryPrice, setEntryPrice] = useState(prefill?.entryPrice !== undefined ? String(prefill.entryPrice) : '');
+  const [stopLoss, setStopLoss] = useState(prefill?.stopLoss !== undefined ? String(prefill.stopLoss) : '');
+  const [takeProfit, setTakeProfit] = useState(prefill?.takeProfit !== undefined ? String(prefill.takeProfit) : '');
   const [commission, setCommission] = useState('0');
   const [entryTime, setEntryTime] = useState(nowLocalInputValue());
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(prefill?.notes ?? '');
   const [chartUrl, setChartUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (prefill) onPrefillConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -215,14 +226,14 @@ function CloseTradeForm({ trade }: { trade: Trade }) {
   );
 }
 
-export function RegisterTradeTab() {
+export function RegisterTradeTab({ prefill, onPrefillConsumed }: { prefill?: TradePrefill | null; onPrefillConsumed?: () => void }) {
   const { accounts, trades } = useTradingJournal();
   const openTrades = trades.filter((t) => t.status === 'abierto');
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? '—';
 
   return (
     <div className="flex flex-col gap-4">
-      <OpenTradeForm />
+      <OpenTradeForm prefill={prefill} onPrefillConsumed={onPrefillConsumed} />
       <div className="flex flex-col gap-3 rounded-xl p-4" style={cardStyle}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Trades abiertos ({openTrades.length})

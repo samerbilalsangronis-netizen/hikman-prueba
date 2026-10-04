@@ -415,9 +415,29 @@ alter table trades add column if not exists chart_url text;
 -- corrida anterior de este archivo, se relaja acá (ver comentario arriba).
 alter table trades alter column entry_price drop not null;
 
+-- Seguimiento de Idea Operativa (4-oct-2026) — una idea "activa" por vez
+-- (la más reciente), para tenerla presente sin fomentar sobre-operativa.
+-- entry_zone/stop_loss/take_profit son texto libre (no double precision como
+-- en `trades`) porque una idea en seguimiento suele ser una zona aproximada
+-- ("1.0820-1.0850"), no un precio exacto todavía.
+create table if not exists trade_ideas (
+  id text primary key,
+  instrument text not null,
+  direction text not null check (direction in ('compra', 'venta')),
+  entry_zone text,
+  stop_loss text,
+  take_profit text,
+  notes text not null default '',
+  status text not null default 'activa' check (status in ('activa', 'ejecutada', 'descartada')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists trade_ideas_status_idx on trade_ideas (status, created_at desc);
+
 alter table trading_accounts enable row level security;
 alter table trading_account_rules enable row level security;
 alter table trades enable row level security;
+alter table trade_ideas enable row level security;
 
 drop policy if exists "public read/write trading_accounts" on trading_accounts;
 create policy "public read/write trading_accounts"
@@ -434,6 +454,12 @@ create policy "public read/write trading_account_rules"
 drop policy if exists "public read/write trades" on trades;
 create policy "public read/write trades"
   on trades for all
+  using (true)
+  with check (true);
+
+drop policy if exists "public read/write trade_ideas" on trade_ideas;
+create policy "public read/write trade_ideas"
+  on trade_ideas for all
   using (true)
   with check (true);
 

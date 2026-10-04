@@ -3,6 +3,7 @@ import { AccountsTab } from '../components/trading/AccountsTab';
 import { RegisterTradeTab } from '../components/trading/RegisterTradeTab';
 import { HistoryTab } from '../components/trading/HistoryTab';
 import { JournalDashboardTab } from '../components/trading/JournalDashboardTab';
+import { IdeaTracker, type TradePrefill } from '../components/trading/IdeaTracker';
 
 // Todo lo que en el sistema anterior (Excel/Apps Script) vivía repartido en
 // secciones separadas (Cuentas, Registrar Trade, Historial, Dashboard) se
@@ -20,6 +21,14 @@ type TabId = (typeof TABS)[number]['id'];
 
 export function BitacoraTrading() {
   const [tab, setTab] = useState<TabId>('dashboard');
+  // Puente entre el Seguimiento de Idea Operativa (vive en "Dashboard
+  // General") y "Registrar Trade" (otra pestaña) — ver IdeaTracker.tsx.
+  const [prefill, setPrefill] = useState<TradePrefill | null>(null);
+
+  function handleLoadToTrade(p: TradePrefill) {
+    setPrefill(p);
+    setTab('registrar');
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,9 +55,14 @@ export function BitacoraTrading() {
       </div>
 
       {tab === 'cuentas' && <AccountsTab />}
-      {tab === 'registrar' && <RegisterTradeTab />}
+      {tab === 'registrar' && <RegisterTradeTab prefill={prefill} onPrefillConsumed={() => setPrefill(null)} />}
       {tab === 'historial' && <HistoryTab />}
-      {tab === 'dashboard' && <JournalDashboardTab />}
+      {tab === 'dashboard' && (
+        <div className="flex flex-col gap-4">
+          <IdeaTracker onLoadToTrade={handleLoadToTrade} />
+          <JournalDashboardTab />
+        </div>
+      )}
     </div>
   );
 }

@@ -259,6 +259,31 @@ export interface TradingRuleAlert {
   message: string;
 }
 
+// --- Seguimiento de Idea Operativa (4-oct-2026) -----------------------------
+// Pedido explícito del usuario: un lugar para anotar la idea de trade que
+// está siguiendo AHORA MISMO (una sola, la más reciente — no una lista de
+// setups), para tenerla presente sin que eso se vuelva un impulso a operar
+// de más. 'activa' = la que se muestra; al cargar una idea nueva, la
+// anterior (si había) pasa a 'descartada' automáticamente — siempre hay como
+// mucho UNA activa. 'ejecutada' = se montó el trade desde acá (ver
+// TradingJournalContext.markIdeaExecuted), deja de mostrarse pero queda de
+// registro histórico.
+export type TradeIdeaStatus = 'activa' | 'ejecutada' | 'descartada';
+
+export interface TradeIdea {
+  id: string;
+  instrument: string;
+  direction: TradeDirection;
+  /** Texto libre (no siempre es un número exacto — ej. "1.0820-1.0850"). */
+  entryZone?: string;
+  stopLoss?: string;
+  takeProfit?: string;
+  notes: string;
+  status: TradeIdeaStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // --- Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) --------
 // Mismo modelo de datos para ambos ("journal_entries", distinguidos por
 // `kind`) porque comparten exactamente la semántica: una entrada por día,
