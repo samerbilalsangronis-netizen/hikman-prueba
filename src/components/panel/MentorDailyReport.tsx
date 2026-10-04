@@ -11,6 +11,8 @@ import { todayLocalDate, weekStartOf, formatWeekRange } from '../../lib/journalW
 // (?action=mentor-synthesize) — acá también hay un botón para generarla a
 // mano sin esperar al cron.
 
+const COLLAPSED_KEY = 'hikman:mentor-report-collapsed';
+
 export function MentorDailyReport() {
   const { entries, syntheses, saveEntry, setAiAnalysis, addSynthesis, uploadJournalImage } = useJournal();
   const { syncMode } = useMacroData();
@@ -24,6 +26,13 @@ export function MentorDailyReport() {
   const [synthesizing, setSynthesizing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Minimizar la sección (4-oct-2026, mismo pedido que la Agenda Semanal) —
+  // para no tener que bajar tanto hasta el Cuaderno de Economía.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
 
   useEffect(() => {
     setText(entry?.text ?? '');
@@ -96,14 +105,26 @@ export function MentorDailyReport() {
   return (
     <div className="flex flex-col gap-4 rounded-xl p-4" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
       <div>
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold"
+          style={{ color: 'var(--text-primary)', border: '1px solid var(--border)', background: 'var(--surface-2)' }}
+          title={collapsed ? 'Expandir Informe Diario Nufal' : 'Minimizar Informe Diario Nufal'}
+        >
+          <span className="text-sm leading-none" style={{ color: 'var(--series-1)' }}>
+            {collapsed ? '▸' : '▾'}
+          </span>
           🧠 Informe Diario Nufal (IA)
-        </h3>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Carga obligatoria diaria — el agente IA extrae catalizadores, niveles clave y el escenario esperado.
-        </p>
+        </button>
+        {!collapsed && (
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Carga obligatoria diaria — el agente IA extrae catalizadores, niveles clave y el escenario esperado.
+          </p>
+        )}
       </div>
 
+      {!collapsed && (
+      <>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -195,6 +216,8 @@ export function MentorDailyReport() {
           </p>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
