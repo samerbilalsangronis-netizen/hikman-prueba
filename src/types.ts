@@ -308,6 +308,23 @@ export interface MentorAiAnalysis {
   analyzedAt: string;
 }
 
+/** Captura pegada con Ctrl+V que flota libre sobre el cuaderno (4-oct-2026, a
+ * pedido del usuario: "la imagen debe pegarse libre y yo poder arrastrarla a
+ * cualquier parte... y bloquearla allí... debe hacerse grande o pequeña según
+ * cómo yo la hale de la esquina") — no vive en el flujo del texto como un
+ * <img> más, es un objeto posicionado (x/y/width/height en px, relativos al
+ * lienzo del día) que se arrastra y redimensiona desde la esquina, y se
+ * puede bloquear para que no se mueva más por accidente. */
+export interface PinnedImage {
+  id: string;
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  locked: boolean;
+}
+
 export interface JournalEntry {
   id: string;
   kind: JournalEntryKind;
@@ -316,6 +333,8 @@ export interface JournalEntry {
   color: JournalColor;
   text: string;
   imageUrls: string[];
+  /** Solo kind 'economia' — capturas pegadas con posición libre (ver PinnedImage). */
+  pinnedImages: PinnedImage[];
   /** Solo kind 'mentoria' — resultado de la última corrida del agente IA sobre `text`. */
   aiAnalysis?: MentorAiAnalysis;
   createdAt: string;

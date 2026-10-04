@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { JournalColor, JournalEntry, JournalEntryKind, MentorAiAnalysis, MentorWeeklySynthesis } from '../types';
+import type { JournalColor, JournalEntry, JournalEntryKind, MentorAiAnalysis, MentorWeeklySynthesis, PinnedImage } from '../types';
 
 // Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) — mismo
 // patrón que TradingJournalContext.tsx: Supabase como fuente de verdad, con
@@ -29,7 +29,7 @@ interface JournalValue {
   syntheses: MentorWeeklySynthesis[];
   loading: boolean;
   /** Crea o actualiza la entrada de (kind, date) — upsert por diseño, un solo registro por día. */
-  saveEntry: (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[] }) => Promise<JournalEntry>;
+  saveEntry: (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[]; pinnedImages?: PinnedImage[] }) => Promise<JournalEntry>;
   deleteEntry: (id: string) => Promise<void>;
   setAiAnalysis: (id: string, analysis: MentorAiAnalysis) => Promise<void>;
   uploadJournalImage: (file: File) => Promise<string>;
@@ -69,6 +69,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           color: e.color,
           text: e.text ?? '',
           imageUrls: e.image_urls ?? [],
+          pinnedImages: e.pinned_images ?? [],
           aiAnalysis: e.ai_analysis ?? undefined,
           createdAt: e.created_at,
           updatedAt: e.updated_at,
@@ -94,14 +95,24 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveEntry = useCallback(
-    async (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[] }) => {
+    async (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[]; pinnedImages?: PinnedImage[] }) => {
       const now = new Date().toISOString();
       let result!: JournalEntry;
       setEntries((prev) => {
         const existing = prev.find((e) => e.kind === kind && e.date === date);
         const next: JournalEntry = existing
           ? { ...existing, ...patch, updatedAt: now }
-          : { id: crypto.randomUUID(), kind, date, color: patch.color ?? 'gris', text: patch.text ?? '', imageUrls: patch.imageUrls ?? [], createdAt: now, updatedAt: now };
+          : {
+              id: crypto.randomUUID(),
+              kind,
+              date,
+              color: patch.color ?? 'gris',
+              text: patch.text ?? '',
+              imageUrls: patch.imageUrls ?? [],
+              pinnedImages: patch.pinnedImages ?? [],
+              createdAt: now,
+              updatedAt: now,
+            };
         result = next;
         const updated = existing ? prev.map((e) => (e.id === existing.id ? next : e)) : [...prev, next];
         if (!supabaseEnabled) localStorage.setItem(ENTRIES_KEY, JSON.stringify(updated));
@@ -117,6 +128,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
               color: result.color,
               text: result.text,
               image_urls: result.imageUrls,
+              pinned_images: result.pinnedImages,
               updated_at: now,
             },
             { onConflict: 'kind,entry_date' },

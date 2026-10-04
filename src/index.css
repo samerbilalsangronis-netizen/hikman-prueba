@@ -189,6 +189,62 @@ body {
   border: 1px solid var(--border);
 }
 
+/* Lienzo de capturas con posición libre del Cuaderno de Economía (4-oct-2026,
+   a pedido del usuario: pegar una captura debe anclarla como un objeto que
+   se arrastra y se redimensiona desde la esquina, no insertarla en el
+   flujo del texto). position:relative acá, los .journal-pin-box de adentro
+   son position:absolute contra este contenedor. */
+.journal-pin-canvas {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: var(--surface-2);
+  overflow: visible;
+}
+.journal-pin-box {
+  position: absolute;
+  touch-action: none;
+}
+.journal-pin-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+.journal-pin-box .journal-pin-handle {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--series-1);
+  cursor: nwse-resize;
+  border: 1px solid var(--surface-1);
+}
+.journal-pin-box .journal-pin-controls {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  display: flex;
+  gap: 4px;
+}
+.journal-pin-box .journal-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1;
+}
+
 /* Badge de "sesgo actualizado hoy" en las tarjetas compactas del Panel de
    Control (2-oct-2026) — mismo mecanismo que pulse-glow pero con box-shadow
    (este sí es un <span> HTML puro, no SVG). */

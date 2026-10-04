@@ -485,6 +485,9 @@ create table if not exists journal_entries (
   -- `text`. jsonb en vez de columnas separadas porque la forma exacta
   -- (catalysts/keyLevels/scenario) puede evolucionar sin migrar el esquema.
   ai_analysis jsonb,
+  -- Capturas pegadas con posición libre (4-oct-2026, solo kind='economia') —
+  -- array de {id,url,x,y,width,height,locked}, ver PinnedImage en types.ts.
+  pinned_images jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   -- Una sola entrada por día y tipo (el formulario es "editar el día de
@@ -492,6 +495,8 @@ create table if not exists journal_entries (
   unique (kind, entry_date)
 );
 create index if not exists journal_entries_kind_date_idx on journal_entries (kind, entry_date desc);
+-- Migración: agrega la columna si la tabla ya existía de antes (4-oct-2026).
+alter table journal_entries add column if not exists pinned_images jsonb not null default '[]'::jsonb;
 
 -- Migración: la paleta original tenía 7 colores genéricos (rojo/verde/
 -- amarillo/azul/morado/naranja/gris) — se reemplaza por la escala de
