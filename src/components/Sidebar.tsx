@@ -9,7 +9,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 // para decidir qué sub-nav y qué barra de divisas mostrar).
 // Análisis Técnico/Avanzado (Fortaleza + Renta Variable) se quitó a pedido
 // del usuario (4-oct-2026, "realmente no lo uso") — ver HANDOFF.md.
-export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/alemania', '/francia', '/banqueros', '/titulares', '/actualizar'];
+// "Banqueros" salió de este grupo (5-oct-2026, a pedido del usuario) y pasó
+// a ser su propia entrada en ITEMS más abajo — sigue dependiendo de la
+// divisa seleccionada, por eso Layout.tsx también lo trata como "página con
+// selector de divisa" aunque ya no sea parte de Macro Fundamental.
+export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/alemania', '/francia', '/titulares', '/actualizar'];
 
 const COLLAPSED_KEY = 'hikman:sidebar-collapsed';
 
@@ -24,6 +28,7 @@ const ITEMS: SidebarItem[] = [
   { to: '/panel-control', icon: '📊', label: 'Panel de Control' },
   { to: '/bitacora-trading', icon: '🧾', label: 'Bitácora de Trading' },
   { to: '/', icon: '🏛️', label: 'Análisis Macro Fundamental', activePaths: MACRO_PATHS },
+  { to: '/banqueros', icon: '🏦', label: 'Banqueros Centrales' },
 ];
 
 export function Sidebar() {

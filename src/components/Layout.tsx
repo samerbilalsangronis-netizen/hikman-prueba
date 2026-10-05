@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useMacroData } from '../data/MacroDataContext';
 import { CURRENCIES, useCurrency } from '../data/CurrencyContext';
 import { indicatorsByCountry, indicatorsBySection } from '../data/indicators';
-import { bankersForCurrency } from '../data/centralBankers';
 import { ReleaseScheduleTab } from './ReleaseScheduleTab';
 import { Sidebar, MACRO_PATHS } from './Sidebar';
 import type { Currency } from '../types';
@@ -47,7 +46,6 @@ function macroNavFor(currency: Currency) {
   if (indicatorsBySection('confianza', currency).length > 0) items.push({ to: '/confianza', label: 'Confianza / Sentimiento' });
   if (indicatorsByCountry('DE', currency).length > 0) items.push({ to: '/alemania', label: '🇩🇪 Alemania' });
   if (indicatorsByCountry('FR', currency).length > 0) items.push({ to: '/francia', label: '🇫🇷 Francia' });
-  if (bankersForCurrency(currency).length > 0) items.push({ to: '/banqueros', label: 'Banqueros' });
   items.push({ to: '/actualizar', label: 'Actualizar Datos' });
 
   return items;
@@ -96,6 +94,13 @@ export function Layout() {
   const { pathname } = useLocation();
 
   const inMacro = MACRO_PATHS.includes(pathname);
+  // Banqueros ya no es parte de Análisis Macro Fundamental (5-oct-2026, ahora
+  // es su propia entrada en la barra lateral) pero su contenido sigue
+  // dependiendo de la divisa seleccionada (bankersForCurrency) — por eso
+  // también muestra el selector de divisa del header, solo que sin el
+  // sub-nav de Macro (Tasas/Inflación/etc. no aplican acá).
+  const isBankers = pathname === '/banqueros';
+  const showCurrencyPicker = inMacro || isBankers;
 
   return (
     <div className="relative isolate flex min-h-screen" style={{ background: 'var(--page)' }}>
@@ -113,13 +118,13 @@ export function Layout() {
         >
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
             <div className="flex min-w-0 shrink items-center gap-2">
-              {inMacro ? (
+              {showCurrencyPicker ? (
                 <>
                   <span className="shrink-0 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                     {currency}
                   </span>
                   <span className="hidden text-sm sm:inline" style={{ color: 'var(--text-muted)' }}>
-                    Seguimiento Macro
+                    {isBankers ? 'Banqueros Centrales' : 'Seguimiento Macro'}
                   </span>
                 </>
               ) : (
@@ -129,11 +134,12 @@ export function Layout() {
               )}
             </div>
             <div className="flex min-w-0 items-center gap-2">
-              {/* Las pestañas de divisa solo tienen sentido dentro de Análisis
-                  Macro Fundamental — pedido explícito del usuario para no
+              {/* Las pestañas de divisa solo tienen sentido en Análisis Macro
+                  Fundamental y en Banqueros Centrales (su contenido también
+                  depende de la divisa) — pedido explícito del usuario para no
                   mostrar un filtro que no aplica en Panel de Control/Bitácora
-                  de Trading/Análisis Técnico. */}
-              {inMacro && (
+                  de Trading. */}
+              {showCurrencyPicker && (
                 <div className="flex max-w-full overflow-x-auto rounded-full p-0.5" style={{ border: '1px solid var(--border)' }}>
                   {CURRENCIES.map((c) => (
                     <button
