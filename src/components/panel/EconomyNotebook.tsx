@@ -34,6 +34,15 @@ function EntryImages({ urls }: { urls: string[] }) {
 const PIN_DEFAULT_SIZE = { width: 220, height: 160 };
 const PIN_MIN_SIZE = 60;
 
+/** Posición inicial de una nueva captura libre, escalonada según cuántas ya
+ * hay para que no caigan todas apiladas exactamente una sobre otra —
+ * compartida entre el pegado con Ctrl+V (DayEditor) y el botón "Agregar
+ * imagen libre" de la Bóveda (HistoryModal). */
+function nextPinnedImage(existing: PinnedImage[], url: string): PinnedImage {
+  const offset = (existing.length % 5) * 24;
+  return { id: crypto.randomUUID(), url, x: 16 + offset, y: 16 + offset, width: PIN_DEFAULT_SIZE.width, height: PIN_DEFAULT_SIZE.height, locked: false };
+}
+
 type PinDrag = { mode: 'move' | 'resize'; pointerId: number; startX: number; startY: number; orig: { x: number; y: number; width: number; height: number } };
 
 /** Captura pegada que flota libre sobre el cuaderno (4-oct-2026) — se mueve
@@ -240,10 +249,7 @@ function DayEditor({ date }: { date: string }) {
     setUploading(true);
     try {
       const url = await uploadJournalImage(imageFile);
-      const count = entry?.pinnedImages?.length ?? 0;
-      const offset = (count % 5) * 24;
-      const nextImage: PinnedImage = { id: crypto.randomUUID(), url, x: 16 + offset, y: 16 + offset, width: PIN_DEFAULT_SIZE.width, height: PIN_DEFAULT_SIZE.height, locked: false };
-      await saveEntry('economia', date, { pinnedImages: [...(entry?.pinnedImages ?? []), nextImage] });
+      await saveEntry('economia', date, { pinnedImages: [...(entry?.pinnedImages ?? []), nextPinnedImage(entry?.pinnedImages ?? [], url)] });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -435,32 +441,146 @@ function DayEditor({ date }: { date: string }) {
   );
 }
 
-function pastWeeks(entries: JournalEntry[]): string[] {
+/** Días con contenido (kind='economia', excluida la semana en curso) de más
+ * reciente a más antiguo — es la lista de "páginas" de la Bóveda (5-oct-2026,
+ * a pedido del usuario: navegar la Bóveda "como quien pasa página en un
+ * libro" en vez de ver una semana entera apilada). */
+function historyDaysOf(entries: JournalEntry[]): string[] {
   const currentWeek = weekStartOf(todayLocalDate());
-  const weeks = new Set(entries.filter((e) => e.kind === 'economia').map((e) => weekStartOf(e.date)));
-  weeks.delete(currentWeek);
-  return [...weeks].sort((a, b) => b.localeCompare(a));
+  return entries
+    .filter((e) => e.kind === 'economia' && weekStartOf(e.date) !== currentWeek && (e.text.length > 0 || e.imageUrls.length > 0 || e.pinnedImages.length > 0))
+    .map((e) => e.date)
+    .sort((a, b) => b.localeCompare(a));
 }
 
+/** Galería editable de la Bóveda — a diferencia de EntryImages (de solo
+ * lectura, usada en el editor del día actual), acá cada foto tiene su botón
+ * de borrar y hay un botón "+" para sumar una nueva directo desde el
+ * historial (5-oct-2026, a pedido del usuario: poder agregar/eliminar cosas
+ * dentro de la Bóveda, no solo mirarlas). */
+function EditableGallery({ urls, canUpload, onAdd, onRemove }: { urls: string[]; canUpload: boolean; onAdd: (file: File | undefined) => void; onRemove: (url: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {urls.map((url) => (
+        <div key={url} className="group relative">
+          <a href={url} target="_blank" rel="noreferrer">
+            <img src={url} alt="" className="h-16 w-16 rounded-md object-cover" style={{ border: '1px solid var(--border)' }} />
+          </a>
+          <button
+            type="button"
+            onClick={() => onRemove(url)}
+            title="Eliminar foto"
+            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px]"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <label
+        title={canUpload ? 'Agregar foto' : 'Necesita Supabase configurado'}
+        className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-md text-lg"
+        style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)', opacity: canUpload ? 1 : 0.5 }}
+      >
+        +
+        <input type="file" accept="image/*" disabled={!canUpload} className="hidden" onChange={(e) => onAdd(e.target.files?.[0])} />
+      </label>
+    </div>
+  );
+}
+
+const FLIP_MS = 420;
+
 function HistoryModal({ onClose }: { onClose: () => void }) {
-  const { entries, saveEntry } = useJournal();
-  const weeks = useMemo(() => pastWeeks(entries), [entries]);
-  const [selected, setSelected] = useState(weeks[0]);
+  const { entries, saveEntry, deleteEntry, uploadJournalImage } = useJournal();
+  const { syncMode } = useMacroData();
+  const historyDays = useMemo(() => historyDaysOf(entries), [entries]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [flip, setFlip] = useState<'next' | 'prev' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const weekEntries = useMemo(() => {
-    if (!selected) return [];
-    const dates = datesOfWeek(selected);
-    return dates
-      .map((d) => entries.find((e) => e.kind === 'economia' && e.date === d))
-      .filter((e): e is JournalEntry => !!e && (e.text.length > 0 || e.imageUrls.length > 0 || e.pinnedImages.length > 0));
-  }, [entries, selected]);
+  // Si se borra el día actual (o cualquier otro) la lista se achica — evita
+  // quedar apuntando a un índice que ya no existe.
+  useEffect(() => {
+    setPageIndex((i) => Math.min(i, Math.max(0, historyDays.length - 1)));
+  }, [historyDays.length]);
 
-  function updatePinned(e: JournalEntry, id: string, patch: Partial<Pick<PinnedImage, 'x' | 'y' | 'width' | 'height' | 'locked'>>) {
-    saveEntry('economia', e.date, { pinnedImages: e.pinnedImages.map((img) => (img.id === id ? { ...img, ...patch } : img)) });
+  const date = historyDays[pageIndex];
+  const entry = entries.find((e) => e.kind === 'economia' && e.date === date);
+
+  function goTo(nextIndex: number, direction: 'next' | 'prev') {
+    if (flip || nextIndex < 0 || nextIndex >= historyDays.length) return;
+    setFlip(direction);
+    window.setTimeout(() => setPageIndex(nextIndex), FLIP_MS / 2);
   }
 
-  function deletePinned(e: JournalEntry, id: string) {
-    saveEntry('economia', e.date, { pinnedImages: e.pinnedImages.filter((img) => img.id !== id) });
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'ArrowRight') goTo(pageIndex + 1, 'next');
+      if (e.key === 'ArrowLeft') goTo(pageIndex - 1, 'prev');
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageIndex, historyDays.length, flip]);
+
+  function updatePinned(id: string, patch: Partial<Pick<PinnedImage, 'x' | 'y' | 'width' | 'height' | 'locked'>>) {
+    if (!entry) return;
+    saveEntry('economia', entry.date, { pinnedImages: entry.pinnedImages.map((img) => (img.id === id ? { ...img, ...patch } : img)) });
+  }
+
+  function deletePinned(id: string) {
+    if (!entry) return;
+    saveEntry('economia', entry.date, { pinnedImages: entry.pinnedImages.filter((img) => img.id !== id) });
+  }
+
+  async function addPinnedImage(file: File | undefined) {
+    if (!entry || !file) return;
+    if (syncMode !== 'cloud') {
+      setError('Agregar imágenes necesita Supabase configurado.');
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadJournalImage(file);
+      await saveEntry('economia', entry.date, { pinnedImages: [...entry.pinnedImages, nextPinnedImage(entry.pinnedImages, url)] });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeGalleryImage(url: string) {
+    if (!entry) return;
+    saveEntry('economia', entry.date, { imageUrls: entry.imageUrls.filter((u) => u !== url) });
+  }
+
+  async function addGalleryImage(file: File | undefined) {
+    if (!entry || !file) return;
+    if (syncMode !== 'cloud') {
+      setError('Agregar imágenes necesita Supabase configurado.');
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadJournalImage(file);
+      await saveEntry('economia', entry.date, { imageUrls: [...entry.imageUrls, url] });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleDeleteDay() {
+    if (!entry) return;
+    if (!window.confirm(`¿Borrar por completo la entrada de ${dayLabel(entry.date)} ${entry.date}? No se puede deshacer.`)) return;
+    deleteEntry(entry.id);
   }
 
   return (
@@ -475,40 +595,84 @@ function HistoryModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {weeks.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Todavía no hay semanas archivadas.</p>
+        {historyDays.length === 0 || !entry ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Todavía no hay días archivados.</p>
         ) : (
           <>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {weeks.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => setSelected(w)}
-                  className="rounded-full px-3 py-1 text-xs font-medium"
-                  style={{ background: selected === w ? 'var(--series-1)' : 'transparent', color: selected === w ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <button
+                onClick={() => goTo(pageIndex - 1, 'prev')}
+                disabled={pageIndex <= 0}
+                title="Día más reciente — también funciona con ←"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-30"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                ◂ Anterior
+              </button>
+              <div className="text-center">
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {dayLabel(entry.date)} · {entry.date}
+                </div>
+                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  Semana {formatWeekRange(weekStartOf(entry.date))} · página {pageIndex + 1} de {historyDays.length}
+                </div>
+              </div>
+              <button
+                onClick={() => goTo(pageIndex + 1, 'next')}
+                disabled={pageIndex >= historyDays.length - 1}
+                title="Día más antiguo — también funciona con →"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-30"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Siguiente ▸
+              </button>
+            </div>
+
+            <div className="journal-vault-stage">
+              {/* Sin key={entry.id} a propósito: tiene que ser el MISMO nodo
+                  DOM durante todo el flip para que la animación no se
+                  reinicie a mitad de camino cuando pageIndex cambia (a los
+                  210ms) — solo el contenido de adentro se actualiza en el
+                  lugar, la animación CSS sigue corriendo sin cortes. */}
+              <div
+                className={`journal-vault-page flex flex-col gap-2 rounded-md p-3 ${flip === 'next' ? 'flip-next' : ''} ${flip === 'prev' ? 'flip-prev' : ''}`}
+                style={{ background: 'var(--surface-2)' }}
+                onAnimationEnd={() => setFlip(null)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {dayLabel(entry.date)} · {entry.date}
+                  </span>
+                  <button
+                    onClick={handleDeleteDay}
+                    title="Borrar esta entrada completa"
+                    className="shrink-0 rounded-md px-2 py-1 text-[11px]"
+                    style={{ color: 'var(--delta-bad)', border: '1px solid var(--border)' }}
+                  >
+                    🗑️ Borrar día
+                  </button>
+                </div>
+
+                {entry.text ? (
+                  <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ __html: toDisplayHtml(entry.text) }} />
+                ) : (
+                  <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>Sin narrativa — solo imágenes.</p>
+                )}
+
+                <PinCanvas images={entry.pinnedImages} onChange={updatePinned} onDelete={deletePinned} />
+                <label
+                  title={syncMode === 'cloud' ? 'Agregar imagen libre' : 'Necesita Supabase configurado'}
+                  className="self-start rounded-md px-2.5 py-1 text-[11px] font-medium"
+                  style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: syncMode === 'cloud' ? 'pointer' : 'default', opacity: syncMode === 'cloud' ? 1 : 0.5 }}
                 >
-                  {formatWeekRange(w)}
-                </button>
-              ))}
+                  📌 Agregar imagen libre
+                  <input type="file" accept="image/*" disabled={syncMode !== 'cloud' || uploading} className="hidden" onChange={(e) => addPinnedImage(e.target.files?.[0])} />
+                </label>
+
+                <EditableGallery urls={entry.imageUrls} canUpload={syncMode === 'cloud' && !uploading} onAdd={addGalleryImage} onRemove={removeGalleryImage} />
+              </div>
             </div>
-            <div className="flex flex-col gap-3">
-              {weekEntries.length === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Esa semana no tiene entradas.</p>
-              ) : (
-                weekEntries.map((e) => (
-                  <div key={e.id} className="flex flex-col gap-1.5 rounded-md p-3" style={{ background: 'var(--surface-2)' }}>
-                    <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {dayLabel(e.date)} · {e.date}
-                    </span>
-                    {e.text && (
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ __html: toDisplayHtml(e.text) }} />
-                    )}
-                    {e.pinnedImages.length > 0 && <PinCanvas images={e.pinnedImages} onChange={(id, patch) => updatePinned(e, id, patch)} onDelete={(id) => deletePinned(e, id)} />}
-                    <EntryImages urls={e.imageUrls} />
-                  </div>
-                ))
-              )}
-            </div>
+            {error && <p className="mt-2 text-xs" style={{ color: 'var(--delta-bad)' }}>{error}</p>}
           </>
         )}
       </div>

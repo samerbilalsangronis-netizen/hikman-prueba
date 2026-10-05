@@ -245,6 +245,59 @@ body {
   line-height: 1;
 }
 
+/* Bóveda del Cuaderno de Economía como libro navegable (5-oct-2026, a pedido
+   del usuario: "navegar entre páginas como quien pasa realmente una página
+   en un libro a la izquierda o la derecha") — el truco es barato a
+   propósito: una sola animación rotateY sobre la MISMA tarjeta (no dos capas
+   superpuestas con anverso/reverso reales), que cambia el contenido de
+   adentro justo cuando pasa por los 90° (invisible de canto gracias a
+   backface-visibility:hidden) — alcanza para la sensación de "vuelta de
+   página" sin la complejidad de un flip-book real. */
+.journal-vault-stage {
+  perspective: 1600px;
+}
+.journal-vault-page {
+  backface-visibility: hidden;
+}
+.journal-vault-page.flip-next {
+  animation: journal-page-flip-next 420ms ease-in-out;
+  transform-origin: left center;
+}
+.journal-vault-page.flip-prev {
+  animation: journal-page-flip-prev 420ms ease-in-out;
+  transform-origin: right center;
+}
+@keyframes journal-page-flip-next {
+  0% {
+    transform: rotateY(0deg);
+  }
+  49% {
+    transform: rotateY(-94deg);
+    opacity: 0.4;
+  }
+  51% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+@keyframes journal-page-flip-prev {
+  0% {
+    transform: rotateY(0deg);
+  }
+  49% {
+    transform: rotateY(94deg);
+    opacity: 0.4;
+  }
+  51% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
 /* Badge de "sesgo actualizado hoy" en las tarjetas compactas del Panel de
    Control (2-oct-2026) — mismo mecanismo que pulse-glow pero con box-shadow
    (este sí es un <span> HTML puro, no SVG). */
