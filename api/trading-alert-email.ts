@@ -34,21 +34,26 @@ import nodemailer from 'nodemailer';
 //   CALENDAR_REMINDER_EMAIL — a qué correo(s) avisar de la Agenda Semanal
 //                             (uno o varios separados por coma)
 //
-// --- Agente IA de mentoría (soporta 4 proveedores, 9-oct-2026) -----------
+// --- Agente IA de mentoría (soporta 5 proveedores, 9-oct-2026) -----------
 // Orden de prioridad: Claude (console.anthropic.com) > Groq
-// (console.groq.com) > OpenRouter (openrouter.ai) > Gemini
-// (aistudio.google.com/apikey) — alcanza con configurar UNA sola, y el día
-// que se agregue otra con más prioridad el comportamiento cambia solo, sin
-// tocar código (ver resolveAiProvider() más abajo). Groq se agregó el
-// 9-oct-2026 porque, mientras Anthropic revisaba la cuenta y el free tier de
-// Gemini resultó demasiado chico (20 solicitudes/día) y lento en la
-// práctica, Groq da inferencia muchísimo más rápida con un límite diario
-// gratuito bastante más alto. OpenRouter se agregó el mismo día como
-// respaldo de Groq: Cloudflare bloquea console.groq.com por geolocalización
-// para el usuario (confirmado probando con otra red — no es algo arreglable
-// de este lado), así que hace falta un proveedor en otra infraestructura.
-// Las tres APIs "nuevas" (Groq, OpenRouter, Gemini) devuelven texto plano;
-// solo Claude usa el formato propio de Anthropic.
+// (console.groq.com) > xAI/Grok (console.x.ai) > OpenRouter (openrouter.ai)
+// > Gemini (aistudio.google.com/apikey) — alcanza con configurar UNA sola, y
+// el día que se agregue otra con más prioridad el comportamiento cambia
+// solo, sin tocar código (ver resolveAiProvider() más abajo). Groq se
+// agregó el 9-oct-2026 porque, mientras Anthropic revisaba la cuenta y el
+// free tier de Gemini resultó demasiado chico (20 solicitudes/día) y lento
+// en la práctica, Groq da inferencia muchísimo más rápida con un límite
+// diario gratuito bastante más alto. xAI y OpenRouter se agregaron el mismo
+// día como respaldo de Groq: Cloudflare bloquea console.groq.com por
+// geolocalización para el usuario (confirmado probando con otra red — no es
+// algo arreglable de este lado). OJO: a diferencia de Groq/OpenRouter/
+// Gemini, xAI NO tiene tier gratis — hace falta cargar una tarjeta en
+// console.x.ai. "xAI/Grok" (la empresa de Elon Musk, el chatbot grok.com)
+// no tiene relación con "Groq" (la empresa de inferencia rápida) más que el
+// nombre parecido — son proveedores y cuentas totalmente distintos.
+// Las cuatro APIs "nuevas" (Groq, xAI, OpenRouter, Gemini) devuelven texto
+// plano en formato compatible con OpenAI; solo Claude usa el formato propio
+// de Anthropic.
 // Requiere en Vercel AL MENOS UNO de:
 //   ANTHROPIC_API_KEY     — API key de Anthropic
 //   ANTHROPIC_MODEL       — opcional, default 'claude-sonnet-5'
@@ -56,6 +61,11 @@ import nodemailer from 'nodemailer';
 //                           console.groq.com/keys) — puede estar bloqueado
 //                           por geolocalización en algunos países.
 //   GROQ_MODEL            — opcional, default 'llama-3.3-70b-versatile'
+//   XAI_API_KEY           — API key de xAI/Grok (console.x.ai — requiere
+//                           tarjeta cargada, no es gratis)
+//   XAI_MODEL             — opcional, default 'grok-4-fast' — si da error
+//                           de modelo no encontrado, revisá el catálogo
+//                           vigente en console.x.ai/models
 //   OPENROUTER_API_KEY    — API key de OpenRouter (gratis, sin tarjeta, en
 //                           openrouter.ai/keys)
 //   OPENROUTER_MODEL      — opcional, default 'meta-llama/llama-3.1-8b-instruct:free'
@@ -156,6 +166,25 @@ async function callGroq(apiKey: string, model: string, prompt: string, maxTokens
   return text;
 }
 
+// API de xAI/Grok (console.x.ai) — también compatible con el formato de
+// chat completions de OpenAI. Distinta de Groq (nombre parecido, empresas y
+// cuentas sin relación) — se agregó como respaldo de Groq (9-oct-2026)
+// porque Groq quedó bloqueado por geolocalización para el usuario y sí
+// pudo entrar a console.x.ai. A diferencia de Groq/OpenRouter/Gemini, xAI
+// no tiene tier gratis (requiere tarjeta cargada en la cuenta).
+async function callXai(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!res.ok) throw new Error(`xAI: HTTP ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = json.choices?.[0]?.message?.content;
+  if (!text) throw new Error('xAI: respuesta sin texto');
+  return text;
+}
+
 // API de OpenRouter (openrouter.ai) — también compatible con el formato de
 // chat completions de OpenAI; se agregó como respaldo de Groq (9-oct-2026)
 // porque Groq quedó bloqueado por geolocalización para el usuario.
@@ -206,21 +235,25 @@ function parseGeminiResponse(json: { candidates?: { content?: { parts?: { text?:
   return text;
 }
 
-// Agente IA de mentoría — soporta cuatro proveedores para que la función
+// Agente IA de mentoría — soporta cinco proveedores para que la función
 // funcione aunque falte alguna key. Prioridad: Claude (ANTHROPIC_API_KEY) >
 // Groq (GROQ_API_KEY, gratis en console.groq.com — mucho más rápido y con
-// más margen diario gratis que Gemini) > OpenRouter (OPENROUTER_API_KEY,
-// gratis en openrouter.ai — respaldo de Groq cuando éste queda bloqueado
-// por geolocalización) > Gemini (GEMINI_API_KEY, aistudio.google.com/apikey).
-// Alcanza con setear una sola, y el día que se agregue otra con más
-// prioridad el comportamiento cambia solo, sin tocar código.
-const AI_NEEDED_ENV_VARS = 'ANTHROPIC_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY o GEMINI_API_KEY';
+// más margen diario gratis que Gemini) > xAI/Grok (XAI_API_KEY,
+// console.x.ai, requiere tarjeta — respaldo de Groq cuando éste queda
+// bloqueado por geolocalización) > OpenRouter (OPENROUTER_API_KEY, gratis
+// en openrouter.ai, otro respaldo de Groq) > Gemini (GEMINI_API_KEY,
+// aistudio.google.com/apikey). Alcanza con setear una sola, y el día que se
+// agregue otra con más prioridad el comportamiento cambia solo, sin tocar
+// código.
+const AI_NEEDED_ENV_VARS = 'ANTHROPIC_API_KEY, GROQ_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY o GEMINI_API_KEY';
 
-function resolveAiProvider(): { provider: 'claude' | 'groq' | 'openrouter' | 'gemini'; apiKey: string; model: string } | null {
+function resolveAiProvider(): { provider: 'claude' | 'groq' | 'xai' | 'openrouter' | 'gemini'; apiKey: string; model: string } | null {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) return { provider: 'claude', apiKey: anthropicKey, model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5' };
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) return { provider: 'groq', apiKey: groqKey, model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile' };
+  const xaiKey = process.env.XAI_API_KEY;
+  if (xaiKey) return { provider: 'xai', apiKey: xaiKey, model: process.env.XAI_MODEL || 'grok-4-fast' };
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   if (openRouterKey) return { provider: 'openrouter', apiKey: openRouterKey, model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free' };
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -233,6 +266,7 @@ async function callAi(prompt: string, maxTokens: number): Promise<string> {
   if (!config) throw new Error(`Falta configurar ${AI_NEEDED_ENV_VARS} en Vercel.`);
   if (config.provider === 'claude') return callClaude(config.apiKey, config.model, prompt, maxTokens);
   if (config.provider === 'groq') return callGroq(config.apiKey, config.model, prompt, maxTokens);
+  if (config.provider === 'xai') return callXai(config.apiKey, config.model, prompt, maxTokens);
   if (config.provider === 'openrouter') return callOpenRouter(config.apiKey, config.model, prompt, maxTokens);
   return callGemini(config.apiKey, config.model, prompt, maxTokens);
 }
