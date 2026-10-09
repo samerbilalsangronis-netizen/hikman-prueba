@@ -34,22 +34,34 @@ import nodemailer from 'nodemailer';
 //   CALENDAR_REMINDER_EMAIL — a qué correo(s) avisar de la Agenda Semanal
 //                             (uno o varios separados por coma)
 //
-// --- Agente IA de mentoría (soporta 3 proveedores, 9-oct-2026) -----------
+// --- Agente IA de mentoría (soporta 4 proveedores, 9-oct-2026) -----------
 // Orden de prioridad: Claude (console.anthropic.com) > Groq
-// (console.groq.com) > Gemini (aistudio.google.com/apikey) — alcanza con
-// configurar UNA sola, y el día que se agregue otra con más prioridad el
-// comportamiento cambia solo, sin tocar código (ver resolveAiProvider() más
-// abajo). Groq se agregó el 9-oct-2026 porque, mientras Anthropic revisaba
-// la cuenta y el free tier de Gemini resultó demasiado chico (20
-// solicitudes/día) y lento en la práctica, Groq da inferencia muchísimo más
-// rápida (hardware LPU dedicado) con un límite diario gratuito bastante más
-// alto — y su API es compatible con el formato de OpenAI, sin SDK aparte.
+// (console.groq.com) > OpenRouter (openrouter.ai) > Gemini
+// (aistudio.google.com/apikey) — alcanza con configurar UNA sola, y el día
+// que se agregue otra con más prioridad el comportamiento cambia solo, sin
+// tocar código (ver resolveAiProvider() más abajo). Groq se agregó el
+// 9-oct-2026 porque, mientras Anthropic revisaba la cuenta y el free tier de
+// Gemini resultó demasiado chico (20 solicitudes/día) y lento en la
+// práctica, Groq da inferencia muchísimo más rápida con un límite diario
+// gratuito bastante más alto. OpenRouter se agregó el mismo día como
+// respaldo de Groq: Cloudflare bloquea console.groq.com por geolocalización
+// para el usuario (confirmado probando con otra red — no es algo arreglable
+// de este lado), así que hace falta un proveedor en otra infraestructura.
+// Las tres APIs "nuevas" (Groq, OpenRouter, Gemini) devuelven texto plano;
+// solo Claude usa el formato propio de Anthropic.
 // Requiere en Vercel AL MENOS UNO de:
 //   ANTHROPIC_API_KEY     — API key de Anthropic
 //   ANTHROPIC_MODEL       — opcional, default 'claude-sonnet-5'
 //   GROQ_API_KEY          — API key de Groq (gratis, sin tarjeta, en
-//                           console.groq.com/keys)
+//                           console.groq.com/keys) — puede estar bloqueado
+//                           por geolocalización en algunos países.
 //   GROQ_MODEL            — opcional, default 'llama-3.3-70b-versatile'
+//   OPENROUTER_API_KEY    — API key de OpenRouter (gratis, sin tarjeta, en
+//                           openrouter.ai/keys)
+//   OPENROUTER_MODEL      — opcional, default 'meta-llama/llama-3.1-8b-instruct:free'
+//                           — el catálogo de modelos gratis de OpenRouter
+//                           cambia con el tiempo, revisá cuáles siguen
+//                           disponibles en openrouter.ai/models?max_price=0
 //   GEMINI_API_KEY        — API key de Gemini (Google AI Studio)
 //   GEMINI_MODEL          — opcional, default 'gemini-flash-latest'
 // mentor-analyze es sin estado (recibe texto, devuelve el análisis — lo
@@ -144,6 +156,22 @@ async function callGroq(apiKey: string, model: string, prompt: string, maxTokens
   return text;
 }
 
+// API de OpenRouter (openrouter.ai) — también compatible con el formato de
+// chat completions de OpenAI; se agregó como respaldo de Groq (9-oct-2026)
+// porque Groq quedó bloqueado por geolocalización para el usuario.
+async function callOpenRouter(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!res.ok) throw new Error(`OpenRouter: HTTP ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = json.choices?.[0]?.message?.content;
+  if (!text) throw new Error('OpenRouter: respuesta sin texto');
+  return text;
+}
+
 // El free tier de Gemini devuelve 503 cuando el modelo está sobrecargado —
 // confirmado en vivo (4-oct-2026) que en este caso es, al menos en parte, el
 // límite del free tier de la cuenta (ej. "Gemini 3.8 Flash": 5 solicitudes
@@ -178,21 +206,23 @@ function parseGeminiResponse(json: { candidates?: { content?: { parts?: { text?:
   return text;
 }
 
-// Agente IA de mentoría — soporta tres proveedores para que la función
-// funcione aunque falte alguna key: Claude tiene prioridad si
-// ANTHROPIC_API_KEY está configurada; si no, Groq (GROQ_API_KEY, gratis en
-// console.groq.com — mucho más rápido y con más margen diario gratis que
-// Gemini, agregado 9-oct-2026 mientras Anthropic revisaba la cuenta); si no,
-// Gemini (GEMINI_API_KEY, aistudio.google.com/apikey). Alcanza con setear
-// una sola, y el día que se agregue otra con más prioridad el comportamiento
-// cambia solo, sin tocar código.
-const AI_NEEDED_ENV_VARS = 'ANTHROPIC_API_KEY, GROQ_API_KEY o GEMINI_API_KEY';
+// Agente IA de mentoría — soporta cuatro proveedores para que la función
+// funcione aunque falte alguna key. Prioridad: Claude (ANTHROPIC_API_KEY) >
+// Groq (GROQ_API_KEY, gratis en console.groq.com — mucho más rápido y con
+// más margen diario gratis que Gemini) > OpenRouter (OPENROUTER_API_KEY,
+// gratis en openrouter.ai — respaldo de Groq cuando éste queda bloqueado
+// por geolocalización) > Gemini (GEMINI_API_KEY, aistudio.google.com/apikey).
+// Alcanza con setear una sola, y el día que se agregue otra con más
+// prioridad el comportamiento cambia solo, sin tocar código.
+const AI_NEEDED_ENV_VARS = 'ANTHROPIC_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY o GEMINI_API_KEY';
 
-function resolveAiProvider(): { provider: 'claude' | 'groq' | 'gemini'; apiKey: string; model: string } | null {
+function resolveAiProvider(): { provider: 'claude' | 'groq' | 'openrouter' | 'gemini'; apiKey: string; model: string } | null {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) return { provider: 'claude', apiKey: anthropicKey, model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5' };
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) return { provider: 'groq', apiKey: groqKey, model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile' };
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  if (openRouterKey) return { provider: 'openrouter', apiKey: openRouterKey, model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free' };
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) return { provider: 'gemini', apiKey: geminiKey, model: process.env.GEMINI_MODEL || 'gemini-flash-latest' };
   return null;
@@ -203,6 +233,7 @@ async function callAi(prompt: string, maxTokens: number): Promise<string> {
   if (!config) throw new Error(`Falta configurar ${AI_NEEDED_ENV_VARS} en Vercel.`);
   if (config.provider === 'claude') return callClaude(config.apiKey, config.model, prompt, maxTokens);
   if (config.provider === 'groq') return callGroq(config.apiKey, config.model, prompt, maxTokens);
+  if (config.provider === 'openrouter') return callOpenRouter(config.apiKey, config.model, prompt, maxTokens);
   return callGemini(config.apiKey, config.model, prompt, maxTokens);
 }
 
