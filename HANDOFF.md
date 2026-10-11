@@ -1,6 +1,6 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **4-oct-2026**, actualizado al cierre de la
+Fecha de este resumen: **11-oct-2026**, actualizado al cierre de la
 sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
 lea desde el repo) al abrir el chat nuevo — está pensado para ser
 autocontenido. El documento es largo y crece cronológicamente (sesión
@@ -8,17 +8,301 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 4-oct-2026
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 11-oct-2026
 
 Todo lo de esta sesión está committeado y pusheado a
-`claude/handoff-continuacion-xvvz4b` (rama de trabajo de esta sesión en
-particular). **No se re-sincronizó todavía con
-`claude/macro-usd-web-dashboard-xm5ypk`** — a diferencia de sesiones
-anteriores, esta vez no hubo pedido explícito de pushear a ambas ramas
-dentro de esta ventana; antes de cerrar conviene confirmar con el
-usuario si hay que mergear/pushear también a la rama vieja, siguiendo el
-mismo patrón de fast-forward merge que se usó en sesiones anteriores
-(ver sección histórica de abajo).
+`claude/handoff-continuacion-xvvz4b`. A diferencia de sesiones
+anteriores, esta rama **es ahora la única que le importa a producción**:
+a mitad de esta sesión se descubrió y arregló un bug real de
+configuración de Vercel (ver punto 12 abajo) — el **Production Branch**
+del proyecto en Vercel (Settings → Environments → Production → Branch
+Tracking) quedó fijado explícitamente a `claude/handoff-continuacion-xvvz4b`,
+así que cada push a esta rama se promueve solo a `hikman-prueba.vercel.app`
+sin pasos manuales. No se tocó `claude/macro-usd-web-dashboard-xm5ypk` en
+esta sesión y, dado que Vercel ya no mira esa rama para nada, probablemente
+ya no haga falta sincronizarla — pero no se confirmó con el usuario, así
+que seguí tratándolo como pendiente (ver abajo) en vez de asumirlo.
+
+### Qué se hizo esta sesión (en orden)
+
+**1) Agenda Semanal en Panel de Control, con recordatorio por correo —**
+nueva sección para organizar los eventos económicos de la semana, con
+opción de poner alarma que manda un recordatorio por mail. Nuevo:
+`supabase/schema.sql` (tabla `calendar_events`: título, divisa opcional,
+`event_at` con hora, impacto, `alarm_enabled`, `remind_minutes_before`,
+`notified_at`), `src/types.ts` (`CalendarEvent`), `src/data/
+CalendarEventsContext.tsx` (CRUD Supabase+localStorage, mismo patrón que
+el resto de los Contexts), `src/lib/calendarEvents.ts` (helpers de
+agrupado/formato), `src/components/panel/WeeklyAgenda.tsx` (UI: nav de
+semana, pills de día, modal de alta/edición). `supabase/
+seed_weekly_agenda_2026-10-04.sql`: carga inicial de 37 eventos
+transcriptos a mano de las notas del usuario. El lado de servidor
+(`api/trading-alert-email.ts`, `handleCalendarReminder`) y el disparador
+(`.github/workflows/sync-calendar-reminders.yml`, cron cada 15 min) se
+terminan de explicar en el punto 2.
+
+**2) Troubleshooting del envío de correos: Resend → Gmail SMTP —** se
+pisaron tres problemas reales en cadena para que el recordatorio de la
+Agenda Semanal terminara mandando el mail de verdad: (a) el primer
+`schema.sql` que se le pasó al usuario se truncaba al pegarlo en el SQL
+Editor de Supabase (el panel de vista previa del chat solo renderiza las
+líneas visibles) — se resolvió mandando el archivo real con
+`SendUserFile` en vez de pegarlo en el chat; (b) el workflow de GitHub
+Actions recién agregado no había disparado solo todavía pese a llevar
+~45 min en la rama default — se confirmó vía `actions_list` (0 runs) y
+se disparó manualmente con `actions_run_trigger` para probar más rápido
+(el cron automático es independiente y sigue andando solo); (c) Resend
+(el proveedor elegido al principio) solo deja mandar, en modo
+sandbox/sin dominio verificado, a la casilla con la que te registraste —
+con un segundo destinatario real tiraba HTTP 403 la mitad de las veces.
+Se reemplazó Resend por **SMTP de Gmail** (`nodemailer`, función
+`getMailer()` en `api/trading-alert-email.ts`) usando una casilla real
+del usuario — ya no tiene esa restricción de sandbox. Requiere en Vercel
+`GMAIL_USER` + `GMAIL_APP_PASSWORD` (contraseña de aplicación de 16
+caracteres, no la contraseña normal) + `TRADING_ALERT_EMAIL` +
+`CALENDAR_REMINDER_EMAIL`. Confirmado funcionando en vivo (con un delay
+de propagación de Vercel de unos minutos la primera vez).
+
+**3) Botón de minimizar más visible, reusado en 3 lugares —** el primer
+botón de colapsar (WeeklyAgenda) era texto plano sin chrome y el usuario
+reportó "no aparece el clickeable". Se le agregó `border` +
+`background: var(--surface-2)` tipo chip con ícono `▾`/`▸`, y ese mismo
+estilo arreglado se replicó desde el arranque (sin repetir el error) en
+el Informe Diario Nufal (`MentorDailyReport.tsx`) y, más adelante, en las
+tarjetas de `JournalDashboardTab.tsx` (Bitácora de Trading). Patrón:
+`useCollapsed(storageKey)` — `useState(() =>
+localStorage.getItem(key)==='1')` + `useEffect` para persistir.
+
+**4) Agente IA de mentoría: soporte Claude + Gemini (dual provider,
+primera versión) —** el usuario no tenía key de Anthropic todavía pero
+sí acceso personal a Gemini, así que se armó `resolveAiProvider()` /
+`callAi()` en `api/trading-alert-email.ts`: prioridad por presencia de
+env var, Claude gana si `ANTHROPIC_API_KEY` está puesta, si no cae a
+Gemini (`GEMINI_API_KEY`). Se descubrió en vivo que el free tier de
+Gemini devuelve 503 "sobrecargado" cuando en realidad es el límite del
+free tier de la cuenta (confirmado con una captura del usuario del
+dashboard de rate-limit de Google AI Studio: 5 req/min, **20 req/día**)
+— se ajustó a 1 solo reintento corto (no 3) para no gastar más cuota
+diaria todavía, y el mensaje de error pasó a explicar la causa real y
+linkear al dashboard de cuota. Esto terminó siendo insuficiente para el
+uso real del usuario (ver punto 13).
+
+**5) Carga manual de análisis en el Informe Diario Nufal —** como el
+free tier de Gemini se agotaba seguido, se agregó la opción de pegar un
+análisis ya generado en otra herramienta en vez de depender de la IA
+integrada: botón "✍️ Cargar análisis manual" en `MentorDailyReport.tsx`,
+modal con 3 campos (catalizadores y niveles clave como listas separadas
+por línea, más el escenario como párrafo) que arma el mismo objeto
+`MentorAiAnalysis` que generaría el agente automático.
+
+**6) Navegación por día + Bóveda en el Informe Diario Nufal —** el
+usuario notó que ese componente quedaba pegado mostrando siempre "hoy"
+(a diferencia del Cuaderno de Economía, que ya tenía navegación por día
+y un historial). Se igualó el patrón: `days = datesOfWeek(weekStart)` +
+`selectedDay`, y un modal `MentorHistoryModal` (Bóveda) con semanas
+pasadas. Esta Bóveda (la del Informe Diario) **no** se tocó en el
+rediseño tipo libro del punto 10 — ese rediseño fue solo para la Bóveda
+del Cuaderno de Economía, a pedido explícito puntual del usuario sobre
+ese componente.
+
+**7) Bitácora de Trading: filtro de temporalidad, minimizar y
+Seguimiento de Idea Operativa —** pedido de tres cosas en un mismo
+mensaje. (a) Filtro 1H/1D/S1/1M/1A en los gráficos de equity:
+`src/lib/tradingIntervals.ts` (nuevo) — `filterEquityByInterval()`
+filtra respecto a la fecha del ÚLTIMO punto de la serie, no respecto a
+"ahora" (así sigue siendo útil revisando un tramo viejo, no solo "hoy").
+Se usaron **dos filtros independientes** (equity individual y
+combinado), decisión deliberada para evitar la confusión de "cambio uno
+y el otro cambia solo". (b) Mismo botón de minimizar que en Panel de
+Control, aplicado a las tarjetas de `JournalDashboardTab.tsx`. (c) Nueva
+sección "Seguimiento de Idea Operativa" (`IdeaTracker.tsx`, nuevo) —
+modelo de datos deliberado de **una sola idea activa a la vez**
+(guardar una nueva auto-archiva la anterior como "descartada"), pensado
+explícitamente para el objetivo psicológico que pidió el usuario
+("tenerlo presente sin caer en ansiedad por sobre-operativa"). Botón "🚀
+Cargar Trade" manda los datos a la pestaña "Registrar Trade" vía un
+`prefill` que vive en `BitacoraTrading.tsx` y se consume una sola vez
+(`onPrefillConsumed`, efecto que corre al montar `OpenTradeForm`,
+aprovechando que React remonta el árbol al cambiar de pestaña). Nueva
+tabla `trade_ideas` en `supabase/schema.sql` + funciones
+`saveIdea`/`updateIdea`/`markIdeaExecuted`/`discardIdea` en
+`TradingJournalContext.tsx`.
+
+**8) Cuaderno de Economía: formato de texto (mayús/minús/tipo título,
+negrita/cursiva/subrayado) + blanco/negro —** se agregaron a
+`EconomyNotebook.tsx`: `applyBold`/`applyItalic`/`applyUnderline`
+(`execCommand` nativo) y `applyCase(mode)` que llama a
+`transformSelectionCase()` (nuevo en `src/lib/richText.ts`) — clona el
+contenido de la selección con `range.cloneContents()`, camina los nodos
+de texto con `TreeWalker` y muta `.nodeValue` en vez de reemplazar por
+texto plano, así preserva el formato (color/negrita) de cada tramo en
+vez de perderlo. Se encontró y arregló un riesgo real antes de que
+rompiera nada: `styleWithCSS` activado por el resaltado puede hacer que
+negrita/cursiva/subrayado salgan como `style="font-weight:bold"` inline
+en vez de `<strong>/<em>/<u>` nativos — `sanitizeJournalHtml()` se
+extendió para detectar y envolver ambas formas. También se sumaron 2
+swatches más (blanco `#ffffff`, negro `#000000`) a la fila de
+"Resaltar:", fuera de la paleta de 6 colores de sentimiento
+(`JOURNAL_COLORS`).
+
+**9) Cuaderno de Economía: capturas de pantalla con posición libre (2
+iteraciones) —** el usuario pidió poder pegar capturas con Ctrl+V. La
+**primera versión** insertaba la imagen en el flujo del texto (como un
+sticker más) — se implementó, se probó, se reportó funcionando, y el
+usuario la rechazó explícitamente ("NO ME SIRVE") porque necesitaba
+poder arrastrarla a cualquier parte, bloquearla ahí, y agrandarla/
+achicarla desde la esquina. Se **rediseñó desde cero**: nuevo tipo
+`PinnedImage` (`id, url, x, y, width, height, locked`) en `src/types.ts`,
+columna `pinned_images jsonb` en `journal_entries`
+(`supabase/schema.sql`, con migración `ADD COLUMN IF NOT EXISTS` para
+tablas ya existentes), `PinnedImageBox`/`PinCanvas` (nuevo, dentro de
+`EconomyNotebook.tsx`) — arrastre y resize con Pointer Events puros (sin
+librería nueva), estado local durante el gesto y commit solo al soltar
+(`pointerup`, evita saturar Supabase con cada pixel de movimiento),
+`locked` desactiva ambos gestos. `handlePaste` ahora sube la imagen y la
+agrega al array `pinnedImages` en vez de insertarla en el texto. Se
+mantuvo intacto el `<img>` inline viejo (`.journal-inline-image` en
+`index.css`, soporte en `richText.ts`) solo por compatibilidad con
+entradas ya guardadas con el método anterior — no se migran
+automáticamente.
+
+**10) Bóveda del Cuaderno de Economía: rediseño tipo libro + interactiva
+—** pedido explícito: navegar la Bóveda "como quien pasa página en un
+libro a la izquierda o la derecha" y poder agregar/eliminar cosas, no
+solo mirarlas. `HistoryModal` en `EconomyNotebook.tsx` pasó de listar
+una semana entera apilada a mostrar **un día por página** —
+`historyDaysOf()` aplana todos los días con contenido (fuera de la
+semana en curso) en una lista ordenada de más reciente a más antiguo,
+con `pageIndex` navegable vía botones "◂ Anterior"/"Siguiente ▸" y
+flechas del teclado. Animación de flip real en CSS (`index.css`,
+`@keyframes journal-page-flip-next/prev`, `rotateY` hasta ~94°, el
+contenido se cambia por dentro justo en el punto donde la tarjeta queda
+de canto e invisible). **Gotcha real encontrado y arreglado**: el primer
+intento tenía `key={entry.id}` en el div que anima — esto hace que React
+desmonte/remonte el nodo cuando cambia `pageIndex` A MITAD de la
+animación (al tocar el contenido en el punto medio), lo que reinicia el
+flip en el nodo nuevo y además hace que `onAnimationEnd` nunca dispare a
+tiempo en el nodo viejo (quedaba desconectado), bloqueando clicks
+rápidos subsiguientes porque el estado `flip` nunca se limpiaba. Se
+sacó el `key` — tiene que ser el MISMO nodo DOM durante todo el gesto,
+solo el contenido de adentro se parchea en el lugar. Verificado con
+Playwright: navegar adelante/atrás, deshabilitado en los extremos,
+atajos de teclado, y que el índice no se rompe al borrar contenido.
+Interactividad nueva: cada página tiene botón "🗑️ Borrar día" (con
+confirm, llama a `deleteEntry`), galería de `imageUrls` editable
+(`EditableGallery`, nuevo — cada foto con botón `✕` + tile "+" para
+sumar una), y el `PinCanvas` ya reutilizado para agregar/mover/
+redimensionar/bloquear/borrar imágenes libres directo desde la Bóveda.
+**Alcance dejado afuera a propósito** (se lo avisé al usuario, sin
+confirmar todavía si lo quiere): el texto de cada día sigue siendo de
+solo lectura en la Bóveda — se edita desde "hoy" en el cuaderno
+principal, no se reimplementó el editor de texto enriquecido completo
+adentro del modal.
+
+**11) Banqueros: de pestaña de Análisis Macro a entrada independiente
+del sidebar —** pedido simple y directo. `src/components/Sidebar.tsx`:
+se sacó `/banqueros` de `MACRO_PATHS` y se agregó como ítem propio en
+`ITEMS` (ícono 🏦, distinto del 🏛️ de Análisis Macro Fundamental).
+`src/components/Layout.tsx`: como `BankersPage` sigue dependiendo de la
+divisa seleccionada (`bankersForCurrency(currency)`), se agregó un flag
+`isBankers` separado de `inMacro` para que el selector de divisa del
+header siga apareciendo ahí (pero no el sub-nav de Tasas/Inflación/etc,
+que ya no aplica). `macroNavFor()` dejó de empujar el ítem "Banqueros" a
+la lista de pestañas de Macro.
+
+**12) Bug real de producción en Vercel: Production Branch apuntaba a
+otra rama —** el usuario reportó "no se modificó" tras el punto 11. Se
+comparó el hash del bundle JS servido en `hikman-prueba.vercel.app`
+contra el build local y contra el contenido de cada commit (buscando
+strings únicos de cada feature con `grep` sobre el JS minificado
+descargado) — producción estaba parada varios commits atrás. Diagnóstico
+en 3 pasos con capturas del usuario: (a) Settings → Git → "Production
+Branch" ya decía `claude/handoff-continuacion-xvvz4b` (parecía correcto a
+primera vista); (b) pero la pestaña **Deployments** mostraba que, hasta
+hacía pocas horas, todas las promociones a Production venían en
+realidad de la rama vieja `claude/macro-usd-web-dashboard-xm5ypk` —
+ambas ramas compartían commits viejos en común, lo que generaba
+deployments "Production" y "Preview" idénticos en contenido pero de
+ramas distintas, confundiendo el diagnóstico inicial; (c) la
+configuración real de **branch tracking** vive en Settings →
+**Environments** → Production, no en Settings → Git (el usuario lo
+encontró ahí). Una vez corregido el Branch Tracking a
+`claude/handoff-continuacion-xvvz4b`, el primer "Production rebuild"
+posterior sí trajo el commit correcto — confirmado descargando el bundle
+de producción y haciendo `grep` de strings únicas de las features
+nuevas (`journal-pin-canvas`, `journal-vault-page`, "Banqueros
+Centrales"). De acá en adelante cada push debería promoverse solo, sin
+pasos manuales en Vercel.
+
+**13) Agente IA de mentoría: Groq, xAI/Grok y OpenRouter como
+proveedores adicionales —** Anthropic puso la cuenta del usuario en
+revisión (tardando más de lo normal) y el free tier de Gemini resultó
+insuficiente en la práctica (20 solicitudes/día, lento). Se agregó
+**Groq** (`console.groq.com`, gratis sin tarjeta, API compatible con el
+formato de OpenAI, mucho más rápido y con más margen diario que Gemini)
+como segunda prioridad en `resolveAiProvider()`. El usuario no pudo
+entrar a `console.groq.com` ("Access denied... network settings", un
+bloqueo de Cloudflare) — confirmado que persiste probando con otra red
+(datos móviles), así que es casi seguro un bloqueo geográfico, no algo
+arreglable de este lado. Se agregó **OpenRouter** (`openrouter.ai`,
+gratis, otra infraestructura) como respaldo. El usuario después aclaró
+que sí podía entrar a `grok.com` y preguntó por qué no podía "pedirle la
+key a Grok" — se le explicó la confusión de nombres (**Groq** ≠
+**Grok**: Groq es la empresa de inferencia rápida que está bloqueada,
+Grok es el chatbot de xAI/Elon Musk, sin relación más que el nombre
+parecido) y, como sí tiene acceso a los dominios de xAI, se agregó
+también **xAI/Grok** (`console.x.ai`, también compatible con formato
+OpenAI, pero **sin tier gratis** — requiere tarjeta cargada) como
+tercera opción, priorizada por decisión explícita del usuario. Prioridad
+final en `resolveAiProvider()`/`callAi()`: **Claude > Groq > xAI >
+OpenRouter > Gemini** — alcanza con configurar una sola key de las
+cinco, y agregar otra con más prioridad no requiere tocar código. Env
+vars nuevas: `GROQ_API_KEY`/`GROQ_MODEL` (default
+`llama-3.3-70b-versatile`), `XAI_API_KEY`/`XAI_MODEL` (default
+`grok-4-fast`), `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` (default
+`meta-llama/llama-3.1-8b-instruct:free`, catálogo gratis de OpenRouter
+cambia con el tiempo). **No confirmado todavía que el usuario haya
+terminado de configurar ninguna de las tres** — quedó en que iba a
+cargar tarjeta en `console.x.ai` y generar la key ahí.
+
+### Pendiente explícito para la próxima sesión
+
+- **xAI/Grok**: el usuario decidió ir por este camino pero no se
+  confirmó dentro de esta ventana que ya haya cargado la tarjeta en
+  `console.x.ai`, generado la key, ni puesto `XAI_API_KEY` (+
+  opcionalmente `XAI_MODEL`) en Vercel. Una vez configurado, probar un
+  análisis real desde el Informe Diario Nufal para confirmar que
+  responde bien — si `grok-4-fast` da error de "modelo no encontrado",
+  revisar el catálogo vigente en `console.x.ai/models` y ajustar
+  `XAI_MODEL`.
+- `ANTHROPIC_API_KEY` sigue en revisión por Anthropic (del lado del
+  usuario, fuera de nuestro control) — apenas se apruebe y se cargue en
+  Vercel, Claude vuelve a tener prioridad automáticamente sin tocar
+  código.
+- `GROQ_API_KEY`: confirmado que `console.groq.com` está bloqueado por
+  geolocalización para el usuario (probado con datos móviles y wifi, el
+  mismo error en ambos) — no insistir con Groq, queda solo como
+  fallback de código por si algún día deja de estar bloqueado.
+- Re-confirmar en vivo que las alertas de trading por correo (Bitácora
+  de Trading, mismo mailer de Gmail que el recordatorio de la Agenda
+  Semanal) siguen funcionando tras la migración Resend→Gmail — se
+  confirmó el recordatorio de la Agenda Semanal pero no las alertas de
+  trading específicamente.
+- Extensión ofrecida pero no pedida: editar el texto del día directo
+  desde la Bóveda del Cuaderno de Economía (hoy es de solo lectura ahí).
+- Sin confirmar si hace falta sincronizar
+  `claude/macro-usd-web-dashboard-xm5ypk` con esta rama — probablemente
+  ya no sea relevante ahora que el Production Branch de Vercel quedó
+  fijado explícitamente a `claude/handoff-continuacion-xvvz4b` (ver nota
+  arriba), pero no se lo pregunté directamente al usuario.
+- Heredado de la sesión del 4-oct-2026 (sección de abajo), por las dudas
+  no se haya hecho: re-correr `supabase/schema.sql` completo una vez más
+  — ya acumula varias migraciones nuevas (`pinned_images`, `trade_ideas`,
+  `calendar_events`, paleta de colores de 6 pasos), todas con patrón
+  `IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`, así que volver a correrlo
+  completo es seguro aunque ya se haya corrido antes.
+
+## Sesión 4-oct-2026
 
 ### Qué se hizo esta sesión (en orden)
 
