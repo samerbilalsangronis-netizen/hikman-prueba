@@ -127,12 +127,16 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     };
     // Solo el cuaderno manda `headlines` — así el Informe Diario de Mentoría
     // sigue guardando aunque todavía no se haya corrido la migración que
-    // agrega esa columna (supabase/add_journal_headlines_2026-10-11.sql).
+    // agrega esa columna (supabase/repair_journal_entries_2026-10-11.sql).
     if (entry.kind === 'economia') row.headlines = entry.headlines;
     const { error } = await supabase.from('journal_entries').upsert(row, { onConflict: 'kind,entry_date' });
     if (error) {
       console.error('No se pudo guardar la entrada del cuaderno en Supabase', error);
-      setSaveError(/headlines/.test(error.message) ? 'Falta la columna "headlines" en Supabase — corré supabase/add_journal_headlines_2026-10-11.sql en el SQL Editor.' : error.message);
+      setSaveError(
+        /column|schema cache/i.test(error.message)
+          ? `${error.message} — a la tabla journal_entries le faltan columnas: corré supabase/repair_journal_entries_2026-10-11.sql en el SQL Editor de Supabase.`
+          : error.message,
+      );
     } else {
       setSaveError(null);
     }
