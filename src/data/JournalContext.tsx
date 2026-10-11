@@ -66,7 +66,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       try {
         const [entriesRes, synthesesRes] = await withTimeout(
           Promise.all([
-            supabase.from('journal_entries').select('*').order('entry_date', { ascending: true }),
+            supabase.from('hikman_journal_entries').select('*').order('entry_date', { ascending: true }),
             supabase.from('mentor_weekly_syntheses').select('*').order('week_start', { ascending: false }),
           ]),
           15000,
@@ -127,14 +127,14 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     };
     // Solo el cuaderno manda `headlines` — así el Informe Diario de Mentoría
     // sigue guardando aunque todavía no se haya corrido la migración que
-    // agrega esa columna (supabase/repair_journal_entries_2026-10-11.sql).
+    // agrega esa columna (supabase/hikman_journal_entries_2026-10-11.sql).
     if (entry.kind === 'economia') row.headlines = entry.headlines;
-    const { error } = await supabase.from('journal_entries').upsert(row, { onConflict: 'kind,entry_date' });
+    const { error } = await supabase.from('hikman_journal_entries').upsert(row, { onConflict: 'kind,entry_date' });
     if (error) {
       console.error('No se pudo guardar la entrada del cuaderno en Supabase', error);
       setSaveError(
-        /column|schema cache/i.test(error.message)
-          ? `${error.message} — a la tabla journal_entries le faltan columnas: corré supabase/repair_journal_entries_2026-10-11.sql en el SQL Editor de Supabase.`
+        /column|schema cache|does not exist/i.test(error.message)
+          ? `${error.message} — corré supabase/hikman_journal_entries_2026-10-11.sql en el SQL Editor de Supabase.`
           : error.message,
       );
     } else {
@@ -169,7 +169,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     commitEntries(entriesRef.current.filter((e) => e.id !== id));
     if (!supabaseEnabled || !supabase) return;
     try {
-      await supabase.from('journal_entries').delete().eq('id', id);
+      await supabase.from('hikman_journal_entries').delete().eq('id', id);
     } catch (err) {
       console.error('No se pudo borrar la entrada del cuaderno en Supabase', err);
     }
@@ -180,7 +180,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     commitEntries(entriesRef.current.map((e) => (e.id === id ? { ...e, aiAnalysis: analysis, updatedAt: now } : e)));
     if (!supabaseEnabled || !supabase) return;
     try {
-      await supabase.from('journal_entries').update({ ai_analysis: analysis, updated_at: now }).eq('id', id);
+      await supabase.from('hikman_journal_entries').update({ ai_analysis: analysis, updated_at: now }).eq('id', id);
     } catch (err) {
       console.error('No se pudo guardar el análisis de IA en Supabase', err);
     }

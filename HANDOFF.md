@@ -8,6 +8,22 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
+## ⚠️ 11-oct-2026: el Cuaderno usa la tabla `hikman_journal_entries` (NO `journal_entries`)
+
+El proyecto de Supabase lo comparte otra app (TraderMind / Bitácora
+Personal) que tiene su PROPIA tabla `journal_entries` (con `user_id`). Esta
+app usaba el mismo nombre y las dos se pisaban: el "column kind does not
+exist" del 4-oct era justamente la tabla de la otra app, y el `drop table
+journal_entries cascade` que se indicó ese día pudo haber borrado datos de
+TraderMind. Desde el 11-oct el Cuaderno de Economía + Informe de Mentoría
+usan `hikman_journal_entries` (código, `schema.sql`, `api/trading-alert-email.ts`).
+Script a correr: `supabase/hikman_journal_entries_2026-10-11.sql` (crea la
+tabla nueva y deshace índice/reglas/política pública que un script previo
+le había agregado a la tabla de la otra app). **Nunca indicar `drop` ni
+`alter` sobre `journal_entries`.** Ese mismo día el cuaderno pasó a
+titulares por impacto + ventana de contexto con imágenes movibles
+(columna `headlines` jsonb).
+
 ## ⚠️ Arrancar por acá: estado al cierre de la sesión del 4-oct-2026
 
 Todo lo de esta sesión está committeado y pusheado a

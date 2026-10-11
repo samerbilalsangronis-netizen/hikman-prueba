@@ -285,7 +285,7 @@ export interface TradeIdea {
 }
 
 // --- Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) --------
-// Mismo modelo de datos para ambos ("journal_entries", distinguidos por
+// Mismo modelo de datos para ambos ("hikman_journal_entries", distinguidos por
 // `kind`) porque comparten exactamente la semántica: una entrada por día,
 // con color y foto opcional, que se "archiva" solo por el paso del
 // calendario (no hay una acción de archivado real — ver journalWeek.ts,
