@@ -515,6 +515,12 @@ begin
     where color in ('verde', 'amarillo', 'azul', 'morado');
   end if;
 end $$;
+-- Titulares del Cuaderno de Economía (11-oct-2026) — cada día pasa a ser
+-- una lista de titulares con color de impacto; el contexto (texto + imágenes
+-- ubicadas libremente) vive dentro de cada titular. jsonb por la misma razón
+-- que ai_analysis: la forma puede evolucionar sin migrar el esquema.
+alter table journal_entries add column if not exists headlines jsonb not null default '[]'::jsonb;
+
 alter table journal_entries drop constraint if exists journal_entries_color_check;
 alter table journal_entries
   add constraint journal_entries_color_check

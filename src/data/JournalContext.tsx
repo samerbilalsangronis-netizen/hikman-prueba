@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { JournalColor, JournalEntry, JournalEntryKind, MentorAiAnalysis, MentorWeeklySynthesis } from '../types';
+import type { JournalColor, JournalEntry, JournalEntryKind, JournalHeadline, MentorAiAnalysis, MentorWeeklySynthesis } from '../types';
 
 // Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) — mismo
 // patrón que TradingJournalContext.tsx: Supabase como fuente de verdad, con
@@ -24,12 +24,20 @@ function loadLocal<T>(key: string): T[] {
   }
 }
 
+type EntryPatch = { color?: JournalColor; text?: string; imageUrls?: string[]; headlines?: JournalHeadline[] };
+
 interface JournalValue {
   entries: JournalEntry[];
   syntheses: MentorWeeklySynthesis[];
   loading: boolean;
   /** Crea o actualiza la entrada de (kind, date) — upsert por diseño, un solo registro por día. */
-  saveEntry: (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[] }) => Promise<JournalEntry>;
+  saveEntry: (kind: JournalEntryKind, date: string, patch: EntryPatch) => Promise<JournalEntry>;
+  /** Modifica los titulares de un día a partir de los MÁS RECIENTES en
+   * memoria (no de los del último render) — así dos guardados seguidos
+   * (ej. soltar una imagen y enseguida escribir) no se pisan entre sí. */
+  updateHeadlines: (date: string, updater: (prev: JournalHeadline[]) => JournalHeadline[]) => Promise<void>;
+  /** Último error al guardar en Supabase (null si el último guardado salió bien). */
+  saveError: string | null;
   deleteEntry: (id: string) => Promise<void>;
   setAiAnalysis: (id: string, analysis: MentorAiAnalysis) => Promise<void>;
   uploadJournalImage: (file: File) => Promise<string>;
@@ -39,7 +47,12 @@ interface JournalValue {
 const JournalContext = createContext<JournalValue | null>(null);
 
 export function JournalProvider({ children }: { children: ReactNode }) {
-  const [entries, setEntries] = useState<JournalEntry[]>(() => loadLocal(ENTRIES_KEY));
+  const [entries, setEntries] = useState<JournalEntry[]>(() => loadLocal<JournalEntry>(ENTRIES_KEY).map((e) => ({ ...e, headlines: e.headlines ?? [] })));
+  // Copia sincrónica de `entries` — los guardados calculan el registro nuevo
+  // desde acá y no desde un updater de setEntries (React puede diferir esos
+  // updaters, y el upsert a Supabase necesita el resultado en el momento).
+  const entriesRef = useRef(entries);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [syntheses, setSyntheses] = useState<MentorWeeklySynthesis[]>(() => loadLocal(SYNTHESES_KEY));
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +82,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           color: e.color,
           text: e.text ?? '',
           imageUrls: e.image_urls ?? [],
+          headlines: Array.isArray(e.headlines) ? e.headlines : [],
           aiAnalysis: e.ai_analysis ?? undefined,
           createdAt: e.created_at,
           updatedAt: e.updated_at,
@@ -79,6 +93,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           content: s.content,
           createdAt: s.created_at,
         }));
+        entriesRef.current = loadedEntries;
         setEntries(loadedEntries);
         setSyntheses(loadedSyntheses);
       } catch (err) {
@@ -93,71 +108,79 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const commitEntries = useCallback((updated: JournalEntry[]) => {
+    entriesRef.current = updated;
+    setEntries(updated);
+    if (!supabaseEnabled) localStorage.setItem(ENTRIES_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistEntry = useCallback(async (entry: JournalEntry) => {
+    if (!supabaseEnabled || !supabase) return;
+    const row: Record<string, unknown> = {
+      id: entry.id,
+      kind: entry.kind,
+      entry_date: entry.date,
+      color: entry.color,
+      text: entry.text,
+      image_urls: entry.imageUrls,
+      updated_at: entry.updatedAt,
+    };
+    // Solo el cuaderno manda `headlines` — así el Informe Diario de Mentoría
+    // sigue guardando aunque todavía no se haya corrido la migración que
+    // agrega esa columna (supabase/add_journal_headlines_2026-10-11.sql).
+    if (entry.kind === 'economia') row.headlines = entry.headlines;
+    const { error } = await supabase.from('journal_entries').upsert(row, { onConflict: 'kind,entry_date' });
+    if (error) {
+      console.error('No se pudo guardar la entrada del cuaderno en Supabase', error);
+      setSaveError(/headlines/.test(error.message) ? 'Falta la columna "headlines" en Supabase — corré supabase/add_journal_headlines_2026-10-11.sql en el SQL Editor.' : error.message);
+    } else {
+      setSaveError(null);
+    }
+  }, []);
+
   const saveEntry = useCallback(
-    async (kind: JournalEntryKind, date: string, patch: { color?: JournalColor; text?: string; imageUrls?: string[] }) => {
+    async (kind: JournalEntryKind, date: string, patch: EntryPatch) => {
       const now = new Date().toISOString();
-      let result!: JournalEntry;
-      setEntries((prev) => {
-        const existing = prev.find((e) => e.kind === kind && e.date === date);
-        const next: JournalEntry = existing
-          ? { ...existing, ...patch, updatedAt: now }
-          : { id: crypto.randomUUID(), kind, date, color: patch.color ?? 'gris', text: patch.text ?? '', imageUrls: patch.imageUrls ?? [], createdAt: now, updatedAt: now };
-        result = next;
-        const updated = existing ? prev.map((e) => (e.id === existing.id ? next : e)) : [...prev, next];
-        if (!supabaseEnabled) localStorage.setItem(ENTRIES_KEY, JSON.stringify(updated));
-        return updated;
-      });
-      if (supabaseEnabled && supabase) {
-        try {
-          await supabase.from('journal_entries').upsert(
-            {
-              id: result.id,
-              kind: result.kind,
-              entry_date: result.date,
-              color: result.color,
-              text: result.text,
-              image_urls: result.imageUrls,
-              updated_at: now,
-            },
-            { onConflict: 'kind,entry_date' },
-          );
-        } catch (err) {
-          console.error('No se pudo guardar la entrada del cuaderno en Supabase', err);
-        }
-      }
-      return result;
+      const prev = entriesRef.current;
+      const existing = prev.find((e) => e.kind === kind && e.date === date);
+      const next: JournalEntry = existing
+        ? { ...existing, ...patch, updatedAt: now }
+        : { id: crypto.randomUUID(), kind, date, color: patch.color ?? 'gris', text: patch.text ?? '', imageUrls: patch.imageUrls ?? [], headlines: patch.headlines ?? [], createdAt: now, updatedAt: now };
+      commitEntries(existing ? prev.map((e) => (e.id === existing.id ? next : e)) : [...prev, next]);
+      await persistEntry(next);
+      return next;
     },
-    [],
+    [commitEntries, persistEntry],
+  );
+
+  const updateHeadlines = useCallback(
+    async (date: string, updater: (prev: JournalHeadline[]) => JournalHeadline[]) => {
+      const existing = entriesRef.current.find((e) => e.kind === 'economia' && e.date === date);
+      await saveEntry('economia', date, { headlines: updater(existing?.headlines ?? []) });
+    },
+    [saveEntry],
   );
 
   const deleteEntry = useCallback(async (id: string) => {
-    setEntries((prev) => {
-      const updated = prev.filter((e) => e.id !== id);
-      if (!supabaseEnabled) localStorage.setItem(ENTRIES_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    commitEntries(entriesRef.current.filter((e) => e.id !== id));
     if (!supabaseEnabled || !supabase) return;
     try {
       await supabase.from('journal_entries').delete().eq('id', id);
     } catch (err) {
       console.error('No se pudo borrar la entrada del cuaderno en Supabase', err);
     }
-  }, []);
+  }, [commitEntries]);
 
   const setAiAnalysis = useCallback(async (id: string, analysis: MentorAiAnalysis) => {
     const now = new Date().toISOString();
-    setEntries((prev) => {
-      const updated = prev.map((e) => (e.id === id ? { ...e, aiAnalysis: analysis, updatedAt: now } : e));
-      if (!supabaseEnabled) localStorage.setItem(ENTRIES_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    commitEntries(entriesRef.current.map((e) => (e.id === id ? { ...e, aiAnalysis: analysis, updatedAt: now } : e)));
     if (!supabaseEnabled || !supabase) return;
     try {
       await supabase.from('journal_entries').update({ ai_analysis: analysis, updated_at: now }).eq('id', id);
     } catch (err) {
       console.error('No se pudo guardar el análisis de IA en Supabase', err);
     }
-  }, []);
+  }, [commitEntries]);
 
   const uploadJournalImage = useCallback(async (file: File) => {
     if (!supabaseEnabled || !supabase) {
@@ -186,8 +209,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<JournalValue>(
-    () => ({ entries, syntheses, loading, saveEntry, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis }),
-    [entries, syntheses, loading, saveEntry, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis],
+    () => ({ entries, syntheses, loading, saveEntry, updateHeadlines, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis }),
+    [entries, syntheses, loading, saveEntry, updateHeadlines, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis],
   );
 
   return <JournalContext.Provider value={value}>{children}</JournalContext.Provider>;
