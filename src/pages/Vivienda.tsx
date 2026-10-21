@@ -15,7 +15,7 @@ export function Vivienda() {
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           {currency === 'USD'
-            ? 'Inicios de viviendas, permisos de construcción, ventas de viviendas nuevas y existentes, precios (Case-Shiller y FHFA) y tasa hipotecaria a 30 años — el sector más sensible a las tasas de la Fed.'
+            ? 'Confianza de los constructores (NAHB), inicios de viviendas, permisos de construcción, ventas de viviendas nuevas, existentes y pendientes, precios (Case-Shiller y FHFA) y tasa hipotecaria a 30 años — el sector más sensible a las tasas de la Fed.'
             : 'Esta sección solo está disponible para USD.'}
         </p>
       </div>

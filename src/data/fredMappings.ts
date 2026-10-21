@@ -118,6 +118,12 @@ export const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'mortgage_30y', seriesId: 'MORTGAGE30US', transform: 'level_pct' },
 ];
 
+// Sector Inmobiliario que NO está en FRED (NAHB y Pending Home Sales de NAR)
+// — se sincronizan desde el export CSV de mql5.com dentro de
+// api/fred-sync.ts (ver MQL5_MAPPINGS ahí para el porqué y la verificación).
+// Esta lista solo controla la insignia "Automático" de Actualizar.tsx.
+export const USD_MQL5_INDICATOR_IDS = ['nahb_hmi', 'pending_home_sales_index', 'pending_home_sales_mom', 'pending_home_sales_yoy'];
+
 // Balance de la Fed como % del PIB: combina dos series de FRED (no encaja en el
 // mapeo genérico de arriba porque necesita dividir una entre la otra).
 export const CBBS_MAPPING = {

@@ -9,6 +9,7 @@ import { groupByParent } from '../lib/indicatorGroups';
 import {
   FRED_MAPPINGS,
   CBBS_MAPPING,
+  USD_MQL5_INDICATOR_IDS,
   EUR_FRED_MAPPINGS,
   EUR_EUROSTAT_INDICATOR_ID,
   EUR_HICP_FPD_INDICATOR_IDS,
@@ -24,7 +25,7 @@ import {
 } from '../data/fredMappings';
 import { upcomingFomcMeetings } from '../data/fomcMeetings';
 
-const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId]);
+const FRED_COVERED = new Set([...FRED_MAPPINGS.map((m) => m.indicatorId), CBBS_MAPPING.indicatorId, ...USD_MQL5_INDICATOR_IDS]);
 const EUR_AUTO_COVERED = new Set([
   ...EUR_FRED_MAPPINGS.map((m) => m.indicatorId),
   EUR_EUROSTAT_INDICATOR_ID,

@@ -939,10 +939,25 @@ const USD_INDICATORS: IndicatorMeta[] = [
   },
   // Sector Inmobiliario — SOLO USD (pedido explícito del usuario,
   // 21-oct-2026; las demás divisas no tienen esta sección y la nav/el
-  // Resumen la ocultan solos por estar vacía). Todo automático vía FRED —
-  // ver fredMappings.ts. Mismo orden que el resto: cada nivel seguido de su
-  // variación m/m. Pending Home Sales (NAR) y el índice NAHB no están en
-  // FRED, quedaron afuera.
+  // Resumen la ocultan solos por estar vacía). Todo automático: vía FRED
+  // (ver fredMappings.ts) salvo NAHB y Pending Home Sales (NAR), que no
+  // están en FRED y se traen del export CSV de mql5.com (ver MQL5_MAPPINGS
+  // en api/fred-sync.ts). Mismo orden que el resto: cada nivel seguido de
+  // su variación m/m. NAHB va primero: es el primer dato del sector en
+  // salir cada mes, y así aparece en el Resumen.
+  {
+    id: 'nahb_hmi',
+    label: 'Índice NAHB del Mercado de Viviendas',
+    shortLabel: 'NAHB',
+    section: 'vivienda',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'NAHB / Wells Fargo (vía export de mql5.com)',
+    sourceUrl: 'https://www.nahb.org/news-and-economics/housing-economics/indices/housing-market-index',
+    goodDirection: 'up',
+    description: 'Confianza de los constructores de viviendas nuevas. >50 = más constructores ven condiciones buenas que malas. Sale a mitad del mismo mes — el primer dato del sector.',
+  },
   {
     id: 'housing_starts',
     label: 'Inicios de Viviendas',
@@ -1048,6 +1063,48 @@ const USD_INDICATORS: IndicatorMeta[] = [
     sourceUrl: 'https://fred.stlouisfed.org/series/EXHOSLUSM495S',
     goodDirection: 'up',
     description: 'Variación mensual de las ventas de viviendas existentes.',
+  },
+  {
+    id: 'pending_home_sales_index',
+    label: 'Ventas de Viviendas Pendientes (Índice)',
+    shortLabel: 'Viv. Pendientes',
+    section: 'vivienda',
+    format: 'index',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'National Association of Realtors (vía export de mql5.com)',
+    sourceUrl: 'https://www.nar.realtor/research-and-statistics/housing-statistics/pending-home-sales',
+    goodDirection: 'up',
+    lagDays: 15,
+    description: 'Contratos firmados de compra de viviendas existentes (2001 = 100). Adelanta 1-2 meses a las Ventas de Viviendas Existentes.',
+  },
+  {
+    id: 'pending_home_sales_mom',
+    label: 'Ventas de Viviendas Pendientes m/m',
+    shortLabel: 'Viv. Pend. m/m',
+    section: 'vivienda',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'National Association of Realtors (vía export de mql5.com)',
+    sourceUrl: 'https://www.nar.realtor/research-and-statistics/housing-statistics/pending-home-sales',
+    goodDirection: 'up',
+    lagDays: 15,
+    description: 'Variación mensual de las ventas pendientes — el dato que destaca el comunicado de NAR y los calendarios económicos.',
+  },
+  {
+    id: 'pending_home_sales_yoy',
+    label: 'Ventas de Viviendas Pendientes a/a',
+    shortLabel: 'Viv. Pend. a/a',
+    section: 'vivienda',
+    format: 'pct',
+    frequency: 'monthly',
+    chart: 'bar',
+    source: 'National Association of Realtors (vía export de mql5.com)',
+    sourceUrl: 'https://www.nar.realtor/research-and-statistics/housing-statistics/pending-home-sales',
+    goodDirection: 'up',
+    lagDays: 15,
+    description: 'Variación interanual de las ventas pendientes.',
   },
   {
     id: 'new_home_months_supply',

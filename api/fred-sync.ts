@@ -173,6 +173,64 @@ const FX_MAPPINGS: FxMapping[] = [
 const FX_FETCH_LIMIT = 260;
 const FX_BACKFILL_LIMIT = 250;
 
+// Sector Inmobiliario — las dos series que NO están en FRED (NAHB y Pending
+// Home Sales de NAR) se traen del export CSV público del calendario
+// económico de mql5.com (sin key). Va acá adentro por el mismo tope de 12
+// Serverless Functions del plan Hobby (ver FX_MAPPINGS arriba). Ninguna de
+// las dos fuentes oficiales sirve para automatizar: NAHB publica un .xls
+// (BIFF viejo) con URL distinta cada mes, y NAR no publica histórico (borra
+// los comunicados viejos y desde 2025 ni siquiera trae el nivel del índice
+// en el texto, solo en una infografía PNG). Verificado 21-oct-2026 contra
+// los comunicados de NAR (may-sep 2026, m/m y a/a idénticos) y contra la
+// tabla oficial de NAHB (difiere solo en revisiones de ±1 punto).
+//
+// Cada fila del CSV es una PUBLICACIÓN: "ActualValue" es el primer dato del
+// mes de referencia y "PreviousValue" es el mes anterior YA REVISADO — se
+// prefiere el revisado. `lagMonths` = distancia entre el mes de publicación
+// y el de referencia (NAHB sale a mitad del mismo mes; NAR al mes
+// siguiente; hasta dic-2010 NAR publicaba con 2 meses de rezago, pero el
+// sync solo guarda los últimos BACKFILL_LIMIT puntos, así que no afecta).
+// `scale` pasa los % del CSV (ej. -7.3) a fracción (-0.073).
+interface Mql5Mapping {
+  indicatorId: string;
+  slug: string;
+  lagMonths: number;
+  scale: number;
+}
+
+const MQL5_MAPPINGS: Mql5Mapping[] = [
+  { indicatorId: 'nahb_hmi', slug: 'nahb-housing-market-index', lagMonths: 0, scale: 1 },
+  { indicatorId: 'pending_home_sales_index', slug: 'pending-home-sales-index', lagMonths: 1, scale: 1 },
+  { indicatorId: 'pending_home_sales_mom', slug: 'pending-home-sales-mm', lagMonths: 1, scale: 0.01 },
+  { indicatorId: 'pending_home_sales_yoy', slug: 'pending-home-sales-yy', lagMonths: 1, scale: 0.01 },
+];
+
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
+}
+
+async function fetchMql5Series(mapping: Mql5Mapping): Promise<Observation[]> {
+  const url = `https://www.mql5.com/en/economic-calendar/united-states/${mapping.slug}/export`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (hikman-prueba macro dashboard)' } });
+  if (!res.ok) throw new Error(`mql5 ${mapping.slug}: HTTP ${res.status}`);
+  const text = await res.text();
+  const byDate = new Map<string, number>();
+  const revised = new Map<string, number>();
+  for (const line of text.trim().split('\n').slice(1)) {
+    const [release, actual, , previous] = line.split('\t').map((c) => c.trim());
+    const match = /^(\d{4})\.(\d{2})\.\d{2}$/.exec(release ?? '');
+    if (!match || !actual) continue;
+    const refDate = shiftMonths(`${match[1]}-${match[2]}-01`, mapping.lagMonths);
+    byDate.set(refDate, round6(Number(actual) * mapping.scale));
+    if (previous) revised.set(shiftMonths(refDate, 1), round6(Number(previous) * mapping.scale));
+  }
+  for (const [date, value] of revised) byDate.set(date, value);
+  return [...byDate.entries()]
+    .filter(([, value]) => Number.isFinite(value))
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 // Cuántas observaciones traer de FRED para poder recalcular una ventana de
 // histórico (no solo el último punto) y así darle a los gráficos más
@@ -347,6 +405,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const obs = await fetchObservations(mapping.seriesId, fredKey, FX_FETCH_LIMIT);
       const series = obs.map((o) => ({ date: o.date, value: mapping.invert ? 1 / o.value : o.value })).slice(-FX_BACKFILL_LIMIT);
+      if (series.length === 0) continue;
+      const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
+      const { error } = await supabase.from('indicator_overrides').upsert(rows);
+      if (error) throw new Error(error.message);
+      const latest = series[series.length - 1];
+      updated.push({ indicatorId: mapping.indicatorId, date: latest.date, value: latest.value, points: series.length });
+    } catch (err) {
+      errors.push({ indicatorId: mapping.indicatorId, error: (err as Error).message });
+    }
+  }
+
+  for (const mapping of MQL5_MAPPINGS) {
+    try {
+      const series = (await fetchMql5Series(mapping)).slice(-BACKFILL_LIMIT);
       if (series.length === 0) continue;
       const rows = series.map((p) => ({ indicator_id: mapping.indicatorId, date: p.date, value: p.value }));
       const { error } = await supabase.from('indicator_overrides').upsert(rows);

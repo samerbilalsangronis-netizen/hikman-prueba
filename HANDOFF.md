@@ -17,8 +17,8 @@ formato de texto del Cuaderno, se quitaron Fortaleza/Renta Variable) —
 ver `git log 6ef2a23..` para el detalle.
 
 Nueva sección `vivienda` ("Sector Inmobiliario", ruta `/vivienda`,
-`src/pages/Vivienda.tsx`) con 13 indicadores USD, **todos automáticos vía
-FRED** (`fredMappings.ts` + copia en `api/fred-sync.ts`): Inicios de
+`src/pages/Vivienda.tsx`) con 17 indicadores USD (13 vía FRED + 4 vía
+mql5, ver abajo), **todos automáticos**. Los de FRED (`fredMappings.ts` + copia en `api/fred-sync.ts`): Inicios de
 Viviendas y Permisos (HOUST/PERMIT, nivel + m/m), Ventas de Viviendas
 Nuevas (HSN1F, nivel + m/m) y Existentes (EXHOSLUSM495S, nivel + m/m),
 Meses de Oferta (MSACSR), Case-Shiller 20 ciudades (m/m SA `SPCS20RSA`,
@@ -33,9 +33,29 @@ la nav/Resumen la ocultan solos por estar vacía.
 - Historia sembrada en `historical-series.json` desde 2000 (calculada con
   las mismas transformaciones que el sync, desde el CSV público de FRED).
 - **Gap conocido:** FRED solo expone los últimos 13 meses de ventas de
-  viviendas existentes (licencia NAR). Pending Home Sales (NAR) y el
-  índice NAHB no están en FRED — quedaron afuera; si el usuario los pide,
-  tendrían que ser manuales.
+  viviendas existentes (licencia NAR).
+- **NAHB y Pending Home Sales (agregados después, mismo día, a pedido del
+  usuario)** — 4 ids: `nahb_hmi`, `pending_home_sales_index`/`_mom`/`_yoy`.
+  No están en FRED. Investigado: NAHB publica la historia oficial en un
+  `.xls` BIFF (`t2-national-hmi-history-YYYYMM.xls`, URL distinta cada
+  mes, con hash) y NAR **no publica histórico** (borra los comunicados
+  viejos — redirigen a la página principal — y desde 2025 el nivel del
+  índice solo aparece en una infografía PNG, no en el texto). Wayback
+  Machine no es accesible desde el entorno. Mortgage News Daily tiene
+  tabla pero con errores (filas duplicadas, m/m de ago-2026 en 0.0% cuando
+  NAR dijo +0.3%) — **descartado**.
+  - Fuente elegida para el **sync**: export CSV público de mql5.com
+    (`/en/economic-calendar/united-states/{slug}/export`, sin key), dentro
+    de `api/fred-sync.ts` (`MQL5_MAPPINGS`) por el tope de 12 funciones.
+    Cada fila es una publicación: se usa `PreviousValue` (revisado) cuando
+    existe. Verificado contra los comunicados de NAR may-sep 2026 (m/m y
+    a/a idénticos; sep-2026 índice 66.0 = infografía oficial).
+  - **Semilla**: NAHB desde la tabla OFICIAL de NAHB (1985→oct-2026; mql5
+    trae el primer dato y difiere ±1 punto por revisiones). PHS desde
+    mql5: índice 2014→, m/m 2007→, a/a 2012→. Ojo: hasta dic-2010 NAR
+    publicaba con 2 meses de rezago (no 1) — la semilla lo contempla
+    (checkpoint: may-2010 = -30%, fin del crédito fiscal). Las diferencias
+    índice vs m/m en diciembre son el re-benchmark estacional anual de NAR.
 
 ## ⚠️ Estado al cierre de la sesión del 4-oct-2026
 
