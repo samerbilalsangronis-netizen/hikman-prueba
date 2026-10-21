@@ -45,6 +45,7 @@ function macroNavFor(currency: Currency) {
   if (indicatorsBySection('empleo', currency).length > 0) items.push({ to: '/empleo', label: 'Empleo' });
   items.push({ to: '/crecimiento', label: 'Crecimiento' });
   if (indicatorsBySection('confianza', currency).length > 0) items.push({ to: '/confianza', label: 'Confianza / Sentimiento' });
+  if (indicatorsBySection('vivienda', currency).length > 0) items.push({ to: '/vivienda', label: 'Sector Inmobiliario' });
   if (indicatorsByCountry('DE', currency).length > 0) items.push({ to: '/alemania', label: '🇩🇪 Alemania' });
   if (indicatorsByCountry('FR', currency).length > 0) items.push({ to: '/francia', label: '🇫🇷 Francia' });
   if (bankersForCurrency(currency).length > 0) items.push({ to: '/banqueros', label: 'Banqueros' });

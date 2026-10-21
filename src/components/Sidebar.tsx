@@ -9,7 +9,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 // para decidir qué sub-nav y qué barra de divisas mostrar).
 // Análisis Técnico/Avanzado (Fortaleza + Renta Variable) se quitó a pedido
 // del usuario (4-oct-2026, "realmente no lo uso") — ver HANDOFF.md.
-export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/alemania', '/francia', '/banqueros', '/titulares', '/actualizar'];
+export const MACRO_PATHS = ['/', '/tasas', '/inflacion', '/empleo', '/crecimiento', '/confianza', '/vivienda', '/alemania', '/francia', '/banqueros', '/titulares', '/actualizar'];
 
 const COLLAPSED_KEY = 'hikman:sidebar-collapsed';
 

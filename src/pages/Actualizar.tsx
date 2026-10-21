@@ -55,7 +55,7 @@ function IndicatorRow({ id, isChild = false }: { id: string; isChild?: boolean }
   const points = getSeries(id);
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
-  const freshness = getFreshness(points, meta.frequency);
+  const freshness = getFreshness(points, meta.frequency, undefined, meta.lagDays);
   const today = todayUtcMinus4();
   const [date, setDate] = useState(today);
   const [publishedDateInput, setPublishedDateInput] = useState(today);
@@ -403,7 +403,7 @@ function FomcWatchRow({ meetingDate }: { meetingDate: string }) {
 export function Actualizar() {
   const { resetOverrides, exportJson, syncMode } = useMacroData();
   const { currency } = useCurrency();
-  const sections = ['tasas', 'inflacion', 'empleo', 'confianza', 'crecimiento'] as const;
+  const sections = ['tasas', 'inflacion', 'empleo', 'confianza', 'crecimiento', 'vivienda'] as const;
 
   function handleExport() {
     const blob = new Blob([exportJson()], { type: 'application/json' });

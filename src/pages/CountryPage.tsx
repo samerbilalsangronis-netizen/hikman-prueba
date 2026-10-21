@@ -12,6 +12,7 @@ const SECTION_LABELS: Record<Section, string> = {
   empleo: 'Empleo',
   confianza: 'Confianza / Sentimiento',
   crecimiento: 'Crecimiento',
+  vivienda: 'Sector Inmobiliario',
 };
 
 interface CountryPageProps {

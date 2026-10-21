@@ -55,7 +55,7 @@ interface ChartCardProps {
 function ChartCardInner({ meta, points, months = 36, forecast, releaseStage, publishedDate, subcomponentsControl, compact = false }: ChartCardProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const stage = releaseStage ?? meta.releaseStage;
-  const freshness = getFreshness(points, meta.frequency);
+  const freshness = getFreshness(points, meta.frequency, undefined, meta.lagDays);
   const windowed = points.slice(-months);
   // Clave de contenido (no de referencia): points siempre es un arreglo nuevo
   // en cada render del padre, aunque los datos no cambien. Sin esto, Recharts

@@ -12,7 +12,7 @@ export function Dashboard() {
   const { currency } = useCurrency();
 
   const currencyIndicators = INDICATORS.filter((m) => (m.currency ?? 'USD') === currency);
-  const staleCount = currencyIndicators.filter((m) => getFreshness(getSeries(m.id), m.frequency).level !== 'ok').length;
+  const staleCount = currencyIndicators.filter((m) => getFreshness(getSeries(m.id), m.frequency, undefined, m.lagDays).level !== 'ok').length;
   const currencyScoreRows = scoreRows.filter((r) => (r.currency ?? 'USD') === currency);
 
   return (
@@ -38,7 +38,7 @@ export function Dashboard() {
 
       <CentralBankPanel currency={currency} />
 
-      {(['crecimiento', 'empleo', 'inflacion', 'confianza', 'tasas'] as const)
+      {(['crecimiento', 'empleo', 'inflacion', 'confianza', 'vivienda', 'tasas'] as const)
         .filter((section) => indicatorsBySection(section, currency).length > 0)
         .map((section) => (
           <div key={section}>

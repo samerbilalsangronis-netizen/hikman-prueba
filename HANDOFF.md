@@ -8,7 +8,36 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 4-oct-2026
+## Sesión 21-oct-2026: Sector Inmobiliario (solo USD)
+
+**Ojo:** entre la sección de abajo (4-oct) y esta hubo 14 commits sin
+documentar acá (Agenda Semanal, Informe Diario Nufal, Gemini como
+proveedor del Mentor, Gmail SMTP en vez de Resend, Bitácora de Trading,
+formato de texto del Cuaderno, se quitaron Fortaleza/Renta Variable) —
+ver `git log 6ef2a23..` para el detalle.
+
+Nueva sección `vivienda` ("Sector Inmobiliario", ruta `/vivienda`,
+`src/pages/Vivienda.tsx`) con 13 indicadores USD, **todos automáticos vía
+FRED** (`fredMappings.ts` + copia en `api/fred-sync.ts`): Inicios de
+Viviendas y Permisos (HOUST/PERMIT, nivel + m/m), Ventas de Viviendas
+Nuevas (HSN1F, nivel + m/m) y Existentes (EXHOSLUSM495S, nivel + m/m),
+Meses de Oferta (MSACSR), Case-Shiller 20 ciudades (m/m SA `SPCS20RSA`,
+a/a NSA `SPCS20RNSA`), FHFA m/m (`HPIPONM226S`) y tasa hipotecaria 30 años
+(`MORTGAGE30US`, semanal). Las demás divisas no tienen esta sección —
+la nav/Resumen la ocultan solos por estar vacía.
+- Transform nuevo `level_x1000` (Census publica en miles de unidades) y
+  formato nuevo `millions` (se guardan unidades crudas, se muestra "1.22M").
+- Campo nuevo `IndicatorMeta.lagDays`: se suma a los umbrales de
+  frescura — Case-Shiller/FHFA (75) y viviendas nuevas (15) salen
+  estructuralmente tarde y si no aparecían "Desactualizado" estando al día.
+- Historia sembrada en `historical-series.json` desde 2000 (calculada con
+  las mismas transformaciones que el sync, desde el CSV público de FRED).
+- **Gap conocido:** FRED solo expone los últimos 13 meses de ventas de
+  viviendas existentes (licencia NAR). Pending Home Sales (NAR) y el
+  índice NAHB no están en FRED — quedaron afuera; si el usuario los pide,
+  tendrían que ser manuales.
+
+## ⚠️ Estado al cierre de la sesión del 4-oct-2026
 
 Todo lo de esta sesión está committeado y pusheado a
 `claude/handoff-continuacion-xvvz4b` (rama de trabajo de esta sesión en

@@ -13,6 +13,7 @@ import { Inflacion } from './pages/Inflacion';
 import { Empleo } from './pages/Empleo';
 import { Sentimiento } from './pages/Sentimiento';
 import { Crecimiento } from './pages/Crecimiento';
+import { Vivienda } from './pages/Vivienda';
 import { Banqueros } from './pages/Banqueros';
 import { Titulares } from './pages/Titulares';
 import { Actualizar } from './pages/Actualizar';
@@ -44,6 +45,7 @@ function App() {
                     <Route path="empleo" element={<Empleo />} />
                     <Route path="confianza" element={<Sentimiento />} />
                     <Route path="crecimiento" element={<Crecimiento />} />
+                    <Route path="vivienda" element={<Vivienda />} />
                     <Route path="alemania" element={<Alemania />} />
                     <Route path="francia" element={<Francia />} />
                     <Route path="banqueros" element={<Banqueros />} />

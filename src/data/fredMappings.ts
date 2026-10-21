@@ -3,6 +3,7 @@
 //   level_pct   -> el valor de FRED ya es un % (ej. 5.33) -> se guarda como fracción (0.0533)
 //   level       -> el valor de FRED se guarda tal cual
 //   level_div1000 -> el valor de FRED se guarda dividido entre 1000 (miles -> millones)
+//   level_x1000 -> el valor de FRED se guarda multiplicado por 1000 (miles -> unidades)
 //   pct_change  -> variación % respecto al mes anterior (para índices de nivel como CPI)
 //   pct_change_yoy -> variación % respecto al mismo mes del año anterior
 //   diff_x1000  -> diferencia respecto a la observación anterior, en miles de personas (NFP)
@@ -10,6 +11,7 @@ export type FredTransform =
   | 'level_pct'
   | 'level'
   | 'level_div1000'
+  | 'level_x1000'
   | 'pct_change'
   | 'pct_change_yoy'
   | 'pct_change_quarter'
@@ -93,6 +95,27 @@ export const FRED_MAPPINGS: FredMapping[] = [
   { indicatorId: 'industrial_production_yoy', seriesId: 'INDPRO', transform: 'pct_change_yoy' },
   { indicatorId: 'trade_balance', seriesId: 'BOPGSTB', transform: 'level' },
   { indicatorId: 'empire_state', seriesId: 'GACDISA066MSFRBNY', transform: 'level' },
+  // Sector Inmobiliario (solo USD — pedido explícito del usuario, 21-oct-2026).
+  // Census publica Inicios/Permisos/Ventas de Viviendas Nuevas en MILES de
+  // unidades (tasa anual desestacionalizada) — level_x1000 las pasa a
+  // unidades crudas, igual que NAR publica Ventas de Viviendas Existentes.
+  // OJO: FRED solo expone los ÚLTIMOS 13 MESES de EXHOSLUSM495S (licencia
+  // de NAR) — esa tarjeta nunca va a tener más historia que eso.
+  // Case-Shiller: m/m con la serie SA y a/a con la NSA, que es como S&P
+  // reporta el interanual en su comunicado (misma lógica que CPI).
+  { indicatorId: 'housing_starts', seriesId: 'HOUST', transform: 'level_x1000' },
+  { indicatorId: 'housing_starts_mom', seriesId: 'HOUST', transform: 'pct_change' },
+  { indicatorId: 'building_permits', seriesId: 'PERMIT', transform: 'level_x1000' },
+  { indicatorId: 'building_permits_mom', seriesId: 'PERMIT', transform: 'pct_change' },
+  { indicatorId: 'new_home_sales', seriesId: 'HSN1F', transform: 'level_x1000' },
+  { indicatorId: 'new_home_sales_mom', seriesId: 'HSN1F', transform: 'pct_change' },
+  { indicatorId: 'existing_home_sales', seriesId: 'EXHOSLUSM495S', transform: 'level' },
+  { indicatorId: 'existing_home_sales_mom', seriesId: 'EXHOSLUSM495S', transform: 'pct_change' },
+  { indicatorId: 'new_home_months_supply', seriesId: 'MSACSR', transform: 'level' },
+  { indicatorId: 'case_shiller_mom', seriesId: 'SPCS20RSA', transform: 'pct_change' },
+  { indicatorId: 'case_shiller_yoy', seriesId: 'SPCS20RNSA', transform: 'pct_change_yoy' },
+  { indicatorId: 'fhfa_hpi_mom', seriesId: 'HPIPONM226S', transform: 'pct_change' },
+  { indicatorId: 'mortgage_30y', seriesId: 'MORTGAGE30US', transform: 'level_pct' },
 ];
 
 // Balance de la Fed como % del PIB: combina dos series de FRED (no encaja en el

@@ -2,9 +2,9 @@ export type SeriesPoint = [string, number]; // [ISO date, value]
 
 export type Frequency = 'weekly' | 'monthly' | 'quarterly';
 
-export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'confianza' | 'crecimiento';
+export type Section = 'score' | 'tasas' | 'inflacion' | 'empleo' | 'confianza' | 'crecimiento' | 'vivienda';
 
-export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'billions' | 'ratio' | 'trade';
+export type Format = 'pct' | 'pct1' | 'index' | 'thousands' | 'millions' | 'billions' | 'ratio' | 'trade';
 
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD' | 'NZD' | 'JPY' | 'CHF' | 'CNY';
 
@@ -40,6 +40,11 @@ export interface IndicatorMeta {
    * como EE.UU./JPY) — ahí el "preliminar/final" cambia con cada punto de
    * la serie, no es una propiedad fija del indicador. */
   releaseStage?: 'preliminar' | 'final';
+  /** Días de rezago estructural de la publicación, que se suman a los
+   * umbrales de frescura de la frecuencia — para series que salen
+   * normalmente mucho después del período (ej. Case-Shiller, ~2 meses) y si
+   * no se marcarían "Desactualizado" aunque estén al día. Ausente = 0. */
+  lagDays?: number;
 }
 
 export interface ScoreRow {

@@ -10,6 +10,9 @@ export function formatValue(value: number, format: Format): string {
       return value.toFixed(1);
     case 'thousands':
       return `${Math.round(value / 1000).toLocaleString('es-ES')}k`;
+    case 'millions':
+      // el valor se guarda en unidades crudas (ej. viviendas); se muestra en millones
+      return `${(value / 1_000_000).toFixed(2)}M`;
     case 'billions':
       // el valor se guarda en miles de millones (US$ billions); se muestra en trillones
       return `$${(value / 1000).toFixed(2)}T`;

@@ -42,6 +42,16 @@ const SCHEDULE_GROUPS: { title: string; rows: { label: string; timing: string }[
     ],
   },
   {
+    title: 'Sector Inmobiliario (USD)',
+    rows: [
+      { label: 'Inicios de Viviendas y Permisos', timing: 'Mensual, ~12-19 del mes siguiente (salen juntos).' },
+      { label: 'Ventas de Viviendas Existentes (NAR)', timing: 'Mensual, ~3ª-4ª semana del mes siguiente.' },
+      { label: 'Ventas de Viviendas Nuevas', timing: 'Mensual, ~4ª semana del mes siguiente.' },
+      { label: 'Case-Shiller / FHFA', timing: 'Último martes del mes, con el dato de ~2 meses atrás.' },
+      { label: 'Tasa hipotecaria 30 años', timing: 'Semanal, todos los jueves (Freddie Mac).' },
+    ],
+  },
+  {
     title: 'Bancos centrales',
     rows: [
       { label: 'Decisiones de tasas', timing: 'Calendario propio de cada banco (6-8 reuniones al año) — no es mensual, ver la sección Tasas.' },
