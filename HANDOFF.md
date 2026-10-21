@@ -1,30 +1,133 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **4-oct-2026**, actualizado al cierre de la
-sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
+Fecha de este resumen: **21-oct-2026** (cierre de la sesión que arrancó
+el 11-oct-2026). Pega este archivo completo (o pedile a Claude que lo
 lea desde el repo) al abrir el chat nuevo — está pensado para ser
 autocontenido. El documento es largo y crece cronológicamente (sesión
 por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
-## ⚠️ 11-oct-2026: el Cuaderno usa la tabla `hikman_journal_entries` (NO `journal_entries`)
+## ⚠️ Arrancar por acá: estado al cierre de la sesión del 11/21-oct-2026
 
-El proyecto de Supabase lo comparte otra app (TraderMind / Bitácora
-Personal) que tiene su PROPIA tabla `journal_entries` (con `user_id`). Esta
-app usaba el mismo nombre y las dos se pisaban: el "column kind does not
-exist" del 4-oct era justamente la tabla de la otra app, y el `drop table
-journal_entries cascade` que se indicó ese día pudo haber borrado datos de
-TraderMind. Desde el 11-oct el Cuaderno de Economía + Informe de Mentoría
-usan `hikman_journal_entries` (código, `schema.sql`, `api/trading-alert-email.ts`).
-Script a correr: `supabase/hikman_journal_entries_2026-10-11.sql` (crea la
-tabla nueva y deshace índice/reglas/política pública que un script previo
-le había agregado a la tabla de la otra app). **Nunca indicar `drop` ni
-`alter` sobre `journal_entries`.** Ese mismo día el cuaderno pasó a
-titulares por impacto + ventana de contexto con imágenes movibles
-(columna `headlines` jsonb).
+Todo committeado y pusheado a `claude/pensive-einstein-miiefg` (rama de
+trabajo de esta sesión; arrancó en el mismo commit que
+`claude/macro-usd-web-dashboard-xm5ypk`, `32e4619`).
+**Producción (Vercel) se publica desde `claude/macro-usd-web-dashboard-xm5ypk`,
+que NO tiene ninguno de los cambios de esta sesión** — el usuario los probó
+en la vista previa de Vercel de `claude/pensive-einstein-miiefg`. Se le
+ofreció pasarlos a producción (fast-forward, mismo patrón de sesiones
+anteriores) y quedó sin respuesta: **preguntarle al arrancar**.
 
-## ⚠️ Arrancar por acá: estado al cierre de la sesión del 4-oct-2026
+### 🎯 PENDIENTE PRINCIPAL para la próxima sesión: datos del sector inmobiliario
+
+Pedido explícito del usuario al cierre (21-oct-2026). Hoy no existe nada
+del sector inmobiliario en la app (ni indicadores, ni sección, ni
+mappings — verificado con grep de housing/vivienda/inmobili). Plan
+sugerido, a confirmar con el usuario ANTES de escribir código:
+
+1. **Preguntar alcance**: ¿qué divisas primero (¿USD de arranque, que es
+   la más automatizable?) y qué indicadores le importan? ¿Sección propia
+   o dentro de `crecimiento`?
+2. **Sección propia recomendada** (`inmobiliario`/"Vivienda"): hoy las
+   secciones son fijas (`tasas`, `inflacion`, `empleo`, `confianza`,
+   `crecimiento`, `score`). Agregar una implica: valor nuevo de
+   `section` en los `indicators{X}.ts`, `SECTION_LABELS` por divisa,
+   una página + `<Route>` en `src/App.tsx` (mismo patrón que
+   `Crecimiento`), y el link de nav. `Layout.tsx` (`navFor`) y
+   `Dashboard.tsx` ya ocultan solas las secciones vacías por divisa (ver
+   "Arquitectura multi-divisa"), así que una divisa sin datos de vivienda
+   no muestra nada roto.
+3. **Indicadores candidatos (NO verificados — seguir el patrón de sourcing
+   de "Arquitectura multi-divisa": FRED → fuente oficial → verificar
+   contra lo que el usuario ve en su calendario → si no, manual)**:
+   - USD: Housing Starts y Building Permits (Census; FRED `HOUST`,
+     `PERMIT`), New Home Sales (FRED `HSN1F`), Existing Home Sales y
+     Pending Home Sales (NAR — revisar disponibilidad gratis), índice
+     NAHB, Case-Shiller (FRED `CSUSHPINSA`/`SPCS20RSA`), tasa hipotecaria
+     30 años (FRED `MORTGAGE30US`).
+   - GBP: Halifax / Nationwide HPI, RICS, aprobaciones hipotecarias (BoE).
+   - CAD: Housing Starts (CMHC), Building Permits (StatCan).
+   - AUD: Building Approvals, Home Loans (ABS).
+   - NZD: Building Consents (Stats NZ), REINZ.
+   - EUR: índice de precios de vivienda (Eurostat, trimestral).
+   - JPY: Housing Starts. CNY: precios de vivienda nueva (NBS).
+   - CHF: revisar si hay algo relevante; puede quedar sin sección (igual
+     que CNY no tiene `tasas`).
+   Respetar la regla de orden m/m seguido de su a/a en el array.
+4. Mismo criterio de siempre: nunca inventar números; si no hay fuente
+   automática confiable, queda como carga manual (`supabase/*.sql` o
+   Actualizar Datos).
+
+### Qué se hizo esta sesión (en orden)
+
+**1) Cuaderno de Economía → titulares por impacto + ventana de contexto
+(`src/components/panel/EconomyNotebook.tsx`).** Cada día es ahora una
+lista compacta de titulares (título + color de impacto de la escala de 6
+pasos). Click en un titular → modal "ventana de contexto" con título e
+impacto editables, el editor enriquecido de siempre (resaltar/formato/
+stickers, extraído a `RichTextToolbar`) y un **lienzo con imágenes
+movibles**: se agregan con botón, Ctrl+V o arrastrando el archivo; se
+arrastran a cualquier lugar y se redimensionan desde la esquina ◢
+(pointer events → funciona en mobile). Posición guardada como fracción
+del ancho (`x`, `w`) + `y` en px + `ratio` alto/ancho (tipos
+`JournalHeadline`/`JournalImagePlacement` en `src/types.ts`). Ya no hay
+galería de imágenes debajo del cuaderno. Entradas viejas (texto + galería
+por día) se muestran como "Nota libre (formato anterior)" con botón
+"→ Convertir en titular". La Bóveda muestra los titulares y los abre en
+la misma ventana. `JournalContext.tsx`: nuevo `updateHeadlines`, los
+guardados calculan desde un `entriesRef` (no desde updaters de
+`setEntries`), y **los errores de Supabase ahora se muestran en rojo**
+(`saveError`) — antes se tragaban en silencio.
+
+**2) ⚠️ Choque de tablas con TraderMind — el Cuaderno usa
+`hikman_journal_entries`, NUNCA `journal_entries`.** Al mostrar los
+errores apareció que el guardado del cuaderno venía fallando: el
+proyecto de Supabase lo comparte la otra app del usuario (TraderMind /
+Bitácora Personal), que tiene su PROPIA tabla `journal_entries` (con
+`user_id NOT NULL`). El "column kind does not exist" del 4-oct era esa
+tabla, y el `drop table journal_entries cascade` que se le indicó ese
+día **pudo haber borrado datos de TraderMind** (se le avisó al usuario,
+con la sugerencia de Backups de Supabase). Se pasó todo (cuaderno +
+informe de mentoría + `api/trading-alert-email.ts` + `schema.sql`) a
+`hikman_journal_entries` (con columna `headlines jsonb`). Script corrido
+por el usuario: `supabase/hikman_journal_entries_2026-10-11.sql` — crea
+la tabla nueva y, solo si `journal_entries` tiene `user_id`, le quita lo
+que le había agregado un script de reparación intermedio de esta misma
+sesión (índice único `(kind, entry_date)`, checks de color/kind y la
+política pública). Las columnas agregadas a la tabla de TraderMind (kind,
+color, image_urls, ai_analysis, headlines…) se dejaron (tienen default,
+no molestan). Probado en Postgres local; **el usuario confirmó que el
+cuaderno guarda bien** ("ahora sí quedó"). **Nunca indicar `drop`/
+`alter` sobre `journal_entries`.** Por lo mismo, la instrucción vieja de
+"re-correr schema.sql por la migración de colores de journal_entries"
+(pendientes del 4-oct, abajo) **ya no aplica**: schema.sql no toca más
+esa tabla.
+
+**3) Panel de Control: gráfico del histórico del sesgo en cada tarjeta de
+divisa (`src/components/CurrencyBiasCompactCard.tsx`).** Reemplaza la
+sparkline de FX (14 días de precio) por `BiasHistoryChart`: semanas
+archivadas + la actual en escala fija Dovish (abajo, -2) → Hawkish
+(arriba, +2), línea punteada en Neutro, escalonado por semana con el
+último tramo en diagonal, color del sesgo actual. Con una sola semana
+dibuja desde Neutro hasta el sesgo actual (así "bajista" se ve a la baja
+desde el día 1). Sin sesgo → "Sin sesgo cargado". Probado en modo claro
+y oscuro con datos de ejemplo.
+
+### Otros pendientes (además del inmobiliario)
+
+- Preguntar si se pasa esta sesión a producción
+  (`claude/macro-usd-web-dashboard-xm5ypk`, ver arriba).
+- Siguen sin confirmar los de la sesión del 4-oct (abajo): `ANTHROPIC_API_KEY`
+  en Vercel, el `.sql` de GBP, la interpretación de "fondos negros" en
+  modo claro y los 4 `.sql` de fines de agosto. Además, los 14 commits del
+  4-oct posteriores a la última edición de ese resumen (Agenda Semanal,
+  Gmail SMTP en vez de Resend, Gemini/Claude para el mentor, Informe
+  Diario Nufal, Bitácora de Trading) no están documentados acá — revisar
+  con `git log` si hace falta, y probablemente requieren variables nuevas
+  en Vercel (no verificado).
+
+## Estado al cierre de la sesión del 4-oct-2026
 
 Todo lo de esta sesión está committeado y pusheado a
 `claude/handoff-continuacion-xvvz4b` (rama de trabajo de esta sesión en
