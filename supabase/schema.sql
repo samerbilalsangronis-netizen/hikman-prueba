@@ -473,7 +473,11 @@ create policy "public read/write trade_ideas"
 -- entrada pasa a ser "historial" solo porque su `entry_date` quedó fuera de
 -- la semana en curso (ver src/lib/journalWeek.ts), así que no hace falta
 -- mover nada con un cron a medianoche del domingo.
-create table if not exists journal_entries (
+-- Tabla con prefijo hikman_ (11-oct-2026): este proyecto de Supabase lo
+-- comparte otra app (TraderMind / Bitácora Personal), que tiene su PROPIA
+-- tabla "journal_entries" (con user_id). Con el mismo nombre las dos apps se
+-- pisaban — nunca volver a usar "journal_entries" desde esta app.
+create table if not exists hikman_journal_entries (
   id text primary key,
   kind text not null check (kind in ('economia', 'mentoria')),
   entry_date date not null,
@@ -485,44 +489,19 @@ create table if not exists journal_entries (
   -- `text`. jsonb en vez de columnas separadas porque la forma exacta
   -- (catalysts/keyLevels/scenario) puede evolucionar sin migrar el esquema.
   ai_analysis jsonb,
+  -- Solo kind='economia' (11-oct-2026) — titulares del día con su color de
+  -- impacto y su contexto (texto + imágenes ubicadas libremente).
+  headlines jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  -- Una sola entrada por día y tipo (el formulario es "editar el día de
-  -- hoy", no "agregar entradas sueltas").
+  -- Una sola entrada por día y tipo (la app guarda con upsert sobre esto).
   unique (kind, entry_date)
 );
-create index if not exists journal_entries_kind_date_idx on journal_entries (kind, entry_date desc);
-
--- Migración: la paleta original tenía 7 colores genéricos (rojo/verde/
--- amarillo/azul/morado/naranja/gris) — se reemplaza por la escala de
--- sentimiento de 6 pasos que pidió el usuario (4-oct-2026). Mapeo
--- aproximado de lo viejo a lo nuevo antes de aplicar el constraint nuevo
--- (no hace nada si la tabla ya tiene el constraint nuevo o está vacía).
-do $$
-begin
-  if exists (
-    select 1 from information_schema.columns
-    where table_name = 'journal_entries' and column_name = 'color'
-  ) then
-    update journal_entries
-    set color = case color
-      when 'verde' then 'verde_fuerte'
-      when 'amarillo' then 'naranja_tenue'
-      when 'azul' then 'gris'
-      when 'morado' then 'gris'
-      else color
-    end
-    where color in ('verde', 'amarillo', 'azul', 'morado');
-  end if;
-end $$;
-alter table journal_entries drop constraint if exists journal_entries_color_check;
-alter table journal_entries
-  add constraint journal_entries_color_check
-  check (color in ('rojo', 'naranja', 'naranja_tenue', 'gris', 'verde_claro', 'verde_fuerte'));
+create index if not exists hikman_journal_entries_kind_date_idx on hikman_journal_entries (kind, entry_date desc);
 
 -- Síntesis semanal (viernes) de los informes diarios de mentoría — generada
 -- por el agente IA (api/trading-alert-email.ts?action=mentor-synthesize) a
--- partir de los journal_entries de kind='mentoria' de esa semana.
+-- partir de los hikman_journal_entries de kind='mentoria' de esa semana.
 create table if not exists mentor_weekly_syntheses (
   id text primary key,
   week_start date not null unique,
@@ -530,12 +509,12 @@ create table if not exists mentor_weekly_syntheses (
   created_at timestamptz not null default now()
 );
 
-alter table journal_entries enable row level security;
+alter table hikman_journal_entries enable row level security;
 alter table mentor_weekly_syntheses enable row level security;
 
-drop policy if exists "public read/write journal_entries" on journal_entries;
-create policy "public read/write journal_entries"
-  on journal_entries for all
+drop policy if exists "public read/write hikman_journal_entries" on hikman_journal_entries;
+create policy "public read/write hikman_journal_entries"
+  on hikman_journal_entries for all
   using (true)
   with check (true);
 
@@ -549,7 +528,7 @@ create policy "public read/write mentor_weekly_syntheses"
 -- path prefijado "journal/".
 
 -- --- Agenda Semanal: eventos económicos + recordatorio por correo (4-oct-2026) ---
--- Carga manual (como un to-do list), a diferencia de journal_entries NO es
+-- Carga manual (como un to-do list), a diferencia de hikman_journal_entries NO es
 -- "una fila por día" — puede haber varios eventos el mismo día. `event_at`
 -- guarda fecha+hora exacta en UTC (el cliente la manda ya convertida desde
 -- un <input type="datetime-local">, que JS interpreta en la zona horaria

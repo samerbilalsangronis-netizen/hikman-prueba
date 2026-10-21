@@ -1,12 +1,43 @@
 # Handoff — HIKMAN ENDÓGENO (dashboard macro multi-divisa) — para continuar en otro chat
 
-Fecha de este resumen: **4-oct-2026**, actualizado al cierre de la
-sesión de ese día. Pega este archivo completo (o pedile a Claude que lo
+Fecha de este resumen: **21-oct-2026** (cierre de la sesión que arrancó
+el 11-oct-2026). Pega este archivo completo (o pedile a Claude que lo
 lea desde el repo) al abrir el chat nuevo — está pensado para ser
 autocontenido. El documento es largo y crece cronológicamente (sesión
 por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
+
+## ⚠️ Arrancar por acá: ramas y producción (21-oct-2026)
+
+**Lo que dicen los handoffs viejos ("producción = macro-usd") NO es lo que
+pasa hoy.** Verificado con la API de deployments de GitHub: los push a
+`claude/macro-usd-web-dashboard-xm5ypk` salen como **Preview**; todos los
+commits de `claude/handoff-continuacion-xvvz4b` (4, 5, 9 y 11-oct) salieron
+como **Production** — o sea, la rama de producción configurada en Vercel
+parece ser `handoff-continuacion` — y dos commits de
+`claude/pensive-einstein-miiefg` (`745fb0c`, `8368392`) se **promovieron a
+mano**. Lo que estaba en vivo el 21-oct era exactamente `8368392`
+(confirmado mirando el bundle JS en vivo). Confirmar con el usuario en
+Vercel → Settings → Git → Production Branch antes de asumir nada.
+
+Estado al cierre de esta sesión: esta rama (`claude/practical-hamilton-pvuxah`)
+= `pensive-einstein` completa (incluye `hikman_journal_entries` y el
+gráfico de sesgo) + Sector Inmobiliario, pusheada también a
+`macro-usd`. Para publicarla, el usuario promueve esa vista previa a
+producción en Vercel (elegido por el usuario: "unir con lo que está en
+vivo").
+
+**Pendiente — commits perdidos de `handoff-continuacion-xvvz4b`** (7, de
+`d2f07b4` a `1ce9140`): Groq / OpenRouter / xAI-Grok como proveedores del
+Mentor, Banqueros como entrada propia en la barra lateral, Bóveda del
+Cuaderno tipo libro y capturas con posición libre. Estuvieron en
+producción del 5 al 11-oct y se perdieron cuando se promovió
+`pensive-einstein` (que no los tiene). Chocan con el rediseño del
+Cuaderno de `pensive` (Sidebar, EconomyNotebook, JournalContext, types,
+schema.sql). El usuario eligió **dejarlo para después** — al
+reconciliar, el Cuaderno base es el de `pensive` (`hikman_journal_entries`,
+NUNCA `journal_entries`: es la tabla de TraderMind).
 
 ## Sesión 21-oct-2026: Sector Inmobiliario (solo USD)
 
@@ -57,7 +88,94 @@ la nav/Resumen la ocultan solos por estar vacía.
     (checkpoint: may-2010 = -30%, fin del crédito fiscal). Las diferencias
     índice vs m/m en diciembre son el re-benchmark estacional anual de NAR.
 
-## ⚠️ Estado al cierre de la sesión del 4-oct-2026
+## Estado al cierre de la sesión del 11/21-oct-2026 (rama pensive-einstein)
+
+Todo committeado y pusheado a `claude/pensive-einstein-miiefg` (rama de
+trabajo de esta sesión; arrancó en el mismo commit que
+`claude/macro-usd-web-dashboard-xm5ypk`, `32e4619`).
+**Producción (Vercel) se publica desde `claude/macro-usd-web-dashboard-xm5ypk`,
+que NO tiene ninguno de los cambios de esta sesión** — el usuario los probó
+en la vista previa de Vercel de `claude/pensive-einstein-miiefg`. Se le
+ofreció pasarlos a producción (fast-forward, mismo patrón de sesiones
+anteriores) y quedó sin respuesta: **preguntarle al arrancar**.
+
+### ✅ (Resuelto el 21-oct, ver sección de arriba) Sector inmobiliario
+
+Era el pendiente principal de esta sesión — quedó hecho para USD en la
+sesión "Sesión 21-oct-2026: Sector Inmobiliario" (arriba). Las otras
+divisas que se listaban como candidatas (GBP Halifax/Nationwide/RICS, CAD
+CMHC, AUD Building Approvals, etc.) NO se hicieron: el usuario pidió
+explícitamente "solo en el dólar".
+
+### Qué se hizo esta sesión (en orden)
+
+**1) Cuaderno de Economía → titulares por impacto + ventana de contexto
+(`src/components/panel/EconomyNotebook.tsx`).** Cada día es ahora una
+lista compacta de titulares (título + color de impacto de la escala de 6
+pasos). Click en un titular → modal "ventana de contexto" con título e
+impacto editables, el editor enriquecido de siempre (resaltar/formato/
+stickers, extraído a `RichTextToolbar`) y un **lienzo con imágenes
+movibles**: se agregan con botón, Ctrl+V o arrastrando el archivo; se
+arrastran a cualquier lugar y se redimensionan desde la esquina ◢
+(pointer events → funciona en mobile). Posición guardada como fracción
+del ancho (`x`, `w`) + `y` en px + `ratio` alto/ancho (tipos
+`JournalHeadline`/`JournalImagePlacement` en `src/types.ts`). Ya no hay
+galería de imágenes debajo del cuaderno. Entradas viejas (texto + galería
+por día) se muestran como "Nota libre (formato anterior)" con botón
+"→ Convertir en titular". La Bóveda muestra los titulares y los abre en
+la misma ventana. `JournalContext.tsx`: nuevo `updateHeadlines`, los
+guardados calculan desde un `entriesRef` (no desde updaters de
+`setEntries`), y **los errores de Supabase ahora se muestran en rojo**
+(`saveError`) — antes se tragaban en silencio.
+
+**2) ⚠️ Choque de tablas con TraderMind — el Cuaderno usa
+`hikman_journal_entries`, NUNCA `journal_entries`.** Al mostrar los
+errores apareció que el guardado del cuaderno venía fallando: el
+proyecto de Supabase lo comparte la otra app del usuario (TraderMind /
+Bitácora Personal), que tiene su PROPIA tabla `journal_entries` (con
+`user_id NOT NULL`). El "column kind does not exist" del 4-oct era esa
+tabla, y el `drop table journal_entries cascade` que se le indicó ese
+día **pudo haber borrado datos de TraderMind** (se le avisó al usuario,
+con la sugerencia de Backups de Supabase). Se pasó todo (cuaderno +
+informe de mentoría + `api/trading-alert-email.ts` + `schema.sql`) a
+`hikman_journal_entries` (con columna `headlines jsonb`). Script corrido
+por el usuario: `supabase/hikman_journal_entries_2026-10-11.sql` — crea
+la tabla nueva y, solo si `journal_entries` tiene `user_id`, le quita lo
+que le había agregado un script de reparación intermedio de esta misma
+sesión (índice único `(kind, entry_date)`, checks de color/kind y la
+política pública). Las columnas agregadas a la tabla de TraderMind (kind,
+color, image_urls, ai_analysis, headlines…) se dejaron (tienen default,
+no molestan). Probado en Postgres local; **el usuario confirmó que el
+cuaderno guarda bien** ("ahora sí quedó"). **Nunca indicar `drop`/
+`alter` sobre `journal_entries`.** Por lo mismo, la instrucción vieja de
+"re-correr schema.sql por la migración de colores de journal_entries"
+(pendientes del 4-oct, abajo) **ya no aplica**: schema.sql no toca más
+esa tabla.
+
+**3) Panel de Control: gráfico del histórico del sesgo en cada tarjeta de
+divisa (`src/components/CurrencyBiasCompactCard.tsx`).** Reemplaza la
+sparkline de FX (14 días de precio) por `BiasHistoryChart`: semanas
+archivadas + la actual en escala fija Dovish (abajo, -2) → Hawkish
+(arriba, +2), línea punteada en Neutro, escalonado por semana con el
+último tramo en diagonal, color del sesgo actual. Con una sola semana
+dibuja desde Neutro hasta el sesgo actual (así "bajista" se ve a la baja
+desde el día 1). Sin sesgo → "Sin sesgo cargado". Probado en modo claro
+y oscuro con datos de ejemplo.
+
+### Otros pendientes (además del inmobiliario)
+
+- Preguntar si se pasa esta sesión a producción
+  (`claude/macro-usd-web-dashboard-xm5ypk`, ver arriba).
+- Siguen sin confirmar los de la sesión del 4-oct (abajo): `ANTHROPIC_API_KEY`
+  en Vercel, el `.sql` de GBP, la interpretación de "fondos negros" en
+  modo claro y los 4 `.sql` de fines de agosto. Además, los 14 commits del
+  4-oct posteriores a la última edición de ese resumen (Agenda Semanal,
+  Gmail SMTP en vez de Resend, Gemini/Claude para el mentor, Informe
+  Diario Nufal, Bitácora de Trading) no están documentados acá — revisar
+  con `git log` si hace falta, y probablemente requieren variables nuevas
+  en Vercel (no verificado).
+
+## Estado al cierre de la sesión del 4-oct-2026
 
 Todo lo de esta sesión está committeado y pusheado a
 `claude/handoff-continuacion-xvvz4b` (rama de trabajo de esta sesión en

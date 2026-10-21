@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMacroData } from '../data/MacroDataContext';
 import { BIAS_COLORS, BIAS_LABELS } from '../lib/bias';
-import { FX_INDICATOR_ID } from '../lib/fxIndicator';
-import type { CurrencyBias } from '../types';
+import type { BiasLevel, CurrencyBias } from '../types';
 import { CurrencyBiasCard } from './CurrencyBiasCard';
 
 // Tarjeta compacta para el grid horizontal del Panel de Control (2-oct-2026,
@@ -13,26 +12,69 @@ import { CurrencyBiasCard } from './CurrencyBiasCard';
 // misma card en un modal al hacer clic, en vez de duplicar todo ese editor
 // en formato chico.
 
-function MiniSparkline({ points }: { points: number[] }) {
-  if (points.length < 2) {
+// Gráfico del histórico del sesgo (11-oct-2026, a pedido del usuario —
+// reemplaza la sparkline de FX): cada semana archivada + la actual,
+// ubicadas en una escala fija de dovish (abajo) a hawkish (arriba), así
+// "bajista" se ve a la baja y "alcista" al alza. Escalonado porque el sesgo
+// es un valor por semana, no continuo. Con una sola semana cargada se
+// dibuja el tramo desde Neutro hasta el sesgo actual, para que la dirección
+// se vea igual desde el primer día.
+const BIAS_SCORE: Record<BiasLevel, number> = { hawkish: 2, neutral_alcista: 1, neutral: 0, neutral_bajista: -1, dovish: -2 };
+
+interface BiasPoint {
+  level: BiasLevel;
+  startedAt: string;
+}
+
+function biasPoints(bias: CurrencyBias): BiasPoint[] {
+  const snapshots = [...bias.history].reverse().concat(bias.current);
+  return snapshots.filter((s): s is typeof s & { level: BiasLevel } => s.level !== null).map((s) => ({ level: s.level, startedAt: s.startedAt }));
+}
+
+function BiasHistoryChart({ bias }: { bias: CurrencyBias }) {
+  const real = biasPoints(bias);
+  const current = bias.current.level;
+  if (real.length === 0 || !current) {
     return (
-      <div className="flex h-8 w-full items-center justify-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
-        Sin datos de FX
+      <div className="flex h-10 w-full items-center justify-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
+        Sin sesgo cargado
       </div>
     );
   }
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
+  const points: (BiasPoint & { synthetic?: boolean })[] = real.length === 1 ? [{ level: 'neutral', startedAt: real[0].startedAt, synthetic: true }, real[0]] : real;
   const w = 100;
-  const h = 28;
-  const step = w / (points.length - 1);
-  const d = points.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${(h - ((v - min) / range) * h).toFixed(1)}`).join(' ');
-  const up = points[points.length - 1] >= points[0];
+  const h = 32;
+  const pad = 4;
+  const x = (i: number) => (i / (points.length - 1)) * w;
+  const y = (level: BiasLevel) => pad + ((2 - BIAS_SCORE[level]) / 4) * (h - pad * 2);
+  // Escalón: horizontal hasta la próxima semana y recién ahí sube/baja. El
+  // último tramo (hacia el sesgo actual) va en diagonal para que la
+  // dirección del cambio más reciente se lea de un vistazo.
+  let d = `M ${x(0)} ${y(points[0].level)}`;
+  for (let i = 1; i < points.length; i++) {
+    if (i < points.length - 1) d += ` H ${x(i)} V ${y(points[i].level)}`;
+    else d += ` L ${x(i)} ${y(points[i].level)}`;
+  }
+  const color = BIAS_COLORS[current];
+  const gradientId = `bias-fill-${bias.currency}`;
+  const weeks = real.length;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-8 w-full" preserveAspectRatio="none">
-      <path d={d} fill="none" stroke={up ? 'var(--status-good)' : 'var(--status-critical)'} strokeWidth={2} />
-    </svg>
+    <div className="flex flex-col gap-0.5">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-10 w-full overflow-visible" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <line x1={0} x2={w} y1={y('neutral')} y2={y('neutral')} stroke="var(--gridline)" strokeWidth={1} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
+        <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={`url(#${gradientId})`} stroke="none" />
+        <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="text-[9px]" style={{ color: 'var(--text-muted)' }} title={real.map((p) => `${new Date(p.startedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}: ${BIAS_LABELS[p.level]}`).join('\n')}>
+        Histórico de sesgo · {weeks} {weeks === 1 ? 'semana' : 'semanas'}
+      </span>
+    </div>
   );
 }
 
@@ -47,10 +89,8 @@ function daysElapsed(startedAt: string): number {
 }
 
 export function CurrencyBiasCompactCard({ bias }: { bias: CurrencyBias }) {
-  const { getSeries, rolloverBias } = useMacroData();
+  const { rolloverBias } = useMacroData();
   const [expanded, setExpanded] = useState(false);
-  const fxId = FX_INDICATOR_ID[bias.currency];
-  const sparkPoints = useMemo(() => (fxId ? getSeries(fxId).slice(-14).map(([, v]) => v) : []), [getSeries, fxId]);
 
   const elapsed = daysElapsed(bias.current.startedAt);
   const dayOfCycle = Math.min(elapsed + 1, 7);
@@ -88,7 +128,7 @@ export function CurrencyBiasCompactCard({ bias }: { bias: CurrencyBias }) {
         <p className="truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {bias.centralBank}
         </p>
-        <MiniSparkline points={sparkPoints} />
+        <BiasHistoryChart bias={bias} />
         <span
           className="self-start rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
           style={{ background: level ? BIAS_COLORS[level] : 'var(--surface-2)', color: level ? '#fff' : 'var(--text-muted)' }}

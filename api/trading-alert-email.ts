@@ -265,7 +265,7 @@ async function handleMentorSynthesize(req: VercelRequest, res: VercelResponse) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data, error } = await supabase
-    .from('journal_entries')
+    .from('hikman_journal_entries')
     .select('entry_date, text')
     .eq('kind', 'mentoria')
     .in('entry_date', dates)

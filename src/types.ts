@@ -290,7 +290,7 @@ export interface TradeIdea {
 }
 
 // --- Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) --------
-// Mismo modelo de datos para ambos ("journal_entries", distinguidos por
+// Mismo modelo de datos para ambos ("hikman_journal_entries", distinguidos por
 // `kind`) porque comparten exactamente la semántica: una entrada por día,
 // con color y foto opcional, que se "archiva" solo por el paso del
 // calendario (no hay una acción de archivado real — ver journalWeek.ts,
@@ -313,6 +313,33 @@ export interface MentorAiAnalysis {
   analyzedAt: string;
 }
 
+/** Imagen ubicada libremente dentro de la ventana de contexto de un titular
+ * (11-oct-2026). x/w son fracciones (0–1) del ancho del lienzo para que la
+ * composición se mantenga igual en desktop y mobile; y va en px porque el
+ * lienzo crece hacia abajo. ratio = alto/ancho natural de la imagen, así el
+ * alto sale de w sin tener que medir el DOM. */
+export interface JournalImagePlacement {
+  id: string;
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  ratio: number;
+}
+
+/** Titular del Cuaderno de Economía (11-oct-2026) — en la lectura diaria se
+ * ve solo el título con su color de impacto; el contexto (texto enriquecido
+ * + imágenes ubicadas a mano) se abre al hacer click. */
+export interface JournalHeadline {
+  id: string;
+  title: string;
+  color: JournalColor;
+  /** HTML ya sanitizado (ver lib/richText.ts). */
+  context: string;
+  images: JournalImagePlacement[];
+  createdAt: string;
+}
+
 export interface JournalEntry {
   id: string;
   kind: JournalEntryKind;
@@ -321,6 +348,8 @@ export interface JournalEntry {
   color: JournalColor;
   text: string;
   imageUrls: string[];
+  /** Solo kind 'economia' — titulares del día (ver JournalHeadline). */
+  headlines: JournalHeadline[];
   /** Solo kind 'mentoria' — resultado de la última corrida del agente IA sobre `text`. */
   aiAnalysis?: MentorAiAnalysis;
   createdAt: string;
