@@ -340,6 +340,14 @@ export interface JournalHeadline {
   createdAt: string;
 }
 
+/** Hoja semanal del Cuaderno de Economía (25-oct-2026) — lo que pertenece a
+ * la semana entera y no a un titular: por ahora, las imágenes ubicadas
+ * libremente sobre la hoja. Se guarda en la fila 'economia' del LUNES de
+ * esa semana (columna week_board). */
+export interface JournalWeekBoard {
+  images: JournalImagePlacement[];
+}
+
 export interface JournalEntry {
   id: string;
   kind: JournalEntryKind;
@@ -350,6 +358,8 @@ export interface JournalEntry {
   imageUrls: string[];
   /** Solo kind 'economia' — titulares del día (ver JournalHeadline). */
   headlines: JournalHeadline[];
+  /** Solo en la fila 'economia' del lunes — ver JournalWeekBoard. */
+  weekBoard?: JournalWeekBoard;
   /** Solo kind 'mentoria' — resultado de la última corrida del agente IA sobre `text`. */
   aiAnalysis?: MentorAiAnalysis;
   createdAt: string;

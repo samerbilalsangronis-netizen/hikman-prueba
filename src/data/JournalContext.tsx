@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase, supabaseEnabled } from '../lib/supabaseClient';
-import type { JournalColor, JournalEntry, JournalEntryKind, JournalHeadline, MentorAiAnalysis, MentorWeeklySynthesis } from '../types';
+import type { JournalColor, JournalEntry, JournalEntryKind, JournalHeadline, JournalWeekBoard, MentorAiAnalysis, MentorWeeklySynthesis } from '../types';
 
 // Cuaderno de Economía + Informe Diario de Mentoría (2-oct-2026) — mismo
 // patrón que TradingJournalContext.tsx: Supabase como fuente de verdad, con
@@ -24,7 +24,7 @@ function loadLocal<T>(key: string): T[] {
   }
 }
 
-type EntryPatch = { color?: JournalColor; text?: string; imageUrls?: string[]; headlines?: JournalHeadline[] };
+type EntryPatch = { color?: JournalColor; text?: string; imageUrls?: string[]; headlines?: JournalHeadline[]; weekBoard?: JournalWeekBoard };
 
 interface JournalValue {
   entries: JournalEntry[];
@@ -36,6 +36,8 @@ interface JournalValue {
    * memoria (no de los del último render) — así dos guardados seguidos
    * (ej. soltar una imagen y enseguida escribir) no se pisan entre sí. */
   updateHeadlines: (date: string, updater: (prev: JournalHeadline[]) => JournalHeadline[]) => Promise<void>;
+  /** Igual que updateHeadlines, para la hoja semanal (weekStart = lunes). */
+  updateWeekBoard: (weekStart: string, updater: (prev: JournalWeekBoard) => JournalWeekBoard) => Promise<void>;
   /** Último error al guardar en Supabase (null si el último guardado salió bien). */
   saveError: string | null;
   deleteEntry: (id: string) => Promise<void>;
@@ -83,6 +85,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           text: e.text ?? '',
           imageUrls: e.image_urls ?? [],
           headlines: Array.isArray(e.headlines) ? e.headlines : [],
+          weekBoard: e.week_board ?? undefined,
           aiAnalysis: e.ai_analysis ?? undefined,
           createdAt: e.created_at,
           updatedAt: e.updated_at,
@@ -129,11 +132,17 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     // sigue guardando aunque todavía no se haya corrido la migración que
     // agrega esa columna (supabase/hikman_journal_entries_2026-10-11.sql).
     if (entry.kind === 'economia') row.headlines = entry.headlines;
+    // Solo las filas que tienen hoja semanal mandan week_board — así los
+    // titulares se siguen guardando aunque todavía no se haya corrido
+    // supabase/hikman_journal_week_board_2026-10-25.sql.
+    if (entry.weekBoard) row.week_board = entry.weekBoard;
     const { error } = await supabase.from('hikman_journal_entries').upsert(row, { onConflict: 'kind,entry_date' });
     if (error) {
       console.error('No se pudo guardar la entrada del cuaderno en Supabase', error);
       setSaveError(
-        /column|schema cache|does not exist/i.test(error.message)
+        /week_board/.test(error.message)
+          ? `${error.message} — corré supabase/hikman_journal_week_board_2026-10-25.sql en el SQL Editor de Supabase.`
+          : /column|schema cache|does not exist/i.test(error.message)
           ? `${error.message} — corré supabase/hikman_journal_entries_2026-10-11.sql en el SQL Editor de Supabase.`
           : error.message,
       );
@@ -161,6 +170,14 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     async (date: string, updater: (prev: JournalHeadline[]) => JournalHeadline[]) => {
       const existing = entriesRef.current.find((e) => e.kind === 'economia' && e.date === date);
       await saveEntry('economia', date, { headlines: updater(existing?.headlines ?? []) });
+    },
+    [saveEntry],
+  );
+
+  const updateWeekBoard = useCallback(
+    async (weekStart: string, updater: (prev: JournalWeekBoard) => JournalWeekBoard) => {
+      const existing = entriesRef.current.find((e) => e.kind === 'economia' && e.date === weekStart);
+      await saveEntry('economia', weekStart, { weekBoard: updater(existing?.weekBoard ?? { images: [] }) });
     },
     [saveEntry],
   );
@@ -213,8 +230,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<JournalValue>(
-    () => ({ entries, syntheses, loading, saveEntry, updateHeadlines, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis }),
-    [entries, syntheses, loading, saveEntry, updateHeadlines, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis],
+    () => ({ entries, syntheses, loading, saveEntry, updateHeadlines, updateWeekBoard, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis }),
+    [entries, syntheses, loading, saveEntry, updateHeadlines, updateWeekBoard, saveError, deleteEntry, setAiAnalysis, uploadJournalImage, addSynthesis],
   );
 
   return <JournalContext.Provider value={value}>{children}</JournalContext.Provider>;

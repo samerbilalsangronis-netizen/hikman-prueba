@@ -492,11 +492,15 @@ create table if not exists hikman_journal_entries (
   -- Solo kind='economia' (11-oct-2026) — titulares del día con su color de
   -- impacto y su contexto (texto + imágenes ubicadas libremente).
   headlines jsonb not null default '[]'::jsonb,
+  -- Solo en la fila 'economia' del lunes (25-oct-2026) — hoja semanal del
+  -- cuaderno (imágenes ubicadas libremente sobre la semana).
+  week_board jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   -- Una sola entrada por día y tipo (la app guarda con upsert sobre esto).
   unique (kind, entry_date)
 );
+alter table hikman_journal_entries add column if not exists week_board jsonb;
 create index if not exists hikman_journal_entries_kind_date_idx on hikman_journal_entries (kind, entry_date desc);
 
 -- Síntesis semanal (viernes) de los informes diarios de mentoría — generada

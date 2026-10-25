@@ -12,6 +12,9 @@
      del modo claro se mantienen igual, solo se oscurecen las líneas
      divisorias para que se note la jerarquía/orden entre secciones. */
   --gridline: #cfcdc3;
+  /* Titulares del Cuaderno en tonos pálidos (ver JOURNAL_COLOR_INK). */
+  --journal-ink-naranja-tenue: #b7791f;
+  --journal-ink-verde-claro: #4d7c0f;
   --baseline: #a8a69b;
   --border: rgba(11, 11, 11, 0.22);
 
@@ -43,6 +46,8 @@
   --text-secondary: #c3c2b7;
   --text-muted: #898781;
   --gridline: #2c2c2a;
+  --journal-ink-naranja-tenue: #f5c38b;
+  --journal-ink-verde-claro: #a3d977;
   --baseline: #383835;
   --border: rgba(255, 255, 255, 0.1);
 
@@ -70,6 +75,8 @@
     --text-secondary: #c3c2b7;
     --text-muted: #898781;
     --gridline: #2c2c2a;
+    --journal-ink-naranja-tenue: #f5c38b;
+    --journal-ink-verde-claro: #a3d977;
     --baseline: #383835;
     --border: rgba(255, 255, 255, 0.1);
 

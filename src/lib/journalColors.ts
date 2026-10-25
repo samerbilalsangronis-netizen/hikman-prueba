@@ -36,3 +36,17 @@ export const JOURNAL_COLOR_TEXT: Record<JournalColor, string> = {
   verde_claro: '#14532d',
   verde_fuerte: '#ffffff',
 };
+
+// Color de TEXTO para escribir un titular en el color de su impacto (25-oct-
+// 2026, hoja semanal estilo cuaderno de Nufal: el titular se lee en su
+// color, sin caja). Los tonos "tenue"/"claro" de JOURNAL_COLOR_HEX son fondos
+// pálidos que como texto no se leen sobre el tema claro — esos dos usan una
+// variable CSS con un tono distinto por tema (src/index.css).
+export const JOURNAL_COLOR_INK: Record<JournalColor, string> = {
+  rojo: '#dc2626',
+  naranja: '#ea580c',
+  naranja_tenue: 'var(--journal-ink-naranja-tenue)',
+  gris: 'var(--text-secondary)',
+  verde_claro: 'var(--journal-ink-verde-claro)',
+  verde_fuerte: '#16a34a',
+};

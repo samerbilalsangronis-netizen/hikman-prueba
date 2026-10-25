@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMacroData } from '../data/MacroDataContext';
-import { BIAS_COLORS, BIAS_LABELS } from '../lib/bias';
+import { BIAS_COLORS, BIAS_LABELS, BIAS_SCORE } from '../lib/bias';
 import type { BiasLevel, CurrencyBias } from '../types';
 import { CurrencyBiasCard } from './CurrencyBiasCard';
 
@@ -19,8 +19,6 @@ import { CurrencyBiasCard } from './CurrencyBiasCard';
 // es un valor por semana, no continuo. Con una sola semana cargada se
 // dibuja el tramo desde Neutro hasta el sesgo actual, para que la dirección
 // se vea igual desde el primer día.
-const BIAS_SCORE: Record<BiasLevel, number> = { hawkish: 2, neutral_alcista: 1, neutral: 0, neutral_bajista: -1, dovish: -2 };
-
 interface BiasPoint {
   level: BiasLevel;
   startedAt: string;

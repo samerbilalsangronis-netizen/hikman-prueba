@@ -2,6 +2,10 @@ import type { BiasLevel, Currency } from '../types';
 
 export const BIAS_LEVELS: BiasLevel[] = ['hawkish', 'neutral_alcista', 'neutral', 'neutral_bajista', 'dovish'];
 
+/** Posición numérica de cada sesgo, de dovish (-2) a hawkish (+2) — para
+ * ordenar divisas y graficar el histórico. */
+export const BIAS_SCORE: Record<BiasLevel, number> = { hawkish: 2, neutral_alcista: 1, neutral: 0, neutral_bajista: -1, dovish: -2 };
+
 export const BIAS_LABELS: Record<BiasLevel, string> = {
   hawkish: 'Hawkish',
   neutral_alcista: 'Neutro Alcista',

@@ -8,6 +8,39 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
+## Sesión 25-oct-2026: Cuaderno de Economía → hoja semanal estilo Nufal
+
+Rama `claude/pensive-einstein-miiefg` (arrancó con fast-forward a
+`claude/macro-usd-web-dashboard-xm5ypk` = `75a83b1`, que ya traía Sector
+Inmobiliario). Pedido del usuario, con fotos del cuaderno de Nufal de
+referencia: en vez de pestañas por día, **una hoja por semana**
+("Semana 19/10", leyenda −/+ de impacto) con todos los titulares corridos,
+**escritos en el color de su impacto** (`JOURNAL_COLOR_INK` en
+`lib/journalColors.ts`; los dos tonos pálidos usan variables CSS por tema
+`--journal-ink-*` en `index.css`) y **un separador chico por día**
+(cronología). Cada titular sigue abriendo su ventana de contexto
+editable. El formulario de alta tiene selector de día. Navegación ◀ ▶ por
+semanas; la Bóveda pasó a ser un índice de semanas pasadas que abre esa
+hoja.
+- **Columna derecha "Pre semana" / "Semana actual"**
+  (`src/components/panel/WeekBiasSidebar.tsx`): NO se carga a mano, sale
+  de `biases` (Cuadro de Sesgo Semanal) — pre semana = snapshot vigente
+  el lunes 00:00; semana actual = `current.level` (en semanas pasadas,
+  "Cierre de semana"). Ordenado de hawkish a dovish, ▲▼ si cambió.
+  `BIAS_SCORE` se movió a `lib/bias.ts` (lo usa también
+  `CurrencyBiasCompactCard`). Nufal anota además MPD/MPB/Crudo/VIX bajo
+  la pre semana — NO se implementó (el usuario no lo pidió explícito).
+- **Imágenes libres sobre la hoja semanal** (además de las de cada
+  titular): botón, arrastrar a la hoja o Ctrl+V en "Nuevo titular". La
+  lógica de mover/redimensionar se extrajo a
+  `src/components/panel/MovableImageLayer.tsx` (compartida con la ventana
+  de contexto). Se guardan en `week_board jsonb` de la fila 'economia'
+  del LUNES → **el usuario tiene que correr
+  `supabase/hikman_journal_week_board_2026-10-25.sql`** (solo toca
+  `hikman_journal_entries`). Sin esa columna, los titulares se siguen
+  guardando (solo las filas con hoja semanal mandan `week_board`) y el
+  error de guardar la imagen apunta al script.
+
 ## ⚠️ Arrancar por acá: ramas y producción (21-oct-2026)
 
 **Lo que dicen los handoffs viejos ("producción = macro-usd") NO es lo que
