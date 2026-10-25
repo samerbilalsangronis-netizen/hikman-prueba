@@ -21,6 +21,7 @@ import { PanelControl } from './pages/PanelControl';
 import { Alemania } from './pages/Alemania';
 import { Francia } from './pages/Francia';
 import { BitacoraTrading } from './pages/BitacoraTrading';
+import { CuadernoEconomia } from './pages/CuadernoEconomia';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -51,6 +52,7 @@ function App() {
                     <Route path="banqueros" element={<Banqueros />} />
                     <Route path="titulares" element={<Titulares />} />
                     <Route path="bitacora-trading" element={<BitacoraTrading />} />
+                    <Route path="cuaderno-economia" element={<CuadernoEconomia />} />
                     <Route path="actualizar" element={<Actualizar />} />
                   </Route>
                 </Routes>

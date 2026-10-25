@@ -13,12 +13,15 @@ import { WeekBiasSidebar } from './WeekBiasSidebar';
 // ventana de contexto 11-oct; hoja semanal 25-oct — todo a pedido del
 // usuario). Está modelado sobre el cuaderno de Nufal: UNA hoja por semana
 // ("Semana 19/10") con todos los titulares corridos, escritos en el color
-// de su impacto y separados por un divisor chico por día (cronología de la
-// semana), más una columna a la derecha con el sesgo de las divisas "pre
+// de su impacto, con el día marcado solo al principio de lo anotado ese día
+// (cronología de la semana; el día sale de cuándo se escribió, no se
+// elige), más una columna a la derecha con el sesgo de las divisas "pre
 // semana" y "semana actual" (WeekBiasSidebar). Cada titular sigue siendo una
 // entrada: al hacer click se abre su ventana de contexto (texto
 // enriquecido + imágenes movibles). Sobre la hoja también se pueden ubicar
 // imágenes libremente (JournalWeekBoard, guardada en la fila del lunes).
+// Vive en su propia página (/cuaderno-economia, barra lateral), no en el
+// Panel de Control.
 // No hay una acción de "archivar": cualquier semana que no sea la en curso
 // ya es historial (ver lib/journalWeek.ts) — se navega con ◀ ▶ o la Bóveda.
 //
@@ -468,27 +471,21 @@ function LegacyNote({ entry, onConverted }: { entry: JournalEntry; onConverted: 
   );
 }
 
-/** Formulario para anotar un titular: texto, impacto y día de la semana. */
-function AddHeadlineForm({ weekStart, onAddImages }: { weekStart: string; onAddImages: (files: File[]) => void }) {
+/** Formulario para anotar un titular: texto + impacto. El día es siempre
+ * el de hoy (25-oct-2026, pedido del usuario: nada de elegir lunes a
+ * domingo — el día queda marcado solo por cuándo se escribió). */
+function AddHeadlineForm({ onAddImages }: { onAddImages: (files: File[]) => void }) {
   const { updateHeadlines } = useJournal();
-  const today = todayLocalDate();
-  const days = datesOfWeek(weekStart);
   const [title, setTitle] = useState('');
   const [color, setColor] = useState<JournalColor>('gris');
-  const [day, setDay] = useState(days.includes(today) ? today : days[0]);
-
-  // Al cambiar de semana, el día elegido vuelve a "hoy" (o al lunes en
-  // semanas pasadas/futuras).
-  useEffect(() => {
-    setDay(days.includes(today) ? today : days[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStart]);
 
   function add() {
     const trimmed = title.trim();
     if (!trimmed) return;
     const headline: JournalHeadline = { id: crypto.randomUUID(), title: trimmed, color, context: '', images: [], createdAt: new Date().toISOString() };
-    updateHeadlines(day, (hs) => [...hs, headline]);
+    // Se lee la fecha al guardar (no al montar) por si la página quedó
+    // abierta de un día para el otro.
+    updateHeadlines(todayLocalDate(), (hs) => [...hs, headline]);
     setTitle('');
     setColor('gris');
   }
@@ -521,29 +518,14 @@ function AddHeadlineForm({ weekStart, onAddImages }: { weekStart: string; onAddI
           + Agregar
         </button>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Impacto:
-          </span>
-          <ImpactPicker value={color} onChange={setColor} />
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="mr-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Día:
-          </span>
-          {days.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setDay(d)}
-              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{ background: day === d ? 'var(--series-1)' : 'transparent', color: day === d ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)' }}
-            >
-              {dayLabel(d, true)}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Impacto:
+        </span>
+        <ImpactPicker value={color} onChange={setColor} />
+        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          {JOURNAL_COLOR_LABELS[color]}
+        </span>
       </div>
     </div>
   );
@@ -566,7 +548,7 @@ function WeekSheet({ weekStart, onOpen }: { weekStart: string; onOpen: (date: st
   const boardImages = byDate.get(weekStart)?.weekBoard?.images ?? [];
   const visibleDays = days.filter((d) => {
     const e = byDate.get(d);
-    return d === today || (!!e && (e.headlines.length > 0 || e.text.length > 0 || e.imageUrls.length > 0));
+    return !!e && (e.headlines.length > 0 || e.text.length > 0 || e.imageUrls.length > 0);
   });
   const sheetHeight = Math.max(SHEET_MIN_HEIGHT, imagesBottom(boardImages, sheetWidth) + 40);
 
@@ -599,7 +581,8 @@ function WeekSheet({ weekStart, onOpen }: { weekStart: string; onOpen: (date: st
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <AddHeadlineForm weekStart={weekStart} onAddImages={addImages} />
+      {/* Solo se anota en la semana en curso — las pasadas son historial. */}
+      {isCurrentWeek(weekStart) && <AddHeadlineForm onAddImages={addImages} />}
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -637,7 +620,7 @@ function WeekSheet({ weekStart, onOpen }: { weekStart: string; onOpen: (date: st
       >
         {visibleDays.length === 0 ? (
           <p className="py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Sin titulares esta semana.
+            {isCurrentWeek(weekStart) ? 'Hoja en blanco — el primer titular que anotes marca el día.' : 'Sin titulares esta semana.'}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -647,19 +630,14 @@ function WeekSheet({ weekStart, onOpen }: { weekStart: string; onOpen: (date: st
               const hasLegacy = !!entry && (entry.text.length > 0 || entry.imageUrls.length > 0);
               return (
                 <div key={d} className="flex flex-col gap-0.5">
-                  {/* Separador del día — la cronología de la semana. */}
+                  {/* Marca del día, solo al principio de lo anotado ese día
+                      (los días sin titulares no aparecen). */}
                   <div className="flex items-center gap-2 pb-0.5 pt-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: d === today ? 'var(--series-1)' : 'var(--text-muted)' }}>
-                      {dayLabel(d, true)} {shortDate(d)}
-                      {d === today && ' · hoy'}
+                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: d === today ? 'var(--series-1)' : 'var(--text-muted)' }}>
+                      {dayLabel(d)} {shortDate(d)}
                     </span>
                     <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
                   </div>
-                  {headlines.length === 0 && !hasLegacy && (
-                    <span className="px-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      Sin titulares todavía.
-                    </span>
-                  )}
                   {headlines.map((h) => (
                     <HeadlineLine key={h.id} headline={h} onOpen={() => onOpen(d, h.id)} />
                   ))}

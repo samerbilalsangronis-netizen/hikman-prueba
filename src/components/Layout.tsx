@@ -125,7 +125,7 @@ export function Layout() {
                 </>
               ) : (
                 <span className="min-w-0 truncate text-sm font-semibold sm:text-base" style={{ color: 'var(--text-primary)' }}>
-                  {pathname === '/panel-control' ? 'Panel de Control' : 'Bitácora de Trading'}
+                  {pathname === '/panel-control' ? 'Panel de Control' : pathname === '/cuaderno-economia' ? 'Cuaderno de Economía' : 'Bitácora de Trading'}
                 </span>
               )}
             </div>

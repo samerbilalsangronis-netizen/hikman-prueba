@@ -3,7 +3,6 @@ import { CURRENCIES } from '../data/CurrencyContext';
 import { MarqueeTicker } from '../components/MarqueeTicker';
 import { CurrencyBiasCompactCard } from '../components/CurrencyBiasCompactCard';
 import { DocumentUploadList } from '../components/DocumentUploadList';
-import { EconomyNotebook } from '../components/panel/EconomyNotebook';
 import { MentorDailyReport } from '../components/panel/MentorDailyReport';
 import { WeeklyAgenda } from '../components/panel/WeeklyAgenda';
 
@@ -23,7 +22,7 @@ export function PanelControl() {
           Panel de Control
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Vista general: sesgo por divisa, cuaderno de economía e informes de mentoría.
+          Vista general: sesgo por divisa, agenda semanal e informes de mentoría.
         </p>
       </div>
 
@@ -44,7 +43,6 @@ export function PanelControl() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
         <div className="flex flex-col gap-6 lg:order-1">
           <MentorDailyReport />
-          <EconomyNotebook />
         </div>
 
         <aside className="flex flex-col gap-6 lg:order-2">

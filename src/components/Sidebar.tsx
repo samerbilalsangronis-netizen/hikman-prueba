@@ -23,6 +23,7 @@ interface SidebarItem {
 const ITEMS: SidebarItem[] = [
   { to: '/panel-control', icon: '📊', label: 'Panel de Control' },
   { to: '/bitacora-trading', icon: '🧾', label: 'Bitácora de Trading' },
+  { to: '/cuaderno-economia', icon: '📓', label: 'Cuaderno de Economía' },
   { to: '/', icon: '🏛️', label: 'Análisis Macro Fundamental', activePaths: MACRO_PATHS },
 ];
 

@@ -41,6 +41,23 @@ hoja.
   guardando (solo las filas con hoja semanal mandan `week_board`) y el
   error de guardar la imagen apunta al script.
 
+- **Ajuste (mismo 25-oct, tras ver la vista previa):** el cuaderno ya
+  **no está en el Panel de Control** — tiene su propia página
+  `/cuaderno-economia` (`src/pages/CuadernoEconomia.tsx`, item "📓
+  Cuaderno de Economía" en `Sidebar.tsx`, título en `Layout.tsx`), "como
+  la Bitácora de Trading". Se sacó el selector de día (Lun–Dom): un
+  titular se guarda SIEMPRE con la fecha de hoy, y la marca del día
+  ("LUNES 19 OCT") aparece solo arriba del primer titular de ese día — los
+  días sin titulares no se muestran. En semanas pasadas no hay formulario
+  (son historial).
+- **Datos perdidos antes del 11-oct (se le explicó al usuario el
+  25-oct):** la Bóveda arranca en la semana 05–11 oct porque todo lo que
+  se escribió antes en el cuaderno y en el Informe Diario Nufal nunca
+  llegó a Supabase (choque con la tabla `journal_entries` de TraderMind +
+  errores de guardado silenciosos del código original). No es
+  recuperable desde Supabase; se le ofreció recargarlo como titulares si
+  tiene capturas/notas.
+
 ## ⚠️ Arrancar por acá: ramas y producción (21-oct-2026)
 
 **Lo que dicen los handoffs viejos ("producción = macro-usd") NO es lo que
