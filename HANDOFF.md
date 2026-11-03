@@ -8,6 +8,20 @@ por sesión, sin borrar nada viejo) — si solo hace falta agarrar viaje
 rápido, leer esta sección alcanza; el resto queda como referencia
 histórica por divisa/feature.
 
+## 3-nov-2026: guía general `AGENTS.md` (para Codex y cualquier agente)
+
+El usuario va a usar también **Codex** sobre este repo. Se creó
+`AGENTS.md` en la raíz (Codex lo lee automáticamente): guía general y
+ACTUAL de qué es la app, cómo funciona cada página, arquitectura, tablas,
+funciones, crons, variables de entorno, recetas, deploy y reglas críticas.
+`CLAUDE.md` solo importa `AGENTS.md` (una sola fuente para los dos
+agentes). **Este `HANDOFF.md` sigue siendo la bitácora histórica**: al
+cerrar una sesión, agregar la entrada acá arriba Y actualizar `AGENTS.md`
+si cambió algo estructural (rutas, tablas, funciones, reglas, estado de
+producción). Nota del mismo día: los titulares ya no traen Forex Factory
+(solo Finnhub + MyMemory para traducir) — algunas secciones viejas de
+abajo todavía lo mencionan.
+
 ## Sesión 25-oct-2026: Cuaderno de Economía → hoja semanal estilo Nufal
 
 Rama `claude/pensive-einstein-miiefg` (arrancó con fast-forward a

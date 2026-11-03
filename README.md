@@ -1,5 +1,8 @@
 # HIKMAN ENDÓGENO — Dashboard Macro Multi-Divisa
 
+> **Agentes (Codex, Claude Code, etc.): leer primero [`AGENTS.md`](AGENTS.md)** — guía general
+> actualizada de cómo funciona la web, la arquitectura y las reglas que no se pueden romper.
+
 Dashboard web de seguimiento macroeconómico para **9 divisas** (USD, EUR, GBP, CAD, AUD, NZD,
 JPY, CHF, CNY), construido originalmente a partir de un Excel de análisis fundamental de USD y
 extendido divisa por divisa siguiendo el mismo patrón: indicadores + score compuesto + insignia
