@@ -376,11 +376,13 @@ oscuro, y ancho de celular (~390px).
   vista previa → **Promote to Production** (NO "Redeploy", que vuelve a
   publicar lo mismo). Confirmar qué está en vivo bajando el bundle de
   `https://hikman-prueba.vercel.app` y buscando un texto del cambio.
-- Rama más reciente al 3-nov-2026: `claude/pensive-einstein-miiefg`
-  (`96c4483`, Cuaderno como página propia). `claude/macro-usd-web-dashboard-xm5ypk`
-  es la rama por defecto del repo pero está atrás (`75a83b1`). En
-  producción el 25-oct estaba `75a83b1` (el usuario estaba promoviendo
-  `96c4483`; confirmar).
+- **Rama principal: `claude/macro-usd-web-dashboard-xm5ypk`** (la rama
+  por defecto del repo, la que abre Codex). Desde el 3-nov-2026 tiene
+  TODO lo último (sincronizada con `claude/pensive-einstein-miiefg`,
+  `79423d7`). Las ramas de trabajo nuevas salen de acá, y lo terminado
+  se integra acá con merge (sin reescribir historia). En producción el
+  25-oct estaba `75a83b1`; los cambios del Cuaderno de esa fecha se
+  publican cuando el usuario promueve la vista previa (confirmar).
 - Hay muchas ramas `claude/*` viejas de sesiones anteriores: no asumir
   nada sin `git log`.
 
